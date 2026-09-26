@@ -28,6 +28,7 @@ const (
 	CodeSlowConsumer        = "slow_consumer"
 	CodeReplayCursorInvalid = "replay_cursor_invalid"
 	CodeTooLarge            = "too_large"
+	CodeUnsupported         = "unsupported"
 	CodeInternal            = "internal"
 )
 

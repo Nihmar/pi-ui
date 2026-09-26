@@ -70,6 +70,7 @@
         "session_not_ready",
         "session_exited",
         "busy_streaming",
+        "device_limit",
         "pi_rejected",
         "pi_error",
         "model_provider_error",

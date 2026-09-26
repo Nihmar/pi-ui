@@ -327,6 +327,7 @@ type WsErrorCode string
 const WsErrorCodeAlreadyAnswered WsErrorCode = "already_answered"
 const WsErrorCodeBadRequest WsErrorCode = "bad_request"
 const WsErrorCodeBusyStreaming WsErrorCode = "busy_streaming"
+const WsErrorCodeDeviceLimit WsErrorCode = "device_limit"
 const WsErrorCodeForbiddenScope WsErrorCode = "forbidden_scope"
 const WsErrorCodeInternal WsErrorCode = "internal"
 const WsErrorCodeManagedMode WsErrorCode = "managed_mode"
@@ -357,6 +358,7 @@ var enumValues_WsErrorCode = []interface{}{
 	"session_not_ready",
 	"session_exited",
 	"busy_streaming",
+	"device_limit",
 	"pi_rejected",
 	"pi_error",
 	"model_provider_error",

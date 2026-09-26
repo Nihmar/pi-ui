@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
+
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -22,6 +24,10 @@ type Options struct {
 	Hub        ws.Hub
 	Info       ServerInfo // version, piVersion, features, limits
 	Auth       Authenticator
+	// AuthService wires the device-identity endpoints (pair, refresh, devices,
+	// revoke). When Auth is nil and this is set, the router authenticates bearer
+	// tokens with it; when both are nil the router fails closed.
+	AuthService AuthService
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -77,13 +83,21 @@ type ServerInfo struct {
 // parse a text/plain body from net/http.
 func NewRouter(o Options) http.Handler {
 	a := &api{
-		supervisor: o.Supervisor,
-		hub:        o.Hub,
-		info:       o.Info,
-		auth:       o.Auth,
+		supervisor:  o.Supervisor,
+		hub:         o.Hub,
+		info:        o.Info,
+		auth:        o.Auth,
+		authService: o.AuthService,
+		pairSchema:  compilePairSchema(),
 	}
-	if a.auth == nil {
-		// A caller that forgets Auth gets an explicit 401 instead of a nil panic on the
+	switch {
+	case a.auth != nil:
+		// The caller wired an explicit authenticator (the spike's LoopbackOrToken, or a
+		// test fake).
+	case a.authService != nil:
+		a.auth = DeviceAuthenticator{Service: a.authService}
+	default:
+		// A caller that forgets both gets an explicit 401 instead of a nil panic on the
 		// first request: the server is useful only with a decision about identity.
 		a.auth = denied{}
 	}
@@ -99,6 +113,14 @@ func NewRouter(o Options) http.Handler {
 	mux.HandleFunc("GET /api/v1/sessions/{id}", a.authorized(ScopeViewer, a.getSession))
 	mux.HandleFunc("POST /api/v1/sessions/{id}/stop", a.authorized(ScopeOperator, a.stopSession))
 
+	// Device identity (docs/api-v1.md). Pairing takes no credential: the pairing
+	// code or the admin password is the credential in the body. Everything else is
+	// scoped, so a read-only device cannot list or revoke devices.
+	mux.HandleFunc("POST /api/v1/auth/pair", a.pair)
+	mux.HandleFunc("POST /api/v1/auth/refresh", a.authorized(ScopeViewer, a.refresh))
+	mux.HandleFunc("GET /api/v1/auth/devices", a.authorized(ScopeAdmin, a.listDevices))
+	mux.HandleFunc("DELETE /api/v1/auth/devices/{id}", a.authorized(ScopeAdmin, a.revokeDevice))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -106,6 +128,10 @@ func NewRouter(o Options) http.Handler {
 		"/api/v1/sessions",
 		"/api/v1/sessions/{id}",
 		"/api/v1/sessions/{id}/stop",
+		"/api/v1/auth/pair",
+		"/api/v1/auth/refresh",
+		"/api/v1/auth/devices",
+		"/api/v1/auth/devices/{id}",
 	} {
 		mux.HandleFunc(path, methodNotAllowed)
 	}
@@ -121,17 +147,19 @@ func NewRouter(o Options) http.Handler {
 // api holds the wired dependencies; every handler is a method on it, so adding an endpoint
 // is one method plus one registration above.
 type api struct {
-	supervisor sessions.Supervisor
-	hub        ws.Hub
-	info       ServerInfo
-	auth       Authenticator
+	supervisor  sessions.Supervisor
+	hub         ws.Hub
+	info        ServerInfo
+	auth        Authenticator
+	authService AuthService
+	pairSchema  *jsonschema.Schema
 }
 
 // authorized authenticates the request and enforces the required scope. The resolved scope
 // travels in the request context for handlers that want to branch on it later.
 func (a *api) authorized(required Scope, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		scope, err := a.auth.Authenticate(r)
+		scope, deviceID, err := authenticate(a.auth, r)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, codeOr(err, sessions.CodeUnauthorized), err.Error())
 			return
@@ -141,7 +169,11 @@ func (a *api) authorized(required Scope, fn http.HandlerFunc) http.HandlerFunc {
 				"this endpoint needs the "+string(required)+" scope")
 			return
 		}
-		fn(w, r.WithContext(withScope(r.Context(), scope)))
+		ctx := withScope(r.Context(), scope)
+		if deviceID != "" {
+			ctx = withDevice(ctx, deviceID)
+		}
+		fn(w, r.WithContext(ctx))
 	}
 }
 

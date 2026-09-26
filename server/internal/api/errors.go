@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Nihmar/pi-ui/server/internal/auth"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 )
 
@@ -64,7 +65,7 @@ func statusFor(code string) int {
 		return http.StatusForbidden
 	case "not_found", "session_not_found":
 		return http.StatusNotFound
-	case "session_limit", "busy_streaming", "already_answered", "session_not_ready", "session_exited", "managed_mode":
+	case "session_limit", "device_limit", "busy_streaming", "already_answered", "session_not_ready", "session_exited", "managed_mode":
 		return http.StatusConflict
 	case "too_large":
 		return http.StatusRequestEntityTooLarge
@@ -113,6 +114,16 @@ func errorCodeOf(err error) string {
 		return sessions.CodeBadRequest
 	case errors.Is(err, sessions.ErrStart), errors.Is(err, sessions.ErrNotRunning):
 		return sessions.CodePiError
+	case errors.Is(err, auth.ErrUnauthorized), errors.Is(err, auth.ErrNoPassword):
+		return sessions.CodeUnauthorized
+	case errors.Is(err, auth.ErrRateLimited):
+		return "rate_limited"
+	case errors.Is(err, auth.ErrDeviceLimit):
+		return "device_limit"
+	case errors.Is(err, auth.ErrNotFound):
+		return sessions.CodeNotFound
+	case errors.Is(err, auth.ErrWeakPassword):
+		return sessions.CodeBadRequest
 	default:
 		return ""
 	}

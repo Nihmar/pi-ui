@@ -90,6 +90,7 @@ type ErrorCode string
 const ErrorCodeAlreadyAnswered ErrorCode = "already_answered"
 const ErrorCodeBadRequest ErrorCode = "bad_request"
 const ErrorCodeBusyStreaming ErrorCode = "busy_streaming"
+const ErrorCodeDeviceLimit ErrorCode = "device_limit"
 const ErrorCodeForbiddenScope ErrorCode = "forbidden_scope"
 const ErrorCodeInternal ErrorCode = "internal"
 const ErrorCodeManagedMode ErrorCode = "managed_mode"
@@ -120,6 +121,7 @@ var enumValues_ErrorCode = []interface{}{
 	"session_not_ready",
 	"session_exited",
 	"busy_streaming",
+	"device_limit",
 	"pi_rejected",
 	"pi_error",
 	"model_provider_error",

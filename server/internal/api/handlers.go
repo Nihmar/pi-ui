@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -109,13 +110,29 @@ func (a *api) stopSession(w http.ResponseWriter, r *http.Request) {
 // which the router answers 413: the caller can retry with less data, while a shape error
 // is a permanent bad_request.
 func decodeBody(r *http.Request, target any) error {
-	body := http.MaxBytesReader(nil, r.Body, maxBodyBytes)
-	if err := json.NewDecoder(body).Decode(target); err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			return sessions.Codedf(sessions.CodeTooLarge, "the request body exceeds %d bytes", tooLarge.Limit)
-		}
+	raw, err := readBody(r)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, target); err != nil {
 		return fmt.Errorf("the request body is not a JSON object: %v", err)
 	}
 	return nil
+}
+
+// readBody reads a bounded request body into memory, so a handler that must validate the
+// raw payload before decoding it (the auth surface validates against schemas/server.json)
+// can do both without reading the body twice. The error carries too_large for a body above
+// the cap, which the router answers 413.
+func readBody(r *http.Request) ([]byte, error) {
+	body := http.MaxBytesReader(nil, r.Body, maxBodyBytes)
+	raw, err := io.ReadAll(body)
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return nil, sessions.Codedf(sessions.CodeTooLarge, "the request body exceeds %d bytes", tooLarge.Limit)
+		}
+		return nil, fmt.Errorf("the request body could not be read: %v", err)
+	}
+	return raw, nil
 }

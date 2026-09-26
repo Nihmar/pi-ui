@@ -130,6 +130,7 @@ see.
 |---|---|---|
 | `unauthorized` | 401 | missing/unknown/expired/revoked token, bad or consumed pairing code, wrong password |
 | `forbidden_scope` | 403 | the device's scope does not cover the endpoint |
+| `device_limit` | 409 | the maximum of paired devices is reached; revoke one first |
 | `rate_limited` | 429 | pairing or command rate limit, with `Retry-After` |
 | `bad_request` | 400 | body not readable or missing a required field |
 | `too_large` | 413 | body above the 1 MiB cap |
@@ -152,7 +153,9 @@ by the deployment's liveness probe. Never leaks cwd, names or versions.
 
 ### `GET /server`
 
-Scope `viewer` (or none before pairing, for the origin check). Returns
-`SrvServerIdentity`: version, `piVersion`, protocol, `features[]`, `limits{}`
-and `tls` when the server terminates TLS. The app uses it to negotiate
-capabilities and to confirm a certificate fingerprint (TOFU/pin).
+Scope `viewer`. A loopback peer without a token is a viewer in every
+configuration, so the admin's own machine can check the server before it has
+paired; a remote client pairs first. Returns `SrvServerIdentity`: version,
+`piVersion`, protocol, `features[]`, `limits{}` and `tls` when the server
+terminates TLS. The app uses it to negotiate capabilities and to confirm a
+certificate fingerprint (TOFU/pin).
