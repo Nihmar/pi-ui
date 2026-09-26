@@ -99,6 +99,18 @@ class PiUiClient {
     return result;
   });
 
+  /// GET /settings — the server's own policy, as the effective values.
+  ///
+  /// It is a read for any device (`viewer`): the app follows the theme the deployment
+  /// chose, and only an admin changes it.
+  Future<Map<String, dynamic>> settings() => guarded(() async {
+    final response = await _dio.get<dynamic>('/settings');
+    return decoded(
+      response,
+      (body) => asMap(body['values']) ?? const <String, dynamic>{},
+    );
+  });
+
   /// GET /auth/devices — the paired devices (admin scope).
   Future<List<DeviceInfo>> devices() => guarded(() async {
     final response = await _dio.get<dynamic>('/auth/devices');

@@ -101,6 +101,8 @@ func TestBadValuesAreRefused(t *testing.T) {
 		{KeyIdleTimeout, `"soon"`},
 		{KeyAuditRetentionDays, `-1`},
 		{"nope.key", `true`},
+		{KeyUITheme, `"blue"`},
+		{KeyUILanguage, `"de"`},
 	}
 	for _, testCase := range cases {
 		_, err := service.Set(testCase.key, json.RawMessage(testCase.value), "d_1")
@@ -110,6 +112,27 @@ func TestBadValuesAreRefused(t *testing.T) {
 		if code := sessions.CodeOf(err); code != sessions.CodeBadRequest {
 			t.Fatalf("%s=%s: code %q", testCase.key, testCase.value, code)
 		}
+	}
+}
+
+func TestEnumKeysTakeTheirListedValues(t *testing.T) {
+	service, _ := newService(t)
+
+	value, err := service.Set(KeyUITheme, json.RawMessage(`"dark"`), "d_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(value) != `"dark"` {
+		t.Fatalf("value = %s", value)
+	}
+	if got := service.String(context.Background(), KeyUITheme); got != "dark" {
+		t.Fatalf("theme = %q", got)
+	}
+	if _, err := service.Set(KeyUITheme, json.RawMessage(`"DARK"`), "d_1"); err == nil {
+		t.Fatal("an enum is matched exactly")
+	}
+	if _, err := service.Set(KeyUILanguage, json.RawMessage(`"it"`), "d_1"); err != nil {
+		t.Fatalf("a listed language must be accepted: %v", err)
 	}
 }
 

@@ -17,12 +17,15 @@ class PiuiApp extends ConsumerWidget {
     ref
       ..watch(foregroundProvider)
       ..watch(sessionWatcherProvider);
+    // The theme is the deployment's choice (`ui.theme`), not a per-device setting: a
+    // server meant to look a certain way says so once.
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'pi-ui',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

@@ -39,19 +39,26 @@ const (
 	KeyWrapUpPrompt = "session.wrapUpPrompt"
 	// KeyAuditRetentionDays is how long the audit trail is kept.
 	KeyAuditRetentionDays = "audit.retentionDays"
+	// KeyUITheme is the theme every client of this server shows. It is the server's
+	// answer to "which theme", not a per-device preference: a deployment that is
+	// meant to look a certain way says so once.
+	KeyUITheme = "ui.theme"
+	// KeyUILanguage is the language clients should speak.
+	KeyUILanguage = "ui.language"
 )
 
 // Kind is the JSON type a key accepts.
 type Kind string
 
-// The three kinds a setting can have. A duration is a string with a unit
-// ("1h", "30s") and an integer is a count, which is what keeps a value readable in
-// the settings file and in a `PATCH` body.
+// The kinds a setting can have. A duration is a string with a unit ("1h", "30s"), an
+// integer is a count and an enum is a string from a fixed list, which is what keeps a
+// value readable in the settings file and in a `PATCH` body.
 const (
 	KindBool     Kind = "bool"
 	KindInt      Kind = "int"
 	KindDuration Kind = "duration"
 	KindString   Kind = "string"
+	KindEnum     Kind = "enum"
 )
 
 // Definition is one known key: its type, its default and what it does.
@@ -67,6 +74,8 @@ type Definition struct {
 	// Min and Max bound an integer (0 means unbounded).
 	Min int
 	Max int
+	// Allowed lists the accepted values of an enum.
+	Allowed []string
 }
 
 // Keys is the whole catalogue, in the order a settings screen lists it.
@@ -104,6 +113,20 @@ var Keys = []Definition{
 		Description: "How many days of audit trail the server keeps.",
 		Min:         1,
 		Max:         3650,
+	},
+	{
+		Key:         KeyUITheme,
+		Kind:        KindEnum,
+		Default:     json.RawMessage(`"system"`),
+		Allowed:     []string{"system", "dark", "light"},
+		Description: "Theme every client shows: \"system\" follows the operating system.",
+	},
+	{
+		Key:         KeyUILanguage,
+		Kind:        KindEnum,
+		Default:     json.RawMessage(`"en"`),
+		Allowed:     []string{"en", "it"},
+		Description: "Language clients should use for their own text.",
 	},
 }
 
@@ -420,6 +443,24 @@ func validate(definition Definition, raw json.RawMessage) (json.RawMessage, erro
 			return nil, sessions.Codedf(sessions.CodeBadRequest, "%s is not encodable", definition.Key)
 		}
 		return encoded, nil
+	case KindEnum:
+		var value string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return nil, sessions.Codedf(sessions.CodeBadRequest,
+				"%s is one of %s", definition.Key, strings.Join(definition.Allowed, ", "))
+		}
+		trimmed := strings.TrimSpace(value)
+		for _, allowed := range definition.Allowed {
+			if trimmed == allowed {
+				encoded, err := json.Marshal(trimmed)
+				if err != nil {
+					return nil, sessions.Codedf(sessions.CodeBadRequest, "%s is not encodable", definition.Key)
+				}
+				return encoded, nil
+			}
+		}
+		return nil, sessions.Codedf(sessions.CodeBadRequest,
+			"%s is one of %s", definition.Key, strings.Join(definition.Allowed, ", "))
 	case KindString:
 		var value string
 		if err := json.Unmarshal(raw, &value); err != nil {

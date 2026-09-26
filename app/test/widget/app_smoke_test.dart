@@ -34,6 +34,7 @@ Future<void> pumpApp(
         ),
         socketProvider.overrideWithValue(null),
         sessionsProvider.overrideWith((ref) => Stream.value(sessions)),
+        serverSettingsProvider.overrideWith((ref) async => const {}),
       ],
       child: const PiuiApp(),
     ),
@@ -64,5 +65,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsWidgets);
+  });
+
+  testWidgets('the server decides the theme', (tester) async {
+    tester.view.physicalSize = const Size(420, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          profileStoreProvider.overrideWithValue(
+            MemoryProfileStore(profile: pairedProfile()),
+          ),
+          socketProvider.overrideWithValue(null),
+          sessionsProvider.overrideWith(
+            (ref) => Stream.value(const <SessionModel>[]),
+          ),
+          serverSettingsProvider.overrideWith(
+            (ref) async => const {'ui.theme': 'dark'},
+          ),
+        ],
+        child: const PiuiApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+    expect(app.darkTheme, isNotNull);
   });
 }

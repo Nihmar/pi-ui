@@ -333,6 +333,8 @@ Keys:
 | `session.idleTimeout` | duration string | `"1h"` | wraps up an idle session; `"0"` disables the watchdog |
 | `session.wrapUpPrompt` | string | `""` | what an idle session is asked before it stops |
 | `audit.retentionDays` | int 1–3650 | `30` | how long the audit trail is kept |
+| `ui.theme` | enum `system\|dark\|light` | `system` | theme every client shows; the app follows it, and an unknown value follows the system |
+| `ui.language` | enum `en\|it` | `en` | language clients use for their own text |
 
 A value is validated before it is written (type, range, duration syntax) and a
 `PATCH` carrying one invalid entry changes nothing at all. A server started with

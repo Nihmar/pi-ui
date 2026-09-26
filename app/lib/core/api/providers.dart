@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/chat_entry.dart';
 import '../models/session.dart';
 import '../notify.dart';
 import 'client.dart';
+import 'errors.dart';
 import 'dto.dart';
 import 'frames.dart';
 import 'profile.dart';
@@ -253,6 +255,39 @@ final sessionActionsProvider = Provider<SessionActions?>((ref) {
   }
   return SessionActions(socket: socket, client: client);
 });
+
+/// The server's policy as the app reads it: today the theme, and the language a
+/// settings screen will follow.
+///
+/// A failed read is not an error the app shows: it keeps its defaults, because a server
+/// that cannot answer must not change how the app looks.
+final serverSettingsProvider = FutureProvider<Map<String, dynamic>>((
+  ref,
+) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    return const <String, dynamic>{};
+  }
+  try {
+    return await client.settings();
+  } on PiuiException {
+    return const <String, dynamic>{};
+  }
+});
+
+/// The theme every client of this server shows, from `ui.theme`.
+final themeModeProvider = Provider<ThemeMode>((ref) {
+  final settings = ref.watch(serverSettingsProvider).value;
+  return themeModeFrom(settings?['ui.theme']);
+});
+
+/// Maps the `ui.theme` value onto a [ThemeMode]: an unknown value follows the system,
+/// which is the safe answer for a client that does not understand the server's choice.
+ThemeMode themeModeFrom(Object? value) => switch (value) {
+  'dark' => ThemeMode.dark,
+  'light' => ThemeMode.light,
+  _ => ThemeMode.system,
+};
 
 /// The connection state the banner renders.
 final connectionProvider = StreamProvider<SocketStatus>((ref) {
