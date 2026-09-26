@@ -189,6 +189,11 @@ func NewRouter(o Options) http.Handler {
 	mux.HandleFunc("POST /api/v1/tasks", a.authorized(ScopeOperator, a.startTask))
 	mux.HandleFunc("POST /api/v1/tasks/{id}/stop", a.authorized(ScopeOperator, a.stopTask))
 
+	// The drain switch: an operator-facing pause of the front door, not of the
+	// children. Admin, because it is an operational decision about the whole server.
+	mux.HandleFunc("POST /api/v1/drain/start", a.authorized(ScopeAdmin, a.startDrain))
+	mux.HandleFunc("POST /api/v1/drain/resume", a.authorized(ScopeAdmin, a.resumeDrain))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -230,6 +235,7 @@ type api struct {
 	settings         *settings.Service
 	tasks            *tasks.Service
 	pairSchema       *jsonschema.Schema
+	drain            drainState
 }
 
 // authorized authenticates the request and enforces the required scope. The resolved scope

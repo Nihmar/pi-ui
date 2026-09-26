@@ -75,6 +75,10 @@ func statusFor(code string) int {
 		return http.StatusTooManyRequests
 	case "unsupported":
 		return http.StatusNotImplemented
+	case "unavailable":
+		// The request is well formed and the caller is allowed; the server is not
+		// taking new work right now, which is exactly what 503 means.
+		return http.StatusServiceUnavailable
 	case "pi_error", "model_provider_error":
 		return http.StatusBadGateway
 	case "timeout":

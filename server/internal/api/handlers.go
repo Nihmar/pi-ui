@@ -25,6 +25,18 @@ func (a *api) health(w http.ResponseWriter, _ *http.Request) {
 func (a *api) server(w http.ResponseWriter, _ *http.Request) {
 	info := a.info
 	info.Protocol = Protocol
+	if draining, message := a.drain.drainingNow(); draining {
+		// A client that wonders why a create came back 503 reads it here. The map is
+		// copied first: mutating the one the caller passed would make one request's
+		// answer depend on another's.
+		limits := make(map[string]any, len(info.Limits)+2)
+		for key, value := range info.Limits {
+			limits[key] = value
+		}
+		limits["draining"] = true
+		limits["drainingSince"] = message
+		info.Limits = limits
+	}
 	if info.Features == nil {
 		info.Features = []string{}
 	}
@@ -60,6 +72,10 @@ func (a *api) createSession(w http.ResponseWriter, r *http.Request) {
 	if err := decodeBody(r, &body); err != nil {
 		code := codeOr(err, sessions.CodeBadRequest)
 		writeError(w, statusFor(code), code, err.Error())
+		return
+	}
+	if err := a.drainRefusal(); err != nil {
+		writeError(w, http.StatusServiceUnavailable, sessions.CodeUnavailable, err.Error())
 		return
 	}
 	if strings.TrimSpace(body.CWD) == "" {

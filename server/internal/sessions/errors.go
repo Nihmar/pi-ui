@@ -33,7 +33,10 @@ const (
 	// CodeFeatureDisabled is the server's own policy: an administrative setting turned
 	// the capability off, which is not the caller's scope refusing it.
 	CodeFeatureDisabled = "feature_disabled"
-	CodeInternal        = "internal"
+	// CodeUnavailable is a server that refuses for an operational reason: it is
+	// draining, or it is shutting down.
+	CodeUnavailable = "unavailable"
+	CodeInternal    = "internal"
 )
 
 // CodedError is an error that carries its taxonomy code and a message that is safe to

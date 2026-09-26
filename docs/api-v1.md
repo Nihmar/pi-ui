@@ -151,6 +151,7 @@ see.
 | `rate_limited` | 429 | pairing or command rate limit, with `Retry-After` |
 | `feature_disabled` | 403 | an administrative setting turned the capability off (`git.write`) |
 | `path_escape` | 403 | a path or directory outside every workspace |
+| `unavailable` | 503 | the server is draining (or shutting down): it takes no new session |
 | `bad_request` | 400 | body not readable or missing a required field |
 | `too_large` | 413 | body above the 1 MiB cap |
 
@@ -354,3 +355,19 @@ truncated, owner?}`. `status` is `running`, `exited`, `failed` (a non-zero exit)
 reads. `command` and `args` are kept apart and executed directly, never through a
 shell. The concurrency limit is 4 and a stopped task frees its slot; a change publishes
 `server.tasks.changed` on the WebSocket.
+
+## Drain
+
+An operational pause of the front door, not of the children: an admin stops the server
+taking **new** sessions while everything already running stays running. It is what makes
+a `systemctl restart` (or a deploy) a staged operation instead of a killing spree.
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| POST | `/api/v1/drain/start` | admin | `{draining:true, running:<n>}` — `POST /sessions` answers `503 unavailable` until it is resumed |
+| POST | `/api/v1/drain/resume` | admin | `{draining:false}` |
+
+`GET /api/v1/server` reports the state in `limits` (`draining`, `drainingSince`) so a
+client can explain a refused create instead of showing a bare error. Both operations are
+audited as `drain.start` / `drain.resume` with the number of sessions running at the
+time; a drain never stops or evicts a session.
