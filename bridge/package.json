@@ -1,0 +1,15 @@
+{
+  "name": "pi-ui-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "pi-ui bridge extension: extension UI notify/confirm subprotocol for pi --mode rpc children",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.87.1",
+    "@types/node": "22.19.19",
+    "typescript": "5.9.3"
+  }
+}
