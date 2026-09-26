@@ -10,6 +10,9 @@ measurement runner — a timing measurement was in flight on the same host and l
 corrupted it — so every finding below comes from reading the code against the frozen
 contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and the schemas.
 **Fixed in this pass** means the fix is in history with a test that fails without it.
+**Status of this revision:** every finding below is closed — fixed with its commit and
+pinning test, documented where the behaviour is deliberate, or accepted where only history
+could change it. No row is left `Open`.
 
 ## 1. Blockers, both fixed
 
@@ -43,7 +46,7 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | W6 | nit | A binary first frame is fatal in the handshake (close 4401) but ignored after it. | Fixed `b33afbc`: the handshake skips binary frames exactly like the read loop, pinned by `TestHandshakeSkipsBinaryFrames` |
 | W7 | nit | The `frame.V != protocolVersion` branch is dead (the schema already pins `v: 1`) and its message misleads for a well-formed `v:2`. | Fixed `b33afbc`: the dead branch is gone and a well-formed foreign hello reports its version, pinned by `TestHandshakeRejectsUnsupportedVersion` |
 | W8 | nit | A handler result that is not valid JSON makes `marshalResponse` fail and the terminal `response` frame is dropped, so the client waits forever for that id. | Fixed `e0fba9f`: the command path answers `internal` instead, pinned by `TestCommandWithUnencodableDataStillAnswers` |
-| W9 | nit | `sameAuthority` accepts a portless `Origin` against any port (the Host check does compare ports). | Open |
+| W9 | nit | `sameAuthority` accepts a portless `Origin` against any port (the Host check does compare ports). | Fixed `7a01a5b`: a missing port matches only a missing port, pinned by the portless-Origin case of `TestHandshakeOriginRules`; `docs/ws-protocol.md` says so |
 | W10 | nit | `server.heartbeat.sessions` counts sessions with a subscriber, not live sessions. | Documented in `docs/ws-protocol.md` (the hub counts its fan-out, not session lifetimes) |
 | W11 | nit | `server.replay.begin`/`end` carry a higher `seq` than the replayed events they wrap, so a client that advances its cursor on every frame sees a backwards stream. | Documented in `docs/ws-protocol.md`: meta frames are not cursors |
 | W12 | observation | Close codes `4403`, `4409`, `4426` are specified in §5.2/§6 but appear nowhere in the repository; only `4401` is implemented. | Scoped: those codes belong to the plan's protocol (in the local, unversioned `PLAN.md`), while the versioned contract reserves 4401 only; `docs/ws-protocol.md` now says so instead of inventing the codes early |
@@ -57,11 +60,11 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | S3 | should-fix | An unparseable child line is carried as a Go `string`, and `json.Marshal` replaces invalid UTF-8 bytes with U+FFFD: the "the client recovers the child's bytes exactly" claim holds only for valid UTF-8. | Fixed `14af92d`: the payload also carries `rawBase64` when the line is not valid UTF-8, pinned by `TestRecordPayloadKeepsTheBytesOfAnUnparseableLine` |
 | S4 | should-fix | An oversized REST body answers `bad_request` (400): `MaxBytesReader`'s error is wrapped with `%v`, so the declared `too_large` → 413 mapping is dead code. | Fixed `86cba37`, pinned by `TestCreateSessionOversizedBodyIsTooLarge` and the adversarial oversized-body case (413 `too_large`); observation 6.4 of `docs/verification-report.md` is marked superseded |
 | S5 | should-fix | `busy_streaming` is defined, mapped and advertised, but `responseData` maps every `success:false` to `pi_rejected`, so the code is unreachable. | Fixed `86cba37`, pinned by `TestResponseDataMapsPiRejections`: pi's 0.87.1 mid-turn rejection text maps to `busy_streaming`, every other rejection stays `pi_rejected` |
-| S6 | nit | `stop` ignores its `context.Context`. | Open |
+| S6 | nit | `stop` ignores its `context.Context`. | Fixed `9301634`: `awaitTerminal` selects on the context and `Shutdown` detaches only the cancellation it survives, pinned by `TestStopHonoursItsContext` |
 | S7 | nit | `stopSession`'s 202 comment still says the child is exiting when the response is written, while `Stop` now blocks until the terminal status is written. | Fixed `86cba37` (the comment now states that the 202 carries the state the session is in when Stop returns) |
 | S8 | nit | CLI usage errors exit 1 while `doc.go` documents `ExitUsage = 2` for a wrong command line. | Fixed in this commit: `UsageError`/`Usage`/`Usagef` mark command-line failures and `Run` maps them to `ExitUsage`, pinned by the `Run` and `Serve` usage-error tests |
 | S9 | nit | The dialog fallback branches publish `Payload: raw` directly instead of going through `recordPayload`. | Fixed `4eff62d`: every dialog payload goes through `recordPayload` |
-| S10 | nit | `Stop` in the window between the registry insert and `s.attach(bridge)` is discarded and the session ends up ready. | Open |
+| S10 | nit | `Stop` in the window between the registry insert and `s.attach(bridge)` is discarded and the session ends up ready. | Fixed `9301634`: `Start` honours a pending stop before and after the spawn (forgetting the session when no child exists, closing it otherwise), pinned by `TestSpawnGuardsAgainstAStopItRaced` |
 | S11 | nit | `Info.ExitCode` hands out the session's own pointer. | Fixed `6135465`, pinned by `TestInfoDoesNotAliasTheExitCode` |
 
 ## 5. Repository, tests, CI and bridge
@@ -76,15 +79,15 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | C6 | nit | `README.md` linked `docs/spike-report.md` and `docs/adr/0007-go-spike-decision.md` before they existed. | Fixed `bd62918` |
 | C7 | nit | `bridge/pi-ui-bridge.ts` let one `any` escape strict mode through `Array.isArray`. | Fixed with an explicit `isStringArray` type guard (`npx tsc --noEmit` clean) |
 | C8 | nit | `server/deps.go` claimed the pinned runtime dependencies "arrive in their own commits" after they had arrived. | Fixed |
-| C9 | nit | Commit `a5b393b` ends with a `Generated with …` line, which `AGENTS.md` forbids verbatim. | Open — history is not rewritten |
-| C10 | nit | `server/test/fixtures/*.jsonl` embed host paths (`/home/alessandro/...`) and a loopback endpoint. | Open |
-| C11 | nit | Fixtures are checked for shape only; no fixture is replayed through the pipeline or validated against `schemas/pi.json`. | Open |
+| C9 | nit | Commit `a5b393b` ends with a `Generated with …` line, which `AGENTS.md` forbids verbatim. | Accepted — the author cannot be edited out of history without rewriting it, which `AGENTS.md` forbids too; the rule has been honoured in every commit since
+| C10 | nit | `server/test/fixtures/*.jsonl` embed host paths (`/home/alessandro/...`) and a loopback endpoint. | Fixed `ec369f4`: the capture script sanitizes (`<home>`, `<port>`) and the fixtures are sanitized, pinned by `TestFixturesDoNotEmbedTheCaptureHost` |
+| C11 | nit | Fixtures are checked for shape only; no fixture is replayed through the pipeline or validated against `schemas/pi.json`. | Fixed `ec369f4`: every record is validated against the matching `schemas/pi.json` definition, by `fixtureSchemas` inside `TestFixturesAreWellFormed` (the pipeline-replay half stays out: the fixtures are stdout captures, and the pipeline is covered by the adversarial and e2e suites) |
 | C12 | nit | Outbound event `type` is never validated against `schemas/ws.json`'s pattern (deliberate lenient pass-through, but the schema reads as if it were the gate). | Documented in `docs/ws-protocol.md`: the pattern documents the namespaces, the hub publishes what it does not recognise |
-| C13 | nit | Timing/pressure-dependent assertions: `test/adversarial/lifecycle_test.go` arms `--crash-after`/`--exit-after` on wall-clock budgets, and `internal/ws/TestSlowConsumerIsDisconnected` depends on socket-buffer pressure — it failed once under a full-suite `-race` run in this session and passed 3/3 in isolation. | Open |
-| C14 | nit | A `--fake-pi` run also prints a `throughput:` line for the idle-RSS measurements (a 1-event smoke pass), and `rssGrowthPct` reads `0.00` when the sampler produced no samples rather than "n/a". | Open — documented in `docs/spike-report.md` §1 so the C2/C3 rows cannot be misread |
-| C15 | nit | `spike.machineSnapshot` has no callers; `writeRaw`'s comment claims raw samples "never half-land" while `os.WriteFile` truncates first. | Open |
-| C16 | nit | `pi-ui measure --out <dir>` has no gitignore guard of its own (only the shell runner refuses a non-ignored directory). | Open |
-| C17 | nit | `test/e2e` requires the binary's very first stdout line to be the `listening …` line. | Open |
+| C13 | nit | Timing/pressure-dependent assertions: `test/adversarial/lifecycle_test.go` arms `--crash-after`/`--exit-after` on wall-clock budgets, and `internal/ws/TestSlowConsumerIsDisconnected` depends on socket-buffer pressure — it failed once under a full-suite `-race` run in this session and passed 3/3 in isolation. | Fixed `8280274`: fake-pi exits on a scripted `exitCode` after the answer, so the lifecycle test triggers the fault by command; the slow-consumer test drives the overflow from the connection's own failed state and the decision itself is pinned without a socket (`TestEnqueueOverflowQueuesTheSlowConsumerFrame`) |
+| C14 | nit | A `--fake-pi` run also prints a `throughput:` line for the idle-RSS measurements (a 1-event smoke pass), and `rssGrowthPct` reads `0.00` when the sampler produced no samples rather than "n/a". | Fixed `e7e76a8` (summary prints `n/a`, the raw view omits the field, a smoke run is marked) and `6d9c0b6` (the CLI does not print a smoke throughput line), pinned by `TestThroughputSummaryReportsUnmeasuredGrowth` |
+| C15 | nit | `spike.machineSnapshot` has no callers; `writeRaw`'s comment claims raw samples "never half-land" while `os.WriteFile` truncates first. | Fixed `e7e76a8`: the helper is gone and `writeRaw` writes a temporary file and renames it, so the claim holds |
+| C16 | nit | `pi-ui measure --out <dir>` has no gitignore guard of its own (only the shell runner refuses a non-ignored directory). | Fixed `6d9c0b6`: the CLI mirrors the runner's guard inside a git work tree and skips it elsewhere, pinned by `TestRawOutputDirMustBeGitignored` |
+| C17 | nit | `test/e2e` requires the binary's very first stdout line to be the `listening …` line. | Fixed `f181e85`: the harness scans for the line, bounds the scan and drains stdout afterwards |
 | C18 | observation | `ThroughputResult`'s latency percentiles come from the first client only, which matters as soon as a run uses more than one subscriber. | Documented (`RawLatencyMs`), unchanged |
 
 ## 6. What the review confirmed as clean
