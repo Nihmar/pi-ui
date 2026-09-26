@@ -154,19 +154,28 @@ func (b *bridge) shutdown() error {
 	}
 	b.logf("rpc: child %d ignored SIGTERM; killing its process group", b.PID())
 	b.kill(proc)
+	// The reader goroutine is the usual reaper, but it is parked whenever the consumer
+	// stopped draining Records: wait for the kill to land and reap here, so a child we
+	// just killed can never stay a zombie until the server exits.
+	if b.waitForExit(termGrace) {
+		return nil
+	}
+	b.logf("rpc: child %d was killed but has not exited yet; the reader goroutine owns its reap", b.PID())
 	return nil
 }
 
 // waitForExit reports whether the child was reaped within grace. When a consumer stopped
-// draining Records(), the reader goroutine is parked and cannot reap; a child that is
-// already gone is then reaped here, because a killed child must never stay a zombie.
+// draining Records(), the reader goroutine is parked and cannot reap; a child that already
+// exited is then reaped here, because a killed child must never stay a zombie. "Already
+// exited" is processGone, not "signal 0 was refused": an unreaped child is a zombie and
+// still accepts signal 0, which is exactly the case this fallback exists for.
 func (b *bridge) waitForExit(grace time.Duration) bool {
 	select {
 	case <-b.procDone:
 		return true
 	case <-time.After(grace):
 	}
-	if b.childAlive() {
+	if !processGone(b.PID()) {
 		return false
 	}
 	b.reap()

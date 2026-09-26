@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -84,8 +83,11 @@ type Bridge interface {
 }
 
 // waiterResult is what a waiting Send receives: the response record, or the reason it will
-// never arrive.
+// never arrive. id names the command the result belongs to, because a response can land in
+// the one-slot channel after its sender stopped waiting (it timed out, or the child died):
+// without the id the next Send would take that answer for its own.
 type waiterResult struct {
+	id  string
 	raw json.RawMessage
 	err error
 }
@@ -200,7 +202,7 @@ func (b *bridge) answer(record Record) {
 		return
 	}
 	select {
-	case b.response <- waiterResult{raw: record.Raw}:
+	case b.response <- waiterResult{id: record.ID, raw: record.Raw}:
 	default:
 	}
 }
@@ -208,14 +210,14 @@ func (b *bridge) answer(record Record) {
 // releaseWaiters unblocks a sender that is still waiting when the child is gone.
 func (b *bridge) releaseWaiters() {
 	b.mu.Lock()
-	waiting := b.pending != ""
+	pending := b.pending
 	b.pending = ""
 	b.mu.Unlock()
-	if !waiting {
+	if pending == "" {
 		return
 	}
 	select {
-	case b.response <- waiterResult{err: b.closedError()}:
+	case b.response <- waiterResult{id: pending, err: b.closedError()}:
 	default:
 	}
 }
@@ -245,11 +247,22 @@ func (b *bridge) Send(ctx context.Context, id string, command json.RawMessage) (
 	waitCtx, cancel := deadlineContext(ctx, b.opts.SendTimeout)
 	defer cancel()
 
-	select {
-	case result := <-b.response:
-		return result.raw, result.err
-	case <-waitCtx.Done():
-		return nil, timeoutError(ctx, subject)
+	for {
+		select {
+		case result := <-b.response:
+			if result.id != id {
+				// A late answer to a command whose sender already gave up: the response
+				// landed after that sender's timeout or after the child died. Dropping it
+				// is the whole point — returning it would hand this command the previous
+				// command's payload. At most one such result can be buffered, so this loop
+				// cannot spin.
+				b.logf("rpc: dropping a response for id %q while waiting for %q", result.id, id)
+				continue
+			}
+			return result.raw, result.err
+		case <-waitCtx.Done():
+			return nil, timeoutError(ctx, subject)
+		}
 	}
 }
 
@@ -480,13 +493,6 @@ func (b *bridge) process() *os.Process {
 		return nil
 	}
 	return b.cmd.Process
-}
-
-// childAlive reports whether the child still exists; an unreaped child counts as existing.
-// Only Close uses it, to reap a child whose reader goroutine is parked.
-func (b *bridge) childAlive() bool {
-	process := b.process()
-	return process != nil && process.Signal(syscall.Signal(0)) == nil
 }
 
 // contextError reports a context that was cancelled before a call started.

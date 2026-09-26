@@ -166,8 +166,15 @@ func TestCloseIsIdempotent(t *testing.T) {
 
 // TestCloseLeavesNoZombieWhenConsumerStops proves Close still reaps when the reader
 // goroutine is parked on a consumer that stopped draining Records.
+//
+// Two startup records with a one-slot buffer are what put the reader on the channel send:
+// with a single record the slot absorbs it and the reader waits on the pipe instead, so it
+// would see stdout EOF, reap the child itself and the fallback would never be exercised.
 func TestCloseLeavesNoZombieWhenConsumerStops(t *testing.T) {
-	script := fakeharness.Script{Startup: []fakeharness.Step{{Record: json.RawMessage(`{"type":"agent_settled"}`)}}}
+	script := fakeharness.Script{Startup: []fakeharness.Step{
+		{Record: json.RawMessage(`{"type":"agent_settled"}`)},
+		{Record: json.RawMessage(`{"type":"agent_settled"}`)},
+	}}
 	bridge := startBridge(t, Options{RecordBuffer: 1, KillGrace: 200 * time.Millisecond},
 		fakePi(t, script, "--ignore-stdin"), nil)
 	pid := bridge.PID()

@@ -3,6 +3,7 @@
 package rpc
 
 import (
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -20,4 +21,18 @@ func applyDeathSignal(*exec.Cmd) {}
 // or a process-group API.
 func killGroup(int, syscall.Signal) error {
 	return errNoGroupSignal
+}
+
+// processGone reports whether the process is gone. Without /proc there is no zombie state
+// to read, so this is the portable approximation Close used before: a process that refuses
+// signal 0 is gone, and an unreaped child counts as existing until Wait reaps it.
+func processGone(pid int) bool {
+	if pid <= 0 {
+		return true
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return true
+	}
+	return process.Signal(syscall.Signal(0)) != nil
 }
