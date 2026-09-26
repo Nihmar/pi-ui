@@ -5,6 +5,9 @@
 **Status of the tree at verification time:** commits `65bb85a`, `30a53d1`, `7687506`,
 `e3f28c9` (this workstream) plus the packages as of `e83bf13`.
 
+**Re-verified after the finding fixes:** commits `ac88717`, `fc1e03b`, `9c8d604`
+(sessions) at report baseline `a0c64e0`; §6.7 records the outcome.
+
 This report records what was attacked, what the pipeline did, and what remains
 unverified. It is deliberately narrow: every claim below is backed by a test in
 `server/test/adversarial/` that drives the real code paths — a real HTTP listener,
@@ -62,7 +65,7 @@ interesting cases through child → rpc → sessions → hub → WebSocket.
 | Record split across two writes (separate reads) | Pass — reassembled exactly once |
 | 8 MiB record | Pass — byte-exact through the bridge and through the hub to the client (`TestFraming_LargeRecordSurvivesSplitReads`, `TestPipeline_BigRecordReachesAClient`) |
 | Record without a terminator at EOF | Pass — delivered once |
-| Invalid JSON on stdout | Pass at the rpc layer: delivered byte-for-byte as `Record{Type:""}`; see §6.2 for the WS-leg deviation |
+| Invalid JSON on stdout | Pass at the rpc layer: delivered byte-for-byte as `Record{Type:""}`; §6.2 records how the line now survives the WS leg as `pi.unknown{"raw":…}` |
 | stderr never mixed into the record stream | Pass — 51 diagnostic lines interleaved with 50 records, none present in any record (`TestFraming_StderrStaysOutOfTheRecordStream`) |
 | Unknown event type from the child | Pass — forwarded verbatim as `pi.<type>` (`TestPipeline_UnknownEventTypeIsForwardedVerbatim`) |
 
@@ -90,7 +93,7 @@ handler directly with a forged `RemoteAddr` for the non-loopback cases.
 | Subscribe to an id the server never issued | Pass — silent by contract; no error frame (`TestWS_SubscribeToUnknownSessionIsNotAnError`) |
 | Double answer to one dialog | Pass — first answer `ok:true`, second `already_answered` (`TestWS_DialogFirstAnswerWins`) |
 | Dialog nobody answers | Pass — `server.dialog.timeout{requestId}` and a late answer gets `already_answered` (`TestWS_DialogTimeoutAnswersAndRetains`) |
-| Durable cursor for an unknown entry | Pass — `server.error{replay_cursor_invalid}` and `server.replay.end{complete:false}` (`TestWS_ReplayUnknownEntryIdIsCursorInvalid`) |
+| Durable cursor for an unknown entry | Pass — `server.error{replay_cursor_invalid}` then `server.replay.end{complete:false}`, on the replaying connection only (`TestWS_ReplayUnknownEntryIdIsCursorInvalid`, finding 6.3) |
 | `since.seq` older than the ring window | Pass — exactly the retained events, in order, `truncated:true` (`TestWS_ReplaySinceSeqOutOfWindowIsTruncated`) |
 | Slow consumer | Pass — `server.error{slow_consumer}` then close 1008 (`TestWS_SlowConsumerIsDisconnected`) |
 
@@ -124,47 +127,54 @@ request with a forged `RemoteAddr`, because the test host has no second interfac
 
 ## 6. Findings
 
-**6.1 [OPEN — owner: sessions] `Shutdown` can return before the terminal session status is written.**
+**6.1 [RESOLVED — owner: sessions] `Shutdown` returned before the terminal session status was written.**
 
-- Repro: `cd server && go test -race -count=2 ./internal/sessions/` — roughly one run
-  in four fails with
+- Repro when it was reported: `cd server && go test -race -count=2 ./internal/sessions/`
+  — roughly one run in four failed with
   `lifecycle_test.go:131: session s_… status = "stopping", want "exited"`.
-- Evidence: reproduced before this workstream added any test (the failing package
-  is untouched by `test/adversarial/**`). `Manager.Shutdown` waits for the
-  per-session `stop` goroutines, which return once `rpc.Bridge.Close` has reaped
-  the child; the terminal status is written later by the session pump in
-  `finish()`, after `Records()` closes. The window is small but observable under
-  `-race` load.
-- Impact: a client (or an operator's script) can read
-  `GET /api/v1/sessions/{id}` as `stopping` for a session whose child is already
-  reaped. Process reaping itself is correct: the C8 test in this suite passes
-  every time.
-- Reported to the sessions workstream and broadcast to the team; not fixed by
-  this workstream (ownership rule). Suggested fix: make `Shutdown` (or `stop`)
-  wait for the pump/`finish` before returning, e.g. a `done` channel closed by
-  `pump`, since the existing test asserts the stronger property.
+- Cause: `Manager.Shutdown` waited for the per-session `stop` goroutines, which
+  return once `rpc.Bridge.Close` has reaped the child; the terminal status is
+  written later by the session pump in `finish()`, after `Records()` closes. The
+  window was small but observable under `-race` load. Process reaping itself was
+  always correct: the C8 test in this suite passes every time.
+- Resolution: `ac88717` (*sessions: publish the terminal status before Shutdown
+  returns*). The pump closes a per-session `done` channel after `finish()` has
+  written the terminal status, and `stop` waits for it under a `shutdownBudget`
+  deadline (`session.awaitTerminal`), so a caller can no longer read `stopping`
+  for a session whose child is already reaped.
+- Pinned by `TestStopWaitsForTheTerminalStatus` (`internal/sessions/lifecycle_test.go`),
+  which stalls the record stream so the previously probabilistic window is
+  deterministic; `go test -race -count=2 ./internal/sessions/` is green. The
+  adversarial suite adds `TestLifecycle_ShutdownLeavesNoStoppingSession`, which
+  reads every session through REST the instant `Shutdown` returns.
 
-**6.2 [DEVIATION — owners: ws, sessions] an invalid-JSON child record is not passed through on the WS leg.**
+**6.2 [RESOLVED — owners: sessions, ws] an invalid-JSON child record no longer loses its bytes on the WS leg.**
 
-- Behaviour: `rpc` delivers the line as `Record{Type:""}` (correct, see §2).
-  `sessions` maps it to `pi.unknown` with the raw bytes as payload; the hub's
-  `marshalEvent` refuses a payload that is not valid JSON and the subscriber gets
-  `server.error{code:"internal"}`, so the raw bytes are lost on the WS leg and a
-  replay re-emits the same error.
-- The adversarial test pins the observed fallback and the property that one
-  dirty line does not poison the session
-  (`TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed`); the rpc-level
+- Behaviour when it was reported: `rpc` delivered the line as `Record{Type:""}`
+  (correct, see §2); `sessions` mapped it to `pi.unknown` with the raw bytes as
+  payload, and the hub's `marshalEvent` refused a payload that is not valid JSON,
+  so the subscriber got `server.error{code:"internal"}` and the bytes were lost;
+  a replay re-emitted the same error.
+- Resolution: `fc1e03b` (*sessions: keep an unparseable child line readable on the
+  wire*). An unparseable line now travels as `pi.unknown` with
+  `{"raw":"<line>"}` as payload, which the hub can frame, so the client recovers
+  the child's bytes exactly and a replay re-emits the same `pi.unknown`.
+- Pinned by `TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed`, which now
+  asserts exactly one `pi.unknown` frame whose payload is valid JSON and whose
+  `raw` field round-trips the line, that no `server.error{internal}` appears, and
+  that one dirty line still does not poison the session; the rpc-level
   pass-through is asserted separately.
-- Reported to ws and sessions with options (document the degradation, or encode
-  the bytes as a JSON string, or have sessions publish `server.error` itself).
-  The test will be updated when the behaviour changes.
 
-**6.3 [OBSERVATION] replay failure ordering.** For an unknown durable cursor the
-subscriber sees `server.replay.begin` → `server.replay.end{complete:false}` →
-`server.error{replay_cursor_invalid}`: the reason arrives *after* the replay is
-closed. A client that clears its replay state on `replay.end` may miss it. The
-test waits for both frames, so the suite is not order-sensitive; ws may want the
-error before the end frame.
+**6.3 [RESOLVED — owner: ws, sessions] replay failure ordering.** The unknown-cursor
+failure was published into the session event stream, so it arrived *after*
+`server.replay.end` and every other subscriber of the session saw it. `9c8d604`
+(*sessions: report an invalid replay cursor as a failure, not an event*) returns
+it as a coded `replay_cursor_invalid` error instead, and the hub reports it to the
+replaying connection **before** `server.replay.end`; `complete:false` still arrives
+either way, and the failure never enters the session event stream. Pinned by
+`TestReplayWithUnknownCursorFailsWithACodedError` (`internal/sessions`) and by
+`TestWS_ReplayUnknownEntryIdIsCursorInvalid`, which asserts the strict order and
+that a second subscriber of the same session never sees the failure.
 
 **6.4 [OBSERVATION] oversized REST body answers 400, not 413.** `maxBodyBytes`
 is 1 MiB; a larger body comes back as `bad_request` (400). The taxonomy has
@@ -181,6 +191,31 @@ frame under `handshakeTimeout = 10 * time.Second`, a package variable that
 `Options` does not expose, so the test suite does not attack "upgrade then stay
 silent" (it would add 10 s per case). A hostile client can hold a socket for 10 s
 without sending `hello`; no resource amplification beyond the socket itself.
+
+### 6.7 Post-fix re-verification
+
+The three findings above were re-verified through the adversarial suite on the
+fixed sessions code at `9c8d604` (fix commits `ac88717`, `fc1e03b`, `9c8d604`;
+report baseline `a0c64e0`). All commands were run from `server/` with the race
+detector on.
+
+| Finding | Adversarial case | Command | Result |
+|---|---|---|---|
+| 6.1 | `TestLifecycle_ShutdownLeavesNoStoppingSession` (new) | `go test -race -count=3 -run TestLifecycle_ShutdownLeavesNoStoppingSession ./test/adversarial/` | 3/3 pass |
+| 6.2 | `TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed` (re-pinned) | `go test -race -count=1 -run TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed ./test/adversarial/` | pass |
+| 6.3 | `TestWS_ReplayUnknownEntryIdIsCursorInvalid` (extended) | `go test -race -count=1 -run TestWS_ReplayUnknownEntryIdIsCursorInvalid ./test/adversarial/` | pass |
+
+Whole-suite and repository gates on the fixed tree:
+
+    go test -race -count=1 ./test/adversarial/             # 31 tests, 0 failures, ~18 s
+    go test -race -count=1 ./test/adversarial/ ./test/e2e/ # both packages green
+    gofmt -l . && go vet ./... && CGO_ENABLED=0 go build ./... && go test -race ./...  # clean
+
+Documentation follow-up outside this workstream: the `pi.*` row of
+`docs/ws-protocol.md` ("payload is the record byte for byte") and
+`docs/spike-interfaces.md` §5.3/§7 (verbatim `pi.<record.type>`; the unknown
+cursor published as a `server.error` event) still describe the pre-fix
+behaviour; flagged to the lead for a follow-up edit.
 
 ## 7. Residual risks and gaps (what this suite does not verify)
 

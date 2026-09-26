@@ -158,21 +158,31 @@ func TestWS_DialogTimeoutAnswersAndRetains(t *testing.T) {
 }
 
 // TestWS_ReplayUnknownEntryIdIsCursorInvalid subscribes with a durable cursor pi
-// does not know. The subscriber must get server.error{replay_cursor_invalid} and
-// server.replay.end{complete:false}, so the client knows to reload through REST
-// instead of rendering an empty history.
+// does not know. The replaying subscriber must get
+// server.error{replay_cursor_invalid} before server.replay.end{complete:false}, so
+// the client knows to reload through REST instead of rendering an empty history —
+// and the failure belongs to that connection alone: a second subscriber of the
+// same session never sees it (finding 6.3, fixed in `9c8d604`).
 func TestWS_ReplayUnknownEntryIdIsCursorInvalid(t *testing.T) {
 	stack := newStack(t, nil)
 	info := stack.startSession(t, t.TempDir())
+
+	// The other subscriber is connected first: if the failure were published into
+	// the session stream, it would arrive on this socket as a live event.
+	other := stack.mustDial(nil)
+	other.hello()
+	other.send(`{"type":"subscribe","sessionId":"` + info.ID + `"}`)
 
 	client := stack.mustDial(nil)
 	client.hello()
 	client.send(`{"type":"subscribe","sessionId":"` + info.ID + `","since":{"entryId":"does-not-exist"}}`)
 	client.mustNext("server.replay.begin", hasType("server.replay.begin"))
 
-	var cursorInvalid, complete, endSeen bool
+	// Strict order: the reason must precede the end of the replay.
+	var order []string
+	var complete bool
 	deadline := time.Now().Add(waitTimeout)
-	for time.Now().Before(deadline) {
+	for len(order) < 2 && time.Now().Before(deadline) {
 		frame, err := client.next(time.Until(deadline))
 		if err != nil {
 			t.Fatalf("reading the replay: %v (frames: %v)", err, client.frames)
@@ -180,24 +190,38 @@ func TestWS_ReplayUnknownEntryIdIsCursorInvalid(t *testing.T) {
 		switch frameType(frame) {
 		case "server.error":
 			if errorCodeOf(frame) == "replay_cursor_invalid" {
-				cursorInvalid = true
+				order = append(order, "error")
 			}
 		case "server.replay.end":
 			complete = fieldBool(t, payloadOf(t, frame), "complete")
-			endSeen = true
-		}
-		if endSeen && cursorInvalid {
-			break
+			order = append(order, "end")
 		}
 	}
-	if !endSeen {
-		t.Errorf("no server.replay.end arrived (frames: %v)", client.frames)
+	if len(order) != 2 {
+		t.Fatalf("replay frames = %v, want server.error{replay_cursor_invalid} then server.replay.end (frames: %v)", order, client.frames)
 	}
-	if !cursorInvalid {
-		t.Errorf("no server.error{replay_cursor_invalid} arrived (frames: %v)", client.frames)
+	if order[0] != "error" {
+		t.Errorf("frame order = %v, want the error before replay.end (frames: %v)", order, client.frames)
 	}
 	if complete {
 		t.Errorf("server.replay.end complete = true, want false (frames: %v)", client.frames)
+	}
+
+	// The failure is connection-scoped: the other subscriber pings and sees no
+	// server.error at all, so nothing was published into the session stream.
+	other.send(`{"type":"ping"}`)
+	deadline = time.Now().Add(waitTimeout)
+	for {
+		frame, err := other.next(time.Until(deadline))
+		if err != nil {
+			t.Fatalf("waiting for the other subscriber's pong: %v (frames: %v)", err, other.frames)
+		}
+		if frameType(frame) == "server.error" {
+			t.Errorf("the other subscriber saw server.error{%s}: the cursor failure leaked into the session stream (frames: %v)", errorCodeOf(frame), other.frames)
+		}
+		if frameType(frame) == "pong" {
+			break
+		}
 	}
 }
 

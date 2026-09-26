@@ -2,6 +2,7 @@ package adversarial_test
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -192,5 +193,37 @@ func TestLifecycle_CrashAndCleanExitClassified(t *testing.T) {
 	decodeJSON(t, data, &listed)
 	if len(listed.Sessions) != 2 {
 		t.Fatalf("sessions = %d, want both finished sessions still listed", len(listed.Sessions))
+	}
+}
+
+// TestLifecycle_ShutdownLeavesNoStoppingSession drives the supervisor's own
+// Shutdown and reads every session through REST the instant it returns. A session
+// whose child has already been reaped must already carry its terminal status
+// (finding 6.1: Shutdown used to return while the pump had not yet written it, so
+// a client could read "stopping" for a dead child; fixed in `ac88717`).
+func TestLifecycle_ShutdownLeavesNoStoppingSession(t *testing.T) {
+	stack := newStack(t, nil)
+	ids := make([]string, 0, 3)
+	for i := 0; i < 3; i++ {
+		ids = append(ids, stack.startSession(t, t.TempDir()).ID)
+	}
+
+	if err := stack.mgr.Shutdown(context.Background()); err != nil {
+		t.Fatalf("Shutdown: %v", err)
+	}
+
+	// The instant Shutdown returns, every session a client can read is terminal:
+	// never "stopping" for a child that has already been reaped.
+	for _, id := range ids {
+		resp, data := stack.getJSON("/api/v1/sessions/" + id)
+		wantStatus(t, resp, data, 200)
+		var info sessions.Info
+		decodeJSON(t, data, &info)
+		if info.Status != sessions.StatusExited {
+			t.Errorf("session %s status = %q the instant Shutdown returned, want %q", id, info.Status, sessions.StatusExited)
+		}
+		if info.ExitCode == nil {
+			t.Errorf("session %s has no exit code the instant Shutdown returned", id)
+		}
 	}
 }

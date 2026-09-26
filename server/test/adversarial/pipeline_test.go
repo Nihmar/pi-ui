@@ -1,6 +1,7 @@
 package adversarial_test
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"testing"
@@ -96,21 +97,21 @@ func TestPipeline_UnknownEventTypeIsForwardedVerbatim(t *testing.T) {
 // for a child that writes a line which is not JSON at all (the rpc layer passes
 // it through with an empty type, per its contract).
 //
-// FINDING: the record does not reach the client as a pass-through event. sessions
-// publishes it as pi.unknown with the raw bytes as payload, and the hub's
-// marshalEvent refuses a payload that is not valid JSON: the subscriber gets
-// server.error{code:"internal"} ("event payload could not be encoded") and the
-// raw bytes are lost on the WS leg. This test pins the observed fallback — the
-// hub must not write a frame no client could parse, and one dirty line must not
-// poison the stream — and docs/verification-report.md records the deviation from
-// "invalid JSON is tolerated as pass-through". rpc-level pass-through is asserted
-// by TestFraming_SeparatorsCRLFSplitAndInvalidPassThrough.
+// The line must survive the whole pipeline: sessions publishes it as pi.unknown
+// with `{"raw":"<line>"}` as payload, and the wrapper — not a raw pass-through — is
+// what makes it framable, because the hub refuses an event payload that is not valid
+// JSON. The client therefore receives the child's bytes, and never a
+// server.error{internal} or a silent drop. docs/verification-report.md §6.2 records
+// this as the resolution of the deviation it originally reported; the rpc-level
+// pass-through is asserted by TestFraming_SeparatorsCRLFSplitAndInvalidPassThrough.
 func TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed(t *testing.T) {
+	const dirtyLine = "this is not json"
+
 	fakePi := fakeharness.Build(t)
 	script := fakeharness.Script{}
 	scriptPath := fakeharness.WriteScript(t, script)
 	shell := shellPath(t)
-	dirty := writeFile(t, "dirty-child.sh", "#!/bin/sh\nprintf 'this is not json\\n'\nexec "+
+	dirty := writeFile(t, "dirty-child.sh", "#!/bin/sh\nprintf '"+dirtyLine+"\\n'\nexec "+
 		shellQuote(fakePi)+" --script "+shellQuote(scriptPath)+" --emit 2 \"$@\"\n")
 
 	stack := newStack(t, func(o *stackOptions) {
@@ -125,7 +126,8 @@ func TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed(t *testing.T) {
 	client.send(`{"type":"subscribe","sessionId":"` + info.ID + `","since":{"seq":0}}`)
 	client.mustNext("server.replay.begin", hasType("server.replay.begin"))
 
-	var sawInternalError, sawUnknown bool
+	var sawInternalError bool
+	var unknownFrames []map[string]json.RawMessage
 	deadline := time.Now().Add(waitTimeout)
 	replayDone := false
 	for !replayDone && time.Now().Before(deadline) {
@@ -139,7 +141,7 @@ func TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed(t *testing.T) {
 				sawInternalError = true
 			}
 		case "pi.unknown":
-			sawUnknown = true
+			unknownFrames = append(unknownFrames, frame)
 		case "server.replay.end":
 			replayDone = true
 		}
@@ -147,11 +149,14 @@ func TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed(t *testing.T) {
 	if !replayDone {
 		t.Fatalf("the replay never ended (frames read: %v)", client.frames)
 	}
-	if !sawInternalError {
-		t.Errorf("no server.error{internal} reached the client: the unencodable record was dropped silently (frames: %v)", client.frames)
+	if sawInternalError {
+		t.Errorf("a server.error{internal} reached the client: the dirty line was not encoded for the wire (frames: %v)", client.frames)
 	}
-	if sawUnknown {
-		t.Errorf("a pi.unknown frame arrived: the raw invalid record was encodable after all (frames: %v)", client.frames)
+	if len(unknownFrames) != 1 {
+		t.Fatalf("pi.unknown frames = %d, want exactly one carrying the dirty line (frames: %v)", len(unknownFrames), client.frames)
+	}
+	if rawPayload := fieldString(payloadOf(t, unknownFrames[0]), "raw"); rawPayload != dirtyLine {
+		t.Errorf("pi.unknown raw payload = %q, want the child's line %q", rawPayload, dirtyLine)
 	}
 
 	// One dirty line must not poison the connection or the session: a prompt still
