@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -83,6 +84,22 @@ type serveConfig struct {
 	wrapUpBudget  time.Duration
 	wrapUpPrompt  string
 	sessionFlags  []string
+	roots         []string
+}
+
+// rootFlag collects the repeatable --root flag: the workspaces a client may browse.
+type rootFlag []string
+
+// String implements flag.Value.
+func (r *rootFlag) String() string { return strings.Join(*r, ",") }
+
+// Set implements flag.Value.
+func (r *rootFlag) Set(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return errors.New("an empty workspace is not a workspace")
+	}
+	*r = append(*r, value)
+	return nil
 }
 
 // sessionFlag collects the repeatable --session flag.
@@ -200,6 +217,8 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("wrap-up-prompt", "", "what an idle session is asked before it stops (PIUI_WRAP_UP_PROMPT)")
 	var sessionArgs sessionFlag
 	fs.Var(&sessionArgs, "session", "session to start at boot: <cwd>[:<name>] (repeatable)")
+	var rootArgs rootFlag
+	fs.Var(&rootArgs, "root", "workspace the client may browse: <path> (repeatable)")
 
 	if err := fs.Parse(args); err != nil {
 		return serveConfig{}, Usage(err)
@@ -218,6 +237,7 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 		allowOrigins: splitList(resolve(fs, "allow-origins", envAllowOrigins, "")),
 		stateDir:     resolve(fs, "state-dir", envStateDir, ""),
 		sessionFlags: sessionArgs,
+		roots:        rootArgs,
 	}
 
 	var err error
@@ -303,6 +323,7 @@ func writeServeUsage(w io.Writer) {
 		"  --addr 127.0.0.1:8787      listen address (PIUI_ADDR)\n"+
 		"  --pi \"pi\"                  pi executable (PIUI_PI)\n"+
 		"  --session <cwd>[:<name>]   session to start at boot, repeatable\n"+
+		"  --root <path>              workspace a client may browse, repeatable\n"+
 		"  --bridge <path>            pi-ui-bridge extension loaded by every child (PIUI_BRIDGE)\n"+
 		"  --token <token>            bearer token clients must send (PIUI_TOKEN)\n"+
 		"  --log-level <level>        debug, info, warn or error (PIUI_LOG_LEVEL)\n"+

@@ -248,4 +248,6 @@ path as its target; a refused escape is audited as `path.escape.blocked` with
 `outcome: denied`.
 
 A server started without `--root` answers `501 unsupported` on every one of these
-endpoints instead of exposing the whole filesystem by accident.
+endpoints instead of exposing the whole filesystem by accident. A root that does not
+exist, or is not a directory, is refused at startup: a workspace is a promise the
+server makes to its clients, not something discovered later.

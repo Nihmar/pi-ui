@@ -13,6 +13,7 @@ import (
 
 	"github.com/Nihmar/pi-ui/server/internal/api"
 	"github.com/Nihmar/pi-ui/server/internal/audit"
+	"github.com/Nihmar/pi-ui/server/internal/fs"
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
@@ -134,6 +135,16 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			Limits:    cfg.limits(),
 		},
 	}
+	if len(cfg.roots) > 0 {
+		// The workspaces are the only host directories a client may reach; a server
+		// started without one exposes no filesystem at all (a 501, never a guess).
+		files, err := fs.New(fs.Config{Roots: cfg.roots})
+		if err != nil {
+			return err
+		}
+		options.FS = files
+	}
+
 	options.Auth = authenticator
 	options.Audit = auditLog
 	options.RateLimit = ratelimit.New(cfg.rateRest)
