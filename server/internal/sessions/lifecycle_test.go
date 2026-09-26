@@ -2,11 +2,14 @@ package sessions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/Nihmar/pi-ui/server/internal/rpc"
 	"github.com/Nihmar/pi-ui/server/test/fakeharness"
 )
 
@@ -136,6 +139,77 @@ func TestShutdownStopsEveryChildWithinBudget(t *testing.T) {
 	}
 	if err := mgr.Shutdown(cancelled); err != nil {
 		t.Errorf("second Shutdown: %v", err)
+	}
+}
+
+// stalledBridge is an rpc.Bridge whose child is "reaped" as soon as Close runs while the
+// record stream stays open. It makes the window the verification report calls 6.1
+// deterministic: the child is gone, but the pump has not published the terminal status.
+type stalledBridge struct {
+	records chan rpc.Record
+	closed  sync.Once
+}
+
+var _ rpc.Bridge = (*stalledBridge)(nil)
+
+func newStalledBridge() *stalledBridge {
+	return &stalledBridge{records: make(chan rpc.Record)}
+}
+
+func (b *stalledBridge) Start(context.Context) error { return nil }
+
+func (b *stalledBridge) Send(context.Context, string, json.RawMessage) (json.RawMessage, error) {
+	return nil, rpc.ErrClosed
+}
+
+func (b *stalledBridge) Write(context.Context, json.RawMessage) error { return rpc.ErrClosed }
+
+func (b *stalledBridge) Records() <-chan rpc.Record { return b.records }
+
+func (b *stalledBridge) PID() int { return 0 }
+
+func (b *stalledBridge) Wait() error { return nil }
+
+func (b *stalledBridge) Close() error { return nil }
+
+// end closes the record stream, which is what lets the pump publish the terminal status.
+func (b *stalledBridge) end() { b.closed.Do(func() { close(b.records) }) }
+
+// TestStopWaitsForTheTerminalStatus pins finding 6.1: Shutdown waits for the per-session
+// stop goroutines, so stop must not return before the pump published the terminal status —
+// waiting for the reaped child alone leaves a window in which the projection still says
+// "stopping". The stalled record stream makes that window deterministic.
+func TestStopWaitsForTheTerminalStatus(t *testing.T) {
+	mgr, rec := newTestManager(t, nil)
+	s := newSession(mgr, codegenSessionID, Spec{CWD: "/work"})
+	bridge := newStalledBridge()
+	s.attach(bridge)
+	go s.pump()
+
+	stopped := make(chan error, 1)
+	go func() { stopped <- s.stop(context.Background()) }()
+
+	select {
+	case err := <-stopped:
+		t.Fatalf("stop returned (%v) while the terminal status was still unwritten", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	bridge.end()
+	select {
+	case err := <-stopped:
+		if err != nil {
+			t.Fatalf("stop: %v", err)
+		}
+	case <-time.After(waitTimeout):
+		t.Fatal("stop did not return after the pump published the terminal status")
+	}
+
+	if _, ok := rec.last(EventServerExited); !ok {
+		t.Errorf("no %s event after stop returned", EventServerExited)
+	}
+	if status := s.info().Status; status != StatusExited {
+		t.Errorf("status = %q, want %q", status, StatusExited)
 	}
 }
 

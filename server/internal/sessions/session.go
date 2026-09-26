@@ -62,6 +62,11 @@ type session struct {
 
 	cmdMu  sync.Mutex
 	nextID uint64
+
+	// done is closed by pump once finish has written the terminal status. stop
+	// waits for it, so a caller never observes a session whose child is already
+	// reaped but whose projection still says "stopping".
+	done chan struct{}
 }
 
 // newSession builds the record for a child that is about to be spawned.
@@ -74,6 +79,7 @@ func newSession(mgr *Manager, id string, spec Spec) *session {
 		name:      spec.Name,
 		status:    StatusSpawning,
 		dialogs:   map[string]*dialog{},
+		done:      make(chan struct{}),
 	}
 }
 
@@ -184,14 +190,15 @@ func (s *session) stderrLine(line []byte) {
 	s.logf("stderr: %s", message)
 }
 
-// pump consumes the child's records until stdout closes, then classifies the exit.
-// Records() closes only after the child exited and stdout was drained, so the lifecycle
-// event always follows the last payload record.
+// pump consumes the child's records until stdout closes, then classifies the exit and
+// closes done, which is what stop waits for. Records() closes only after the child exited
+// and stdout was drained, so the lifecycle event always follows the last payload record.
 func (s *session) pump() {
 	for record := range s.bridge.Records() {
 		s.handleRecord(record)
 	}
 	s.finish(s.bridge.Wait())
+	close(s.done)
 }
 
 // handleRecord publishes one child record: pi.* verbatim for everything except the
@@ -284,25 +291,53 @@ func exitCodeOf(err error) int {
 
 // stop shuts the child down and is idempotent: stdin close, then SIGTERM, then SIGKILL,
 // all inside rpc's graces. server.stopping is published before the child is asked to
-// leave, so a client sees the intent even when the child dies slowly.
+// leave, so a client sees the intent even when the child dies slowly. It waits for the
+// pump to publish the terminal status before returning, so a caller can never read
+// "stopping" for a session whose child is already reaped.
 func (s *session) stop(ctx context.Context) error {
 	s.mu.Lock()
-	if s.finished || s.status == StatusStopping {
+	bridge := s.bridge
+	if s.finished {
 		s.mu.Unlock()
 		return nil
 	}
+	if s.status == StatusStopping {
+		s.mu.Unlock()
+		s.awaitTerminal(bridge)
+		return nil
+	}
 	s.status = StatusStopping
-	bridge := s.bridge
 	s.mu.Unlock()
 
 	s.mgr.publishJSON(EventServerStopping, s.id, s.info())
 	if bridge == nil {
+		// No bridge yet means Start has not launched the pump either: there is
+		// no terminal status to wait for.
 		return nil
 	}
-	if err := bridge.Close(); err != nil {
+	err := bridge.Close()
+	s.awaitTerminal(bridge)
+	if err != nil {
 		return Codedf(CodePiError, "stopping session %s: %v", s.id, err)
 	}
 	return nil
+}
+
+// awaitTerminal waits for the pump to publish the session's terminal status, bounded by
+// shutdownBudget so a wedged child can never hold Stop or Shutdown forever. bridge is the
+// reference stop read under the lock: a bridge that was never attached means no pump was
+// launched and there is nothing to wait for.
+func (s *session) awaitTerminal(bridge rpc.Bridge) {
+	if bridge == nil {
+		return
+	}
+	timer := time.NewTimer(shutdownBudget)
+	defer timer.Stop()
+	select {
+	case <-s.done:
+	case <-timer.C:
+		s.logf("terminal status not written within %s; returning without it", shutdownBudget)
+	}
 }
 
 // call sends one pi command and returns its response data. Commands are serialised per
