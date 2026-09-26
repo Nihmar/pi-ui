@@ -117,3 +117,29 @@ func TestCommandFromPayloadDropsTheClientID(t *testing.T) {
 		t.Errorf("non-object payload = %v, want bad_request", err)
 	}
 }
+
+// TestCommandFromPayloadNullIsAnEmptyPayload pins the nil-map trap: the JSON literal
+// null unmarshals into a nil map, and the setField that adds the pi command type panics
+// on it. A websocket `command` frame may legitimately carry no payload at all, so the
+// literal must be treated as an absent payload, never as a crashing one.
+func TestCommandFromPayloadNullIsAnEmptyPayload(t *testing.T) {
+	fields := map[string]json.RawMessage{}
+	if err := decodeObject("payload", json.RawMessage(`null`), &fields); err != nil {
+		t.Fatalf("decodeObject(null): %v", err)
+	}
+	if fields == nil {
+		t.Fatal("decodeObject(null) left a nil map: the next setField would panic")
+	}
+
+	command, err := commandFromPayload("prompt", json.RawMessage(`null`))
+	if err != nil {
+		t.Fatalf("commandFromPayload(null): %v", err)
+	}
+	var decoded map[string]json.RawMessage
+	if err := json.Unmarshal(command, &decoded); err != nil {
+		t.Fatalf("command is not a JSON object: %v", err)
+	}
+	if string(decoded["type"]) != `"prompt"` {
+		t.Errorf("command = %s, want a prompt type", command)
+	}
+}

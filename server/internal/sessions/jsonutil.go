@@ -33,7 +33,9 @@ func setField(fields map[string]json.RawMessage, key string, value any) {
 
 // decodeObject parses a JSON object into fields, tolerating unknown members (lenient
 // pass-through) but rejecting anything that is not an object. An empty document is an
-// empty object, because several ops legitimately carry no payload.
+// empty object, because several ops legitimately carry no payload — and so is the JSON
+// literal null, which would otherwise decode into a nil map that the callers' setField
+// panics on (a client sending `"payload":null` must not be able to kill the server).
 func decodeObject(what string, raw json.RawMessage, fields *map[string]json.RawMessage) error {
 	*fields = map[string]json.RawMessage{}
 	if len(strings.TrimSpace(string(raw))) == 0 {
@@ -41,6 +43,9 @@ func decodeObject(what string, raw json.RawMessage, fields *map[string]json.RawM
 	}
 	if err := json.Unmarshal(raw, fields); err != nil {
 		return Codedf(CodeBadRequest, "%s is not a JSON object: %v", what, err)
+	}
+	if *fields == nil {
+		*fields = map[string]json.RawMessage{}
 	}
 	return nil
 }
