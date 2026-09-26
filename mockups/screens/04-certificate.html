@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 4 — Certificate trust</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#4 · Certificate trust</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Certificate</h1><div class="row"></div></header>
+<div class="content stack">
+  <div class="card">
+    <div class="row between"><strong>pi-ui.local</strong><span class="chip warn">self-signed</span></div>
+    <p class="small dim" style="margin-top: var(--sp-2)">SHA-256 fingerprint</p>
+    <p class="mono small" style="word-break: break-all">4F:2A:9C:11:8E:73:B0:52:D4:31:AE:68:02:7C:55:9B:1F:3D:A0:C6:74:8B:2E:EF:90:12:5A:48:33:6D:C1:07</p>
+  </div>
+  <div class="setting" style="border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface)">
+    <div class="label">Pin this certificate<small>Reject the server if the fingerprint ever changes.</small></div>
+    <span class="switch on"><span class="track"></span></span>
+  </div>
+  <div class="card small" style="border-color: color-mix(in srgb, var(--warning) 45%, transparent)">
+    ⚠ A self-signed certificate cannot be verified by the system store. Compare the fingerprint with the server's <span class="mono">pi-ui tls fingerprint</span> output before trusting it.
+  </div>
+  <button class="btn primary">Trust and continue</button>
+  <button class="btn danger ghost">Cancel</button>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>4 — Certificate trust</h2>
+    <dl>
+      <dt>Area</dt><dd>Onboarding</dd>
+      <dt>Behaviour</dt><dd>Shown only for a self-signed or unknown certificate. The fingerprint is the only thing the user can actually verify; pinning makes a later change a hard error instead of a silent MITM.</dd>
+      <dt>States to check</dt><dd>fingerprint mismatch (pinning refuses), changed certificate after pin</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

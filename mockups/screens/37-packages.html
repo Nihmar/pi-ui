@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 37 — pi packages</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#37 · pi packages</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Packages</h1><span class="sub">admin</span><div class="row"><button class="btn sm">＋ Install</button></div></header>
+<div class="content stack">
+  <div class="card">
+    <div class="row between"><strong class="mono">pi-loop-police@1.5.2</strong><span class="chip accent">installed</span></div>
+    <p class="tiny dim" style="margin-top: var(--sp-2)">Loop detection for tool calls · 2 skills, 1 extension</p>
+    <div class="row"><button class="btn sm">Details</button><span class="spacer"></span><button class="btn sm">Update</button><button class="btn sm danger">Remove</button></div>
+  </div>
+  <div class="card">
+    <div class="row between"><strong class="mono">@scope/tool@0.2.0</strong><span class="chip accent">installed</span></div>
+    <p class="tiny dim" style="margin-top: var(--sp-2)">Inline extension · last used 2 h ago</p>
+    <div class="row"><button class="btn sm">Details</button><span class="spacer"></span><button class="btn sm">Update</button><button class="btn sm danger">Remove</button></div>
+  </div>
+  <label class="field-label">Install from npm</label>
+  <div class="row"><input class="input" placeholder="package name or tarball URL"><button class="btn">Install</button></div>
+  <p class="tiny dim">Installing runs npm with the server's user; the app shows the exact command before it runs. Managed mode disables installs.</p>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>37 — pi packages</h2>
+    <dl>
+      <dt>Area</dt><dd>Settings</dd>
+      <dt>Behaviour</dt><dd>The package manager behind the CLI commands, with the same effects: each row is a pi package with its version and what it contributes, and install shows the command it will run.</dd>
+      <dt>States to check</dt><dd>install failure (npm output), conflicting package, managed mode, package with a native build step</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

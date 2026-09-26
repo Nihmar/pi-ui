@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 15 — Session statistics</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#15 · Session statistics</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Statistics</h1><span class="sub">pi-ui</span><div class="row"></div></header>
+<div class="content stack">
+  <div class="stats"><div class="stat"><div class="value">184k</div><div class="label">input tokens</div></div><div class="stat"><div class="value">12.4k</div><div class="label">output tokens</div></div><div class="stat"><div class="value">$0.42</div><div class="label">cost</div></div><div class="stat"><div class="value">18</div><div class="label">messages</div></div></div>
+  <div class="card">
+    <h3>Context window</h3>
+    <div class="progress" style="margin-top: var(--sp-2)"><span style="width: 9.7%"></span></div>
+    <div class="row between tiny dim" style="margin-top: var(--sp-1)"><span>12 400 used</span><span>128 000 limit</span></div>
+  </div>
+  <div class="card">
+    <h3>Tool usage</h3>
+    <div class="row between small" style="margin-top: var(--sp-2)"><span class="mono">bash</span><span>14 calls · 3.2 s</span></div>
+    <div class="row between small"><span class="mono">edit</span><span>6 calls · 1.1 s</span></div>
+    <div class="row between small"><span class="mono">read</span><span>21 calls · 0.4 s</span></div>
+  </div>
+  <div class="card"><h3>Cache</h3><p class="small muted">12 100 of 12 400 tokens served from the prompt cache this session.</p></div>
+  <button class="btn">Export these numbers</button>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>15 — Session statistics</h2>
+    <dl>
+      <dt>Area</dt><dd>Session</dd>
+      <dt>Behaviour</dt><dd>The numbers the header compresses: tokens in/out, cost, context and per-tool time. Export reuses the session export formats.</dd>
+      <dt>States to check</dt><dd>zero-message session, unknown cost (provider without pricing), context over 85% warning</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

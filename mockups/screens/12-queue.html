@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 12 — Message queue</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#12 · Message queue</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge streaming">streaming</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 12%"></span></div><span class="tiny dim">14k / 128k · $0.45</span></div>
+  <div class="row small" style="color: var(--accent)"><span class="spinner"></span> The agent is working…<span class="spacer"></span><button class="btn ghost sm">Abort</button></div>
+</header>
+<div class="timeline">
+  <div class="stack" style="align-items: flex-end"><div class="bubble-user">Refactor the replay path.</div></div>
+  <div class="bubble-assistant md"><p>Reading the handler first<span class="caret"></span></p></div>
+</div>
+<div class="queue">
+  <div class="row tiny" style="color: var(--warning)">⧗ 2 messages waiting</div>
+  <div class="items">
+    <span class="chip accent">steer · run the tests first <button>×</button></span>
+    <span class="chip">follow-up · then update the changelog <button>×</button></span>
+  </div>
+</div>
+<div class="composer">
+  
+  
+  <div class="box">
+    <button class="iconbtn" title="Attach an image">🖼</button>
+    <div class="fake-input">Steer the run or leave a follow-up</div>
+    <button class="btn primary sm">Send</button>
+  </div>
+  <div class="hint">pi runs in the host directory shown above.</div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>12 — Message queue</h2>
+    <dl>
+      <dt>Area</dt><dd>Chat</dd>
+      <dt>Behaviour</dt><dd>Queued messages are visible above the composer with their kind and a cancel action, so nothing is invisible between the user and the child. The server's pendingMessageCount drives the count in the header too.</dd>
+      <dt>States to check</dt><dd>cancel the last queued item, queue cleared by the child, session stops with items queued</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

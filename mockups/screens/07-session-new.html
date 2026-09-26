@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 7 — New session</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#7 · New session</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>New session</h1><div class="row"></div></header>
+<div class="content stack">
+  <p class="small muted">pi runs in a host directory. The server must have it under an allowed root.</p>
+  <label class="field-label">Working directory</label>
+  <div class="row"><input class="input" value="/home/user/Projects/my-project" spellcheck="false"><button class="iconbtn" title="Browse the host">🗀</button></div>
+  <div class="wrap">
+    <span class="chip">~/Projects/pi-ui</span><span class="chip">~/Projects/Niman</span><span class="chip">~/Projects</span>
+  </div>
+  <label class="field-label">Name (optional)</label>
+  <input class="input" placeholder="pi-ui">
+  <label class="field-label">Model</label>
+  <div class="wrap"><span class="chip accent">llama.cpp · qwen-38-27b</span><span class="chip">anthropic · sonnet-4.5</span><span class="chip">openai · gpt-5.1-codex</span></div>
+  <div class="setting" style="border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface)">
+    <div class="label">Approve tool calls automatically<small>Off: every destructive command asks through the bridge.</small></div>
+    <span class="switch "><span class="track"></span></span>
+  </div>
+  <div class="card tiny" style="border-color: color-mix(in srgb, var(--warning) 45%, transparent)">A session in a directory another session already uses is allowed, with a dismissible warning.</div>
+  <button class="btn primary">Create session</button>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>7 — New session</h2>
+    <dl>
+      <dt>Area</dt><dd>Sessions</dd>
+      <dt>Behaviour</dt><dd>Creation is one form: directory (with allowed roots and a host browser), optional name, model and the approval posture. The duplicate-cwd warning is dismissible and never blocks.</dd>
+      <dt>States to check</dt><dd>path outside the allowed roots, duplicate cwd warning, host browser unavailable</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

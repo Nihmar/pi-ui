@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 16 — Branch tree</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#16 · Branch tree</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Branches</h1><span class="sub">pi-ui</span><div class="row"><button class="btn sm">Switch</button></div></header>
+<div class="content">
+  <div class="tree">
+    <div class="node">├─ <span class="branch">e-01</span> user · Read the repository…</div>
+    <div class="node">│&nbsp;&nbsp;├─ <span class="branch">e-02</span> assistant · pi-ui wraps…</div>
+    <div class="node current">│&nbsp;&nbsp;│&nbsp;&nbsp;├─ <span class="branch">e-03</span> user · Add the retry… <span class="chip accent">current</span></div>
+    <div class="node">│&nbsp;&nbsp;│&nbsp;&nbsp;└─ <span class="branch">e-07</span> user · Use a queue instead</div>
+    <div class="node">│&nbsp;&nbsp;└─ <span class="branch">e-04</span> assistant · Done. The queue now…</div>
+    <div class="node">└─ <span class="branch">e-05</span> user · Write the tests first</div>
+    <div class="node">│&nbsp;&nbsp;└─ <span class="branch">e-06</span> assistant · Here are the cases…</div>
+  </div>
+  <div class="divider"></div>
+  <div class="card small"><div class="row between"><span><strong>Fork from e-02</strong><br><span class="dim tiny">2 children · 12 messages</span></span><button class="btn sm">Fork</button></div></div>
+  <div class="card small"><div class="row between"><span><strong>Clone session</strong><br><span class="dim tiny">Continue as a new session from the leaf</span></span><button class="btn sm">Clone</button></div></div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>16 — Branch tree</h2>
+    <dl>
+      <dt>Area</dt><dd>Branching</dd>
+      <dt>Behaviour</dt><dd>pi stores the conversation as a tree; the client renders it instead of inventing its own. Fork branches from a message, clone copies the current leaf into a new session, switch jumps between branches.</dd>
+      <dt>States to check</dt><dd>ambiguous fork point, branch with an error entry, tree larger than the screen</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

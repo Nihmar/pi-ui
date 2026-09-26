@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 40 — Offline queue</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#40 · Offline queue</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<div class="banner offline">☁ Offline — messages are queued and sent when the connection returns. <span class="spacer"></span><button class="btn sm">Reconnect</button></div>
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge ready">ready</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 10%"></span></div><span class="tiny dim">12k / 128k · $0.42</span></div>
+  
+</header>
+<div class="timeline">
+  <div class="stack" style="align-items: flex-end"><div class="bubble-user">Read the repository and tell me what the server does.</div></div>
+  <div class="stack" style="align-items: flex-end"><div class="bubble-user">Also check the mockups directory.<div class="tiny" style="color: var(--warning); margin-top: 4px">☁ queued offline</div></div></div>
+  <div class="stack" style="align-items: flex-end"><div class="bubble-user">And update the README table.<div class="tiny" style="color: var(--warning); margin-top: 4px">☁ queued offline</div></div></div>
+  <div class="status-line warn"><span class="dot"></span>2 messages queued · they keep their order</div>
+</div>
+<div class="queue">
+  <div class="row tiny" style="color: var(--warning)">⧗ 2 messages waiting</div>
+  <div class="items"><span class="chip accent">follow-up · Also check the mockups directory.</span><span class="chip">follow-up · And update the README table.</span></div>
+</div>
+<div class="composer">
+  
+  
+  <div class="box">
+    <button class="iconbtn" title="Attach an image">🖼</button>
+    <div class="fake-input">Offline — the message is queued</div>
+    <button class="btn primary sm">Send</button>
+  </div>
+  <div class="hint">pi runs in the host directory shown above.</div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>40 — Offline queue</h2>
+    <dl>
+      <dt>Area</dt><dd>States</dd>
+      <dt>Behaviour</dt><dd>Offline is a first-class state, not an error: messages are visibly queued in order, editable and cancellable, and they flush when the socket returns — steer/follow-up semantics included.</dd>
+      <dt>States to check</dt><dd>reconnect with the server restarted (session gone), app killed while queued (cache survives), stale session list badge</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

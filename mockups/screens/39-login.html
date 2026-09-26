@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 39 — Two-mode login</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#39 · Two-mode login</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Sign in</h1><div class="row"></div></header>
+<div class="content stack">
+  <div class="tabs" style="padding:0;background:transparent">
+    <button class="tab active" data-tab="qr" data-group="login">Pair with QR</button>
+    <button class="tab" data-tab="pw" data-group="login">Admin password</button>
+  </div>
+  <div data-panel="qr" data-group="login" class="stack">
+    <div class="qr" style="width:150px;height:150px"></div>
+    <p class="small muted center">Scan to sign in with the device that is already paired.</p>
+  </div>
+  <div data-panel="pw" data-group="login" class="stack" hidden>
+    <label class="field-label">Admin password</label>
+    <input class="input" type="password" value="correct horse battery">
+    <label class="field-label">Device name</label>
+    <input class="input" value="Alessandro's Pixel">
+    <button class="btn primary">Sign in as admin</button>
+    <p class="tiny dim">Admin scope can manage devices, MCP, updates and settings. Use it only on a device you trust.</p>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>39 — Two-mode login</h2>
+    <dl>
+      <dt>Area</dt><dd>Onboarding</dd>
+      <dt>Behaviour</dt><dd>Two independent ways in: a paired device token (operator scope) or the admin password, which mints a fresh admin-scoped device token. Both are revocable from Settings → Devices.</dd>
+      <dt>States to check</dt><dd>wrong password (rate limited), revoked token, admin sign-in on a public network warning</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

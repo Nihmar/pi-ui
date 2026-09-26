@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 32 — Background tasks</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#32 · Background tasks</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Tasks</h1><span class="sub">2 running</span><div class="row"></div></header>
+<div class="content stack">
+  <div class="card">
+    <div class="row between"><strong>flutter build apk --debug</strong><span class="chip accent"><span class="spinner"></span> running</span></div>
+    <div class="tiny dim" style="margin-top: var(--sp-1)">pi-ui · started 12:02 · cpu 34% · mem 1.2 GB</div>
+    <div class="progress" style="margin-top: var(--sp-2)"><span style="width: 62%"></span></div>
+    <div class="row tiny dim" style="margin-top: var(--sp-1)"><span>listening 127.0.0.1:0</span><span class="spacer"></span><span>PID 24491</span></div>
+    <div class="row" style="margin-top: var(--sp-2)"><button class="btn sm">Logs</button><span class="spacer"></span><button class="btn sm danger">Stop</button></div>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>llama-server --port 8181</strong><span class="chip accent"><span class="spinner"></span> running</span></div>
+    <div class="tiny dim" style="margin-top: var(--sp-1)">host · started 11:40 · port 8181 open</div>
+    <div class="row" style="margin-top: var(--sp-2)"><button class="btn sm">Logs</button><span class="spacer"></span><button class="btn sm danger">Stop</button></div>
+  </div>
+  <div class="card" style="opacity:.7">
+    <div class="row between"><strong>go test ./...</strong><span class="chip">exited 0</span></div>
+    <div class="tiny dim" style="margin-top: var(--sp-1)">pi-ui · 12:00 → 12:01 · 48 s</div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>32 — Background tasks</h2>
+    <dl>
+      <dt>Area</dt><dd>Tools</dd>
+      <dt>Behaviour</dt><dd>A task is a server-owned process started by a tool or the user: the card shows the command, its resource use, the ports it opened and a stop action. Finished tasks stay listed until dismissed.</dd>
+      <dt>States to check</dt><dd>task without a port, stopped task, task that outlives the session</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

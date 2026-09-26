@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 28 — Host file browser</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#28 · Host file browser</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<div class="layout">
+  <nav class="rail">
+  <div class="mark">π</div>
+  <a class="active"><span class="glyph">▤</span>Sessions</a>
+  <a class=""><span class="glyph">⌕</span>Search</a>
+  <a class=""><span class="glyph">⚙</span>Settings</a>
+</nav>
+  <div class="pane wide">
+    <div class="content tight stack">
+      <input class="input" placeholder="Filter files…">
+      <div class="tree">
+        <div class="node">🗀 pi-ui</div>
+        <div class="node">&nbsp;&nbsp;├─ 🗀 docs</div>
+        <div class="node">&nbsp;&nbsp;│&nbsp;&nbsp;├─ 🗎 <span class="chip accent">ws-protocol.md</span></div>
+        <div class="node">&nbsp;&nbsp;│&nbsp;&nbsp;└─ 🗎 mockups.md</div>
+        <div class="node">&nbsp;&nbsp;├─ 🗀 server</div>
+        <div class="node">&nbsp;&nbsp;└─ 🗎 AGENTS.md</div>
+        <div class="node">&nbsp;&nbsp;└─ 🗎 README.md</div>
+      </div>
+    </div>
+  </div>
+  <div class="pane-main">
+    <header class="appbar"><h1 class="mono" style="font-size:14px">docs/ws-protocol.md</h1><span class="chip">read-only root</span><span class="spacer"></span><button class="btn sm">Edit</button><button class="btn sm">Download</button></header>
+    <div class="content md">
+      <h1>WebSocket protocol v1</h1>
+      <p>Status: implemented by <code>server/internal/ws</code>. The normative frame shapes are <code>schemas/ws.json</code>.</p>
+      <h2>Endpoint</h2>
+      <p><code>GET /ws/v1</code> (Upgrade: websocket). Text frames only.</p>
+      <pre class="code">client ── hello ─▶ server
+client ◀─ welcome ─ server</pre>
+      <h2>Replay</h2>
+      <p>Each session has its own ring; <code>since.entryId</code> delegates to <code>get_entries</code>.</p>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>28 — Host file browser</h2>
+    <dl>
+      <dt>Area</dt><dd>Tools</dd>
+      <dt>Behaviour</dt><dd>The browser owns the host filesystem: a tree, a filter, and the markdown editor for text files. Read-only roots have no write path; editing writes through the server and respects the same path guards as everything else.</dd>
+      <dt>States to check</dt><dd>path outside the allowed roots, binary file, file changed on disk while open</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

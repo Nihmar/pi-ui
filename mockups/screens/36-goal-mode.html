@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 36 — Goal mode</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#36 · Goal mode</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge streaming">streaming</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 high</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 24%"></span></div><span class="tiny dim">31k / 128k · $0.88</span></div>
+  <div class="row small" style="color: var(--accent)"><span class="spinner"></span> The agent is working…<span class="spacer"></span><button class="btn ghost sm">Abort</button></div>
+</header>
+<div class="content tight" style="flex:1;overflow:auto;padding:var(--sp-4)">
+  <div class="card" style="border-color: var(--accent)">
+    <div class="row between"><strong>🎯 Goal</strong><span class="chip accent">round 3 / 10</span></div>
+    <p class="small" style="margin-top: var(--sp-2)">Make the mockup approval-ready: every inventory screen exists and the checklist is green.</p>
+    <div class="progress" style="margin-top: var(--sp-2)"><span style="width: 30%"></span></div>
+    <div class="row tiny dim" style="margin-top: var(--sp-1)"><span>reviewer: anthropic · sonnet-4.5</span><span class="spacer"></span><span>budget $2.00</span></div>
+  </div>
+  <div class="tool-card success">
+  <div class="tool-head"><span>❯</span><span class="name">Round 3 · run the checks</span><span class="cmd">dart format &amp;&amp; flutter analyze &amp;&amp; flutter test</span><span class="tool-status"><span class="spinner"></span> running</span></div>
+  <div class="tool-body"><div class="code">Analyzing mockups... No issues found!
+All tests passed!</div></div>
+</div>
+  <div class="status-line warn"><span class="dot"></span>Reviewer: 2 findings left, both minor</div>
+</div>
+<div class="composer">
+  
+  
+  <div class="box">
+    <button class="iconbtn" title="Attach an image">🖼</button>
+    <div class="fake-input">Steer the goal run…</div>
+    <button class="btn primary sm">Send</button>
+  </div>
+  <div class="hint">pi runs in the host directory shown above.</div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>36 — Goal mode</h2>
+    <dl>
+      <dt>Area</dt><dd>Optional</dd>
+      <dt>Behaviour</dt><dd>Goal mode is a bridge feature flag: a bar shows the goal, the round counter and the budget, and each round runs as a normal tool/turn pair. Off by default and never a second protocol.</dd>
+      <dt>States to check</dt><dd>budget exhausted, goal achieved, reviewer disagrees with the agent, user aborts</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

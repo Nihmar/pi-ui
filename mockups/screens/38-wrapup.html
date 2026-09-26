@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 38 — Wrap-up and handoff</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#38 · Wrap-up and handoff</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge stopping">stopping</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 10%"></span></div><span class="tiny dim">12k / 128k · $0.42</span></div>
+  
+</header>
+<div class="timeline">
+  <div class="stack" style="align-items: flex-end"><div class="bubble-user">Let&#x27;s stop here for today.</div></div>
+  <div class="status-line warn"><span class="dot"></span>Idle for 60 min — graceful wrap-up started</div>
+  <div class="status-line "><span class="spinner"></span>Closing… the agent is writing the handoff note</div>
+  <div class="card">
+    <div class="row between"><strong>Handoff</strong><span class="chip">~/.pi/handoff/2026-09-26-pi-ui.md</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">Where we are: replay dedup is fixed, the mockup is in review. Next: onboarding screens. Open questions: the certificate pin UX.</p>
+  </div>
+  <div class="status-line success"><span class="dot"></span>Handoff saved · session exited (0)</div>
+</div>
+<div class="banner" style="border-top: 1px solid var(--border)"><span class="chip">resume from the session list</span><span class="spacer"></span><button class="btn sm">Open the handoff</button></div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>38 — Wrap-up and handoff</h2>
+    <dl>
+      <dt>Area</dt><dd>States</dd>
+      <dt>Behaviour</dt><dd>Eviction and explicit stops share one flow: notify the agent, ask for a handoff note, abort if needed, then TERM/KILL with the exit reported. The transcript keeps the whole sequence.</dd>
+      <dt>States to check</dt><dd>child ignores the wrap-up (budget passed), handoff fails to write, stop during streaming</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

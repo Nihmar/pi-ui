@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · States board</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">States board · every mandatory state</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+      <header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge streaming">streaming</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 12%"></span></div><span class="tiny dim">14k / 128k · $0.45</span></div>
+  <div class="row small" style="color: var(--accent)"><span class="spinner"></span> The agent is working…<span class="spacer"></span><button class="btn ghost sm">Abort</button></div>
+</header>
+      <div class="tabs" style="padding: var(--sp-2) var(--sp-3); flex-wrap: wrap">
+        <button class="tab active" data-tab="streaming" data-group="st">streaming</button>
+        <button class="tab" data-tab="tool" data-group="st">long tool</button>
+        <button class="tab" data-tab="dialog" data-group="st">dialog</button>
+        <button class="tab" data-tab="quota" data-group="st">quota</button>
+        <button class="tab" data-tab="crash" data-group="st">crash</button>
+        <button class="tab" data-tab="offline" data-group="st">offline</button>
+        <button class="tab" data-tab="replay" data-group="st">replay</button>
+        <button class="tab" data-tab="wrapup" data-group="st">wrap-up</button>
+        <button class="tab" data-tab="empty" data-group="st">empty</button>
+        <button class="tab" data-tab="skeleton" data-group="st">skeleton</button>
+        <button class="tab" data-tab="scope" data-group="st">scope</button>
+        <button class="tab" data-tab="notify" data-group="st">notify denied</button>
+      </div>
+      <div class="timeline" style="padding-top: var(--sp-3)">
+        <div data-panel="streaming" data-group="st" class="stack">
+          <div class="stack" style="align-items: flex-end"><div class="bubble-user">Explain the reconnect path.</div></div>
+          <div class="bubble-assistant md"><p>The reconnect path is the durable replay one<span class="caret"></span></p></div>
+        </div>
+        <div data-panel="tool" data-group="st" class="stack" hidden>
+          <div class="tool-card success">
+  <div class="tool-head"><span>❯</span><span class="name">Run the 3-minute soak</span><span class="cmd">go test -race ./test/adversarial</span><span class="tool-status"><span class="spinner"></span> running</span></div>
+  <div class="tool-body"><div class="code">… 00:42 elapsed · 12 400 events
+</div></div>
+</div>
+          <div class="status-line warn"><span class="dot"></span>Long-running tool · the watchdog warns at 10 min, aborts at 30</div>
+        </div>
+        <div data-panel="dialog" data-group="st" class="stack" hidden>
+          <div class="dialog" style="margin: 0">
+            <div class="row between"><strong>⚠ Approve: delete build/</strong><span class="count" data-countdown="8">8s</span></div>
+            <div class="progress" style="margin: var(--sp-2) 0"><span data-countdown-bar style="width:100%"></span></div>
+            <p class="small muted">Nobody answered: at zero the server sends cancelled:true to the child.</p>
+          </div>
+        </div>
+        <div data-panel="quota" data-group="st" class="stack" hidden>
+          <div class="error-card">
+  <div class="row between"><h3>⚠ Provider quota exhausted</h3><span class="chip">model_provider_error</span></div>
+  <p class="small" style="margin-top: var(--sp-2)">The provider rejected the request: quota exceeded. Retry after the window resets.</p>
+  <button class="btn sm">Retry</button>
+</div>
+        </div>
+        <div data-panel="crash" data-group="st" class="stack" hidden>
+          <div class="error-card">
+  <div class="row between"><h3>⚠ Session crashed</h3><span class="chip">session_exited</span></div>
+  <p class="small" style="margin-top: var(--sp-2)">The child exited with code 9. The session stays listed; create a new one to continue.</p>
+  <button class="btn sm">Restart session</button>
+</div>
+        </div>
+        <div data-panel="offline" data-group="st" class="stack" hidden>
+          <div class="banner offline" style="border-radius: var(--r-md)">☁ Offline — messages are queued and sent when the connection returns. <span class="spacer"></span><button class="btn sm">Reconnect</button></div>
+          <div class="stack" style="align-items: flex-end"><div class="bubble-user">Queued while offline<div class="tiny" style="color: var(--warning); margin-top: 4px">☁ queued offline</div></div></div>
+        </div>
+        <div data-panel="replay" data-group="st" class="stack" hidden>
+          <div class="banner reconnect" style="border-radius: var(--r-md)"><span class="spinner"></span> Replaying 12 missed events…</div>
+          <div class="status-line success"><span class="dot"></span>Caught up: 12 events replayed</div>
+        </div>
+        <div data-panel="wrapup" data-group="st" class="stack" hidden>
+          <div class="status-line warn"><span class="dot"></span>Idle for 60 min — graceful wrap-up started</div>
+          <div class="status-line "><span class="spinner"></span>Closing… the agent is writing the handoff note</div>
+          <div class="card small"><strong>Handoff saved</strong><div class="tiny dim">~/.pi/handoff/2026-09-26-pi-ui.md</div></div>
+        </div>
+        <div data-panel="empty" data-group="st" class="stack" hidden>
+          <div class="empty"><div><div class="glyph">▤</div><h3 style="margin-top: var(--sp-3)">No messages yet</h3><p class="small">Send a prompt to start the conversation.</p></div></div>
+        </div>
+        <div data-panel="skeleton" data-group="st" class="stack" hidden>
+          <div class="skeleton" style="height: 14px; width: 60%"></div>
+          <div class="skeleton" style="height: 14px; width: 92%"></div>
+          <div class="skeleton" style="height: 14px; width: 78%"></div>
+          <div class="skeleton" style="height: 80px; width: 100%"></div>
+        </div>
+        <div data-panel="scope" data-group="st" class="stack" hidden>
+          <div class="error-card">
+  <div class="row between"><h3>⚠ Insufficient scope</h3><span class="chip">forbidden_scope</span></div>
+  <p class="small" style="margin-top: var(--sp-2)">This device is signed in as viewer: managing devices needs operator or admin.</p>
+  <button class="btn sm">Sign in as admin</button>
+</div>
+        </div>
+        <div data-panel="notify" data-group="st" class="stack" hidden>
+          <div class="card small" style="border-color: color-mix(in srgb, var(--warning) 45%, transparent)">🔕 Local notifications are disabled in the system settings: the app will only show in-app banners until you grant them.</div>
+          <button class="btn sm">Open system settings</button>
+        </div>
+      </div>
+      <div class="composer">
+  
+  
+  <div class="box">
+    <button class="iconbtn" title="Attach an image">🖼</button>
+    <div class="fake-input">Message pi…</div>
+    <button class="btn primary sm">Send</button>
+  </div>
+  <div class="hint">pi runs in the host directory shown above.</div>
+</div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>Mandatory states</h2>
+    <dl>
+      <dt>How to review</dt><dd>Every tab is one state the plan requires to be designed before approval. The same states are reachable live from the scenario recorder in the Flutter prototype; in these static mockups they are frozen here.</dd>
+      <dt>Covered</dt><dd>streaming, long tool + watchdog, dialog timeout, provider quota, crash, offline queue, reconnect with replay, wrap-up/handoff, empty, skeleton, insufficient scope, notification permission denied.</dd>
+      <dt>Also see</dt><dd>#25 connection states, #39 login, #40 offline queue.</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

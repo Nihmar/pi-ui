@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 31 — Global search</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#31 · Global search</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Search</h1><span class="sub">everything</span><div class="row"></div></header>
+<div class="content stack">
+  <input class="input" value="replay dedup" spellcheck="false">
+  <div class="wrap"><span class="chip accent">all</span><span class="chip">messages</span><span class="chip">files</span><span class="chip">sessions</span></div>
+  <div>
+    <div class="section-title" style="padding: 0 0 var(--sp-1)">Messages · 7</div>
+    <div class="search-hit small"><strong>pi-ui · 12:01</strong><p>…the durable <mark>replay</mark> must dedup by entry id, not seq…</p></div>
+    <div class="search-hit small"><strong>Niman · yesterday</strong><p>…<mark>dedup</mark> the queue by message id before retrying…</p></div>
+  </div>
+  <div>
+    <div class="section-title" style="padding: 0 0 var(--sp-1)">Files · 3</div>
+    <div class="card tight"><div class="mono small">server/internal/ws/replay.go</div><div class="tiny dim">2 matches · modified 2 h ago</div></div>
+    <div class="card tight"><div class="mono small">docs/ws-protocol.md</div><div class="tiny dim">1 match · modified 3 h ago</div></div>
+  </div>
+  <div>
+    <div class="section-title" style="padding: 0 0 var(--sp-1)">Sessions · 2</div>
+    <div class="card tight"><div class="row between"><span>pi-ui</span><span class="badge ready">ready</span></div><div class="tiny dim">~/Projects/pi-ui</div></div>
+  </div>
+</div>
+<nav class="nav-bottom">
+  <a class=""><span class="glyph">▤</span>Sessions</a>
+  <a class="active"><span class="glyph">⌕</span>Search</a>
+  <a class=""><span class="glyph">⚙</span>Settings</a>
+</nav>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>31 — Global search</h2>
+    <dl>
+      <dt>Area</dt><dd>Search</dd>
+      <dt>Behaviour</dt><dd>One field over three sources: conversation entries (server-side JSONL scan), host files (ripgrep) and session metadata. Results are grouped by source and jump to the exact place.</dd>
+      <dt>States to check</dt><dd>no results, ripgrep missing, search while offline (last cache with a stale badge)</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

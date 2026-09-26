@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 25 — Connection states</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#25 · Connection states</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Connection</h1><span class="sub">global banner</span><div class="row"></div></header>
+<div class="content stack">
+  <div class="tabs" style="padding: 0; background: transparent">
+    <button class="tab active" data-tab="online" data-group="conn">online</button>
+    <button class="tab" data-tab="offline" data-group="conn">offline</button>
+    <button class="tab" data-tab="reconnect" data-group="conn">reconnect</button>
+    <button class="tab" data-tab="replay" data-group="conn">replay</button>
+  </div>
+  <div data-panel="online" data-group="conn" class="stack">
+    <div class="chip" style="align-self:flex-start">● connected · 42 ms</div>
+    <div class="card small muted">No banner is shown when everything is healthy: silence is the signal.</div>
+    <div class="card ">
+  <div class="row between"><strong>pi-ui</strong><span class="badge streaming">streaming</span></div>
+  <div class="row small dim" style="margin-top: 2px">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip">▤ llama.cpp</span></div>
+  <div class="progress" style="margin-top: var(--sp-3)"><span style="width: 12%; background: var(--accent)"></span></div>
+  <div class="row between tiny dim" style="margin-top: var(--sp-1)"><span>14k / 128k · $0.45</span><span>4 msgs</span></div>
+  
+</div>
+  </div>
+  <div data-panel="offline" data-group="conn" class="stack" hidden>
+    <div class="banner offline" style="border-radius: var(--r-md)">☁ Offline — messages are queued and sent when the connection returns. <span class="spacer"></span><button class="btn sm">Reconnect</button></div>
+    <div class="card small"><strong>2 messages queued</strong><div class="tiny dim">2b · Then update the changelog</div></div>
+    <div class="composer">
+  
+  
+  <div class="box">
+    <button class="iconbtn" title="Attach an image">🖼</button>
+    <div class="fake-input">Offline — the message is queued</div>
+    <button class="btn primary sm">Send</button>
+  </div>
+  <div class="hint">pi runs in the host directory shown above.</div>
+</div>
+  </div>
+  <div data-panel="reconnect" data-group="conn" class="stack" hidden>
+    <div class="banner reconnect" style="border-radius: var(--r-md)"><span class="spinner"></span> Reconnecting — the server will replay the events you missed.</div>
+    <div class="card small muted">Backoff 1 s → 2 s → 4 s, capped at 30 s; the socket re-handshakes with the stored device token.</div>
+  </div>
+  <div data-panel="replay" data-group="conn" class="stack" hidden>
+    <div class="banner reconnect" style="border-radius: var(--r-md)"><span class="spinner"></span> Replaying 12 missed events…</div>
+    <div class="card small"><div class="row between"><span>server.replay.begin</span><span class="mono">entry</span></div><div class="row between"><span>12 × pi.entry_appended</span><span class="mono">e-12…e-24</span></div><div class="row between"><span>server.replay.end</span><span class="mono">complete: true</span></div></div>
+    <div class="card small muted">A truncated replay (the cursor aged out) turns into a REST reload, never a silent hole.</div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>25 — Connection states</h2>
+    <dl>
+      <dt>Area</dt><dd>Global</dd>
+      <dt>Behaviour</dt><dd>One global banner, four states. Offline queues messages, reconnecting is a warning with backoff, replay shows the durable catch-up; online shows nothing.</dd>
+      <dt>States to check</dt><dd>three missed heartbeats, token revoked while offline, replay truncated</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 23 — Server settings</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#23 · Server settings</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<div class="layout">
+  <nav class="rail">
+  <div class="mark">π</div>
+  <a class=""><span class="glyph">▤</span>Sessions</a>
+  <a class=""><span class="glyph">⌕</span>Search</a>
+  <a class="active"><span class="glyph">⚙</span>Settings</a>
+</nav>
+  <div class="pane wide">
+    <div class="content tight">
+      <div class="section-title">Server</div>
+      <div class="card tight selected"><strong>Watchdog &amp; timeouts</strong><div class="tiny dim">idle eviction, wrap-up</div></div>
+      <div class="card tight"><strong>Allowed roots</strong><div class="tiny dim">where sessions may run</div></div>
+      <div class="card tight"><strong>Trust &amp; approvals</strong><div class="tiny dim">bridge policy</div></div>
+      <div class="card tight"><strong>TLS</strong><div class="tiny dim">certificate, HSTS, pinning</div></div>
+      <div class="card tight"><strong>Rate limit</strong><div class="tiny dim">pairing and commands</div></div>
+      <div class="card tight"><strong>Retention</strong><div class="tiny dim">uploads, audit, logs</div></div>
+    </div>
+  </div>
+  <div class="pane-main">
+    <div class="content">
+      <h2>Watchdog &amp; timeouts</h2>
+      <p class="small muted">These bound the server's own behaviour; the child's flags are set per session.</p>
+      <div class="card">
+        <div class="setting"><div class="label">Idle session eviction<small>Graceful wrap-up, handoff file, then stop.</small></div><span class="chip">60 min</span></div>
+        <div class="setting"><div class="label">Global shutdown budget<small>How long a SIGTERM waits for every child.</small></div><span class="chip">2 s</span></div>
+        <div class="setting"><div class="label">Dialog timeout<small>An unanswered extension dialog is cancelled.</small></div><span class="chip">60 s</span></div>
+        <div class="setting"><div class="label">Auto-respawn<small>Attempts and window after a crash.</small></div><span class="chip">3 / 10 min</span></div>
+        <div class="setting"><div class="label">Max concurrent sessions<small>Slots for live children.</small></div><span class="chip">8</span></div>
+      </div>
+      <div class="row" style="margin-top: var(--sp-3)"><span class="chip warn">admin scope required</span><span class="spacer"></span><button class="btn">Reset</button><button class="btn primary">Save</button></div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>23 — Server settings</h2>
+    <dl>
+      <dt>Area</dt><dd>Settings</dd>
+      <dt>Behaviour</dt><dd>Server-wide settings, admin-only. Every row states its unit and its effect; saving is explicit, and a restart-required field says so before it is changed.</dd>
+      <dt>States to check</dt><dd>non-admin viewer (read-only), invalid values, managed mode (some fields locked)</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

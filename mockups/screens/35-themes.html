@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 35 — Themes and language</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#35 · Themes and language</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Appearance</h1><div class="row"></div></header>
+<div class="content stack">
+  <label class="field-label">Theme</label>
+  <div class="wrap"><span class="chip accent">dark</span><span class="chip">light</span><span class="chip">system</span></div>
+  <label class="field-label">Imported pi themes</label>
+  <div class="card tight"><div class="row between"><span>tokyo-night</span><span class="chip accent">active</span></div><div class="row tiny dim" style="margin-top:4px"><span style="width:12px;height:12px;border-radius:3px;background:#4c8dff"></span><span style="width:12px;height:12px;border-radius:3px;background:#3fb950"></span><span style="width:12px;height:12px;border-radius:3px;background:#f85149"></span><span>mapped from the pi theme variables</span></div></div>
+  <div class="card tight"><div class="row between"><span>gruvbox</span><span class="chip">import</span></div></div>
+  <button class="btn sm">Import a pi theme…</button>
+  <label class="field-label">Language</label>
+  <div class="wrap"><span class="chip accent">English</span><span class="chip">Italiano</span></div>
+  <label class="field-label">Density</label>
+  <div class="wrap"><span class="chip accent">comfortable</span><span class="chip">compact</span></div>
+  <label class="field-label">Text size</label>
+  <input type="range" min="90" max="130" value="100" style="width:100%">
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>35 — Themes and language</h2>
+    <dl>
+      <dt>Area</dt><dd>Settings</dd>
+      <dt>Behaviour</dt><dd>The app imports pi's own theme files and maps their variables onto the app palette; language, density and text size are separate from the markdown rendering, which follows the same tokens.</dd>
+      <dt>States to check</dt><dd>theme with missing variables, right-to-left language, system theme changing while the app is open</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

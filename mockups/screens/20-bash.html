@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 20 — Direct bash console</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#20 · Direct bash console</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge streaming">streaming</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 12%"></span></div><span class="tiny dim">14k / 128k · $0.45</span></div>
+  <div class="row small" style="color: var(--accent)"><span class="spinner"></span> The agent is working…<span class="spacer"></span><button class="btn ghost sm">Abort</button></div>
+</header>
+<div class="timeline">
+  <div class="tool-card success">
+  <div class="tool-head"><span>❯</span><span class="name">Run the server tests</span><span class="cmd">go test -race ./...</span><span class="tool-status"><span class="spinner"></span> running</span></div>
+  <div class="tool-body"><div class="code">ok   …/internal/rpc        1.9s
+ok   …/internal/ws         2.4s
+ok   …/test/adversarial   17.1s
+</div></div>
+</div>
+  <div class="status-line "><span class="spinner"></span>Streaming output · 3 of 4 packages done</div>
+  <div class="tool-card success">
+  <div class="tool-head"><span>❯</span><span class="name">Build the static binary</span><span class="cmd">CGO_ENABLED=0 go build ./...</span><span class="tool-status">✓ done <span class="dim">120 ms</span></span></div>
+  <div class="tool-body"><div class="code">✓ …/server/bin/pi-ui · 13.7 MB
+</div><div class="row tiny dim" style="margin-top: var(--sp-2)">full output → /tmp/pi-ui/build-4f2a.log</div></div>
+</div>
+</div>
+<div class="composer">
+  
+  
+  <div class="box">
+    <button class="iconbtn" title="Attach an image">🖼</button>
+    <div class="fake-input">Steer the run or leave a follow-up</div>
+    <button class="btn primary sm">Send</button>
+  </div>
+  <div class="hint">pi runs in the host directory shown above.</div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>20 — Direct bash console</h2>
+    <dl>
+      <dt>Area</dt><dd>Tools</dd>
+      <dt>Behaviour</dt><dd>A bash call streams its output into the card as it arrives; the exit code and the path of the full output appear when it ends. The console screen (29) is the interactive version of the same channel.</dd>
+      <dt>States to check</dt><dd>non-zero exit, truncated output, cancelled command, command waiting for stdin</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

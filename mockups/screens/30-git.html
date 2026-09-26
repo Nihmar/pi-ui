@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 30 — Git panel</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#30 · Git panel</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<div class="layout">
+  <nav class="rail">
+  <div class="mark">π</div>
+  <a class="active"><span class="glyph">▤</span>Sessions</a>
+  <a class=""><span class="glyph">⌕</span>Search</a>
+  <a class=""><span class="glyph">⚙</span>Settings</a>
+</nav>
+  <div class="pane">
+    <div class="content tight stack">
+      <div class="row between"><strong>Changes</strong><span class="chip">3</span></div>
+      <div class="card tight"><div class="row between"><span class="mono small">M replay.go</span><span class="chip accent">staged</span></div></div>
+      <div class="card tight"><div class="row between"><span class="mono small">M entry_tile.dart</span><span class="chip">modified</span></div></div>
+      <div class="card tight"><div class="row between"><span class="mono small">?? index.html</span><span class="chip">untracked</span></div></div>
+      <input class="input" placeholder="Commit message…" style="margin-top: var(--sp-2)">
+      <div class="row"><button class="btn sm" disabled title="git write is disabled">Stage all</button><button class="btn sm primary" disabled title="git write is disabled">Commit</button></div>
+      <div class="chip warn" style="align-self:flex-start">git write disabled</div>
+      <div class="divider"></div>
+      <div class="row between"><strong>Branches</strong><span class="chip">main</span></div>
+      <div class="tiny dim mono">main → origin/main · ahead 2</div>
+    </div>
+  </div>
+  <div class="pane-main">
+    <div class="content tight">
+      <div class="diff">
+  <div class="diff-head"><span class="mono">server/internal/ws/replay.go</span><span class="spacer"></span><span style="color: var(--success)">+2</span><span style="color: var(--error)">−1</span></div>
+  <div class="diff-line "><span class="sign"> </span>func (s *subscription) flushLocked(h *hub) {</div><div class="diff-line del"><span class="sign">−</span>    sort.SliceStable(pending, bySeq)</div><div class="diff-line add"><span class="sign">+</span>    // Dedup by entry id on the durable path.</div><div class="diff-line add"><span class="sign">+</span>    for _, ev := range pending {</div><div class="diff-line "><span class="sign"> </span>}</div>
+</div>
+      <div class="section-title">Recent commits</div>
+      <div class="card tight"><div class="row between"><span class="mono small">30a4703</span><span class="tiny dim">2 h ago</span></div><div class="small">ws: fix durable replay dedup and the unknown-session race</div></div>
+      <div class="card tight"><div class="row between"><span class="mono small">628cbda</span><span class="tiny dim">3 h ago</span></div><div class="small">ws: release replay rings nobody can replay</div></div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>30 — Git panel</h2>
+    <dl>
+      <dt>Area</dt><dd>Tools</dd>
+      <dt>Behaviour</dt><dd>Git is read by default: status, diff, log and branches. Staging and committing exist but are disabled until the operator turns git write on in Settings; the panel says why the buttons are inert.</dd>
+      <dt>States to check</dt><dd>detached HEAD, merge conflict, write enabled, repository without commits</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

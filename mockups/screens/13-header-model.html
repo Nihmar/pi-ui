@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 13 — Model and thinking</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#13 · Model and thinking</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge ready">ready</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 10%"></span></div><span class="tiny dim">12k / 128k · $0.42</span></div>
+  
+</header>
+<div class="timeline"><div class="bubble-assistant md">
+  <p><strong>pi-ui</strong> wraps the <code>pi</code> coding agent.</p>
+  <p>The Go server owns one <code>pi --mode rpc</code> child per session and exposes:</p>
+  <ul>
+    <li>REST <code>/api/v1</code></li>
+    <li>WebSocket <code>/ws/v1</code> — events, replay, dialogs</li>
+  </ul>
+  <pre class="code">./server/bin/pi-ui serve --addr 127.0.0.1:8787</pre>
+  <p>The client never sees provider secrets.</p>
+</div></div>
+<div class="card stack" style="border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0">
+  <div class="row"><strong>Model</strong><span class="spacer"></span><button class="iconbtn">×</button></div>
+  <div class="card tight selected"><div class="row between"><span>llama.cpp · qwen-38-27b</span><span class="chip accent">current</span></div><div class="tiny dim">128k context · local</div></div>
+  <div class="card tight"><div class="row between"><span>anthropic · sonnet-4.5</span><span class="chip">cloud</span></div><div class="tiny dim">200k context · provider key stays on the server</div></div>
+  <div class="card tight"><div class="row between"><span>openai · gpt-5.1-codex</span><span class="chip">cloud</span></div><div class="tiny dim">400k context</div></div>
+  <div class="divider"></div>
+  <div class="row"><strong>Thinking level</strong></div>
+  <div class="wrap"><span class="chip">off</span><span class="chip">low</span><span class="chip accent">medium</span><span class="chip">high</span></div>
+  <button class="btn primary">Apply</button>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>13 — Model and thinking</h2>
+    <dl>
+      <dt>Area</dt><dd>Session header</dd>
+      <dt>Behaviour</dt><dd>The header owns the run's knobs: model, thinking level and the status line. The picker is a sheet on a phone and a popover on desktop; changing the model never restarts the session.</dd>
+      <dt>States to check</dt><dd>provider without a key, model list empty, thinking level unsupported by the model</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 18 — Clone, rename, switch</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#18 · Clone, rename, switch</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Session actions</h1><span class="sub">pi-ui</span><div class="row"></div></header>
+<div class="content stack">
+  <div class="card"><div class="row between"><span><strong>Rename</strong><br><span class="tiny dim">The projection and the pi session name follow.</span></span><button class="btn sm">Rename</button></div></div>
+  <div class="card"><div class="row between"><span><strong>Clone</strong><br><span class="tiny dim">A new session continuing from this leaf.</span></span><button class="btn sm">Clone</button></div></div>
+  <div class="card"><div class="row between"><span><strong>Switch session</strong><br><span class="tiny dim">Resume another pi session from this working directory.</span></span><button class="btn sm">List</button></div></div>
+  <div class="card"><div class="row between"><span><strong>Export</strong><br><span class="tiny dim">HTML transcript or raw JSONL.</span></span><button class="btn sm">Export</button></div></div>
+  <div class="divider"></div>
+  <label class="field-label">Rename this session</label>
+  <input class="input" value="pi-ui">
+  <div class="row"><button class="btn">Cancel</button><span class="spacer"></span><button class="btn primary">Save name</button></div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>18 — Clone, rename, switch</h2>
+    <dl>
+      <dt>Area</dt><dd>Branching</dd>
+      <dt>Behaviour</dt><dd>The session identity operations in one sheet. Switching lists the pi sessions discovered on the host for the same working directory, including the ones created in the TUI.</dd>
+      <dt>States to check</dt><dd>rename to an empty name (refused), duplicate name (allowed), switch to a session whose cwd no longer exists</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 14 — Run status</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#14 · Run status</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge streaming">streaming</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 high</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 58%"></span></div><span class="tiny dim">74k / 128k · $0.61</span></div>
+  <div class="row small" style="color: var(--accent)"><span class="spinner"></span> The agent is working…<span class="spacer"></span><button class="btn ghost sm">Abort</button></div>
+</header>
+<div class="timeline"><div class="bubble-assistant md">
+  <p><strong>pi-ui</strong> wraps the <code>pi</code> coding agent.</p>
+  <p>The Go server owns one <code>pi --mode rpc</code> child per session and exposes:</p>
+  <ul>
+    <li>REST <code>/api/v1</code></li>
+    <li>WebSocket <code>/ws/v1</code> — events, replay, dialogs</li>
+  </ul>
+  <pre class="code">./server/bin/pi-ui serve --addr 127.0.0.1:8787</pre>
+  <p>The client never sees provider secrets.</p>
+</div></div>
+<div class="card stack" style="border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0">
+  <div class="row"><strong>Run status</strong><span class="spacer"></span><span class="chip accent">streaming</span></div>
+  <div class="card tight"><div class="row between"><span>Model call</span><span class="spinner"></span></div><div class="tiny dim">turn 3 · 18.4 s</div></div>
+  <div class="card tight"><div class="row between"><span>Compaction</span><span class="chip">scheduled</span></div><div class="tiny dim">context at 58% — auto compaction on</div></div>
+  <div class="card tight"><div class="row between"><span>Retry</span><span class="chip">none</span></div><div class="tiny dim">provider errors appear here with their code</div></div>
+  <div class="stats" style="margin-top: var(--sp-2)"><div class="stat"><div class="value">74.5k</div><div class="label">context tokens</div></div><div class="stat"><div class="value">$0.61</div><div class="label">session cost</div></div><div class="stat"><div class="value">18</div><div class="label">messages</div></div><div class="stat"><div class="value">3</div><div class="label">turns</div></div></div>
+  <div class="row"><button class="btn danger sm">Abort run</button><span class="spacer"></span><button class="btn sm">Compact now</button></div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>14 — Run status</h2>
+    <dl>
+      <dt>Area</dt><dd>Session header</dd>
+      <dt>Behaviour</dt><dd>Status is a sheet, not a second screen: streaming, compacting and retrying with the numbers that matter. The same data feeds the session card and the statistics screen.</dd>
+      <dt>States to check</dt><dd>compacting, retrying after a provider error, aborted run</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

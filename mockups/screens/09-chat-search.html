@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 9 — Search in conversation</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#9 · Search in conversation</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Search</h1><span class="sub">pi-ui</span><div class="row"><button class="btn sm">Aa</button></div></header>
+<div class="content content-tight stack" style="padding: var(--sp-3)">
+  <div class="row"><input class="input" value="replay" spellcheck="false"><span class="chip">2/7</span><button class="iconbtn">↑</button><button class="iconbtn">↓</button></div>
+  <div class="search-hit small"><strong>Assistant · 11:42</strong><p>…the reconnect path is the <mark>replay</mark> one: subscribe with since.entryId…</p></div>
+  <div class="search-hit small"><strong>Assistant · 11:43</strong><p>…missed events are <mark>replayed</mark> from the ring, truncated when the cursor fell out…</p></div>
+  <div class="search-hit small"><strong>Tool · go test</strong><p>ok …/internal/ws — <mark>replay</mark> tests green</p></div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>9 — Search in conversation</h2>
+    <dl>
+      <dt>Area</dt><dd>Chat</dd>
+      <dt>Behaviour</dt><dd>Search happens in the message timeline, not the raw JSONL: hits are grouped by entry with the matched term highlighted, and the counter drives prev/next.</dd>
+      <dt>States to check</dt><dd>no hits, case-sensitive toggle, search while streaming</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

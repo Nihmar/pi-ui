@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 1 — Server URL</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#1 · Server URL</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Connect to a server</h1><div class="row"></div></header>
+<div class="content stack">
+  <div class="center" style="padding: var(--sp-5) 0">
+    <div style="width:56px;height:56px;border-radius:var(--r-lg);background:var(--accent);color:#fff;display:grid;place-items:center;font-size:26px;font-weight:700;margin:0 auto var(--sp-3)">π</div>
+    <h2>pi-ui</h2>
+    <p class="small muted">Point the app at the server that runs your pi sessions.</p>
+  </div>
+  <label class="field-label">Server URL</label>
+  <input class="input" value="http://pi-ui.local:8787" spellcheck="false">
+  <div class="wrap"><span class="chip accent">✓ reachable · pi 0.87.1</span><span class="chip">3 sessions</span></div>
+  <div>
+    <label class="field-label">Network profile</label>
+    <div class="wrap"><span class="chip accent">LAN</span><span class="chip">VPN · Tailscale</span><span class="chip">Public HTTPS</span></div>
+  </div>
+  <button class="btn">Test connection</button>
+  <button class="btn primary">Continue to pairing</button>
+  <p class="tiny dim">Provider keys never leave the server.</p>
+</div>
+<nav class="nav-bottom">
+  <a class=""><span class="glyph">▤</span>Sessions</a>
+  <a class=""><span class="glyph">⌕</span>Search</a>
+  <a class="active"><span class="glyph">⚙</span>Settings</a>
+</nav>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>1 — Server URL</h2>
+    <dl>
+      <dt>Area</dt><dd>Onboarding</dd>
+      <dt>Behaviour</dt><dd>The first screen of a fresh install. The URL field accepts a bare host, a host:port or an https:// origin; Test connection probes /api/v1/health and reports the pi version. The network-profile chips only change the hints that follow (certificate vs token vs plain HTTP).</dd>
+      <dt>States to check</dt><dd>unreachable server (inline error), wrong scheme, server behind a self-signed certificate (links to 04)</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

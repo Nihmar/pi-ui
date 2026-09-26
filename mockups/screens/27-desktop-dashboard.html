@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 27 — Multi-session dashboard</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#27 · Multi-session dashboard</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<div class="layout">
+  <nav class="rail">
+  <div class="mark">π</div>
+  <a class="active"><span class="glyph">▤</span>Sessions</a>
+  <a class=""><span class="glyph">⌕</span>Search</a>
+  <a class=""><span class="glyph">⚙</span>Settings</a>
+</nav>
+  <div class="pane-main">
+    <header class="appbar"><h1>Sessions</h1><span class="chip">8 / 8 slots</span><span class="spacer"></span><button class="btn sm">＋ New session</button></header>
+    <div class="content">
+      <div class="stats"><div class="stat"><div class="value">6</div><div class="label">live</div></div><div class="stat"><div class="value">1</div><div class="label">crashed</div></div><div class="stat"><div class="value">$3.67</div><div class="label">cost today</div></div><div class="stat"><div class="value">412k</div><div class="label">tokens in</div></div></div>
+      <div class="group" style="margin-top: var(--sp-4)">
+        <h2 style="font-size:14px">Live</h2>
+        <div class="board" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr))">
+          <div class="card selected"><div class="row between"><strong>pi-ui</strong><span class="badge streaming">streaming</span></div><p class="tiny dim" style="margin-top:4px">refactoring replay.go · 18 s</p><div class="progress" style="margin-top:8px"><span style="width: 24%"></span></div></div>
+          <div class="card"><div class="row between"><strong>Niman</strong><span class="badge ready">ready</span></div><p class="tiny dim" style="margin-top:4px">idle · 2 queued</p><div class="progress" style="margin-top:8px"><span style="width: 26%"></span></div></div>
+          <div class="card"><div class="row between"><strong>docs</strong><span class="badge streaming">streaming</span></div><p class="tiny dim" style="margin-top:4px">writing the API page · 4 s</p><div class="progress" style="margin-top:8px"><span style="width: 9%"></span></div></div>
+          <div class="card"><div class="row between"><strong>scratch</strong><span class="badge crashed">crashed</span></div><p class="tiny dim" style="margin-top:4px">exit 9 · restart available</p><button class="btn sm" style="margin-top:8px">Restart</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>27 — Multi-session dashboard</h2>
+    <dl>
+      <dt>Area</dt><dd>Desktop</dd>
+      <dt>Behaviour</dt><dd>The desktop home: every live session as a tile with status, activity and context, plus the aggregate numbers. It is the view a user keeps open on a second monitor.</dd>
+      <dt>States to check</dt><dd>8 live sessions (limit), crashed tile with restart, dashboard while offline</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

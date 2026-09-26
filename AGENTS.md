@@ -13,7 +13,7 @@ Two deliverables:
 
 - `server/` — **Go** service (static binary, `CGO_ENABLED=0`) that orchestrates **one `pi --mode rpc` child process per session** (working directory on the host), exposes REST `/api/v1` + WebSocket `/ws/v1`, and adds the capabilities pi does not have: PTY terminals, files, git, search, MCP, background tasks, updates.
 - `app/` — Flutter client (Riverpod · go_router · dio · web_socket_channel).
-- `mockups/` — clickable Flutter mock with fake data; it freezes the UI **before** product work and then becomes the base of `app/`.
+- `mockups/` — static HTML mockup of the whole UI, browsed directly (no build step); it freezes the UI **before** product work and is the visual contract for `app/`.
 - `bridge/` — the `pi-ui-bridge` extension (TypeScript sources, loaded by pi via jiti) that runs inside every child: MCP tools, approval dialogs, goal mode, custom markers.
 - `packages/piui-markdown/` — shared markdown/editor engine vendored from Niman (MIT): chat rendering, tool diffs, template/skill editing.
 - `docs/` + `schemas/` — ADRs, API/WS specifications, JSON Schema (source of truth for every DTO and event) and `openapi.yaml`.
@@ -33,7 +33,7 @@ pi-ui/
 ├── bridge/        pi extension in TypeScript (no build step: pi loads the sources via jiti)
 ├── packages/piui-markdown/  markdown/editor engine shared with Niman (MIT, attribution, upstream-first)
 ├── app/           lib/{core,features,widgets}
-├── mockups/       Flutter mock app (fake data)
+├── mockups/       static HTML mockup of the whole UI (assets/ + screens/)
 ├── deploy/        docker compose (reference), systemd, Tailscale/nginx examples, certificate notes
 └── .github/workflows/
 ```
@@ -83,11 +83,11 @@ Everything here must be written with **expandability as a first-class requiremen
 - TypeScript strict on; **no `any`** and no unchecked casts; validate every inbound payload against its schema (Ajv) before acting on it.
 - **Tests ship with the feature**: fixture-driven protocol tests against the `fake-pi` harness so behaviour is reproducible without a model, plus e2e against real pi for integration paths.
 
-## Flutter (`app/` and `mockups/`)
+## Flutter (`app/`) and the HTML mockup (`mockups/`)
 
 Platform targets: **Android, Linux, Windows** (iOS/macOS are out of scope in this environment; Windows builds run on CI `windows-latest` or a Windows host).
 
-Before a change is considered finished, from the affected package directory (`app/` or `mockups/`):
+Before a change is considered finished, from the affected package directory (`app/`):
 
 ```bash
 dart fix --apply      # idempotent; applies all safe automated fixes
@@ -100,7 +100,7 @@ flutter test          # when the package has tests
 - After touching `pubspec.yaml`: `flutter pub get`, then re-run the trio.
 - One widget file per screen/panel; theme tokens from `theme/` — **no hard-coded colors, sizes or paddings inside widgets**.
 - Layout breakpoints: `< 600` mobile (NavigationBar + drawer, full-screen routes), `> 1024` desktop (NavigationRail + master/detail, resizable panels), intermediate in between.
-- Keep `mockups/` and `app/` **structurally identical** (same widgets, different data source) so approving a mockup approves the real UI.
+- The HTML mockups in `mockups/` are the visual contract: implementing a screen means matching `mockups/screens/NN-<name>.html` — tokens, spacing, states — not inventing a layout. A mockup change is a plain HTML/CSS/JS edit (no build step): keep `mockups/index.html` and the notes in `docs/mockups.md` in the same commit.
 - Markdown rendering/editing (chat messages, tool diffs, prompt templates, skills, `AGENTS.md`, host `.md` files) comes from `packages/piui-markdown` — do not add a second markdown stack to the app.
 - Naming: `snake_case` files, `PascalCase` classes; Riverpod providers in their own file next to the feature they serve.
 

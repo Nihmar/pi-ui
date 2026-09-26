@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 6 — Session list</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#6 · Session list</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<div class="layout">
+  <nav class="rail">
+  <div class="mark">π</div>
+  <a class="active"><span class="glyph">▤</span>Sessions</a>
+  <a class=""><span class="glyph">⌕</span>Search</a>
+  <a class=""><span class="glyph">⚙</span>Settings</a>
+</nav>
+  <div class="pane">
+    <div class="content tight stack">
+      <input class="input" placeholder="Search sessions…" value="">
+      <div class="wrap"><span class="chip accent">all</span><span class="chip">live</span><span class="chip">crashed</span><span class="chip">host · pi-ui.local</span></div>
+      <div class="card selected">
+  <div class="row between"><strong>pi-ui</strong><span class="badge ready">ready</span></div>
+  <div class="row small dim" style="margin-top: 2px">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="progress" style="margin-top: var(--sp-3)"><span style="width: 10%; background: var(--accent)"></span></div>
+  <div class="row between tiny dim" style="margin-top: var(--sp-1)"><span>12k / 128k · $0.42</span><span>4 msgs</span></div>
+  
+</div>
+      <div class="card ">
+  <div class="row between"><strong>Niman</strong><span class="badge streaming">streaming</span></div>
+  <div class="row small dim" style="margin-top: 2px">🗀 ~/Projects/Niman</div>
+  <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip">▤ anthropic · sonnet-4.5</span><span class="chip">🧠 high</span></div>
+  <div class="progress" style="margin-top: var(--sp-3)"><span style="width: 26%; background: var(--accent)"></span></div>
+  <div class="row between tiny dim" style="margin-top: var(--sp-1)"><span>51k / 200k · $3.18</span><span>4 msgs</span></div>
+  <div class="tiny" style="color: var(--warning); margin-top: 2px">2 queued</div>
+</div>
+      <div class="card ">
+  <div class="row between"><strong>mockup-review</strong><span class="badge crashed">crashed</span></div>
+  <div class="row small dim" style="margin-top: 2px">🗀 ~/Projects/pi-ui/mockups</div>
+  <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip">▤ openai · gpt-5.1-codex</span><span class="chip">exit 9</span></div>
+  <div class="progress" style="margin-top: var(--sp-3)"><span style="width: 1%; background: var(--accent)"></span></div>
+  <div class="row between tiny dim" style="margin-top: var(--sp-1)"><span>2k / 400k · $0.07</span><span>4 msgs</span></div>
+  
+</div>
+      <div class="card ">
+  <div class="row between"><strong>scratch</strong><span class="badge exited">exited</span></div>
+  <div class="row small dim" style="margin-top: 2px">🗀 ~/tmp/scratch</div>
+  <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip">▤ llama.cpp · qwen-38-27b</span></div>
+  <div class="progress" style="margin-top: var(--sp-3)"><span style="width: 1%; background: var(--accent)"></span></div>
+  <div class="row between tiny dim" style="margin-top: var(--sp-1)"><span>0k / 128k · $0.01</span><span>4 msgs</span></div>
+  
+</div>
+      <button class="btn primary">＋ New session</button>
+    </div>
+  </div>
+  <div class="pane-main"><div class="empty"><div><div class="glyph">▤</div><h3 style="margin-top: var(--sp-3)">Select a session</h3><p class="small">Pick one on the left, or start a new one. The list keeps finished sessions until you remove them.</p></div></div></div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>6 — Session list</h2>
+    <dl>
+      <dt>Area</dt><dd>Sessions</dd>
+      <dt>Behaviour</dt><dd>The master list. On a phone it is full screen with a bottom bar; from 1024 up it keeps a detail pane next to it. Status, cwd, model, context and queue depth are readable without opening a session.</dd>
+      <dt>States to check</dt><dd>empty list, offline banner, duplicate-cwd warning, crashed session, filter with no hits</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

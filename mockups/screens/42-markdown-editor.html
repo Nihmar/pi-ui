@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 42 — Markdown editor</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#42 · Markdown editor</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<div class="layout">
+  <nav class="rail">
+  <div class="mark">π</div>
+  <a class="active"><span class="glyph">▤</span>Sessions</a>
+  <a class=""><span class="glyph">⌕</span>Search</a>
+  <a class=""><span class="glyph">⚙</span>Settings</a>
+</nav>
+  <div class="pane-main">
+    <header class="appbar"><h1 class="mono" style="font-size:14px">AGENTS.md</h1><span class="chip">saved 2 min ago</span><span class="spacer"></span>
+      <div class="tabs" style="border:0;background:transparent;padding:0">
+        <button class="tab" data-tab="source" data-group="md">source</button>
+        <button class="tab active" data-tab="wysiwyg" data-group="md">WYSIWYG</button>
+        <button class="tab" data-tab="read" data-group="md">read</button>
+      </div>
+      <button class="btn sm primary">Save</button>
+    </header>
+    <div class="content">
+      <div data-panel="source" data-group="md" hidden>
+        <textarea class="field" rows="18" style="font-family: var(--mono)"># pi-ui
+
+**Server companion + Flutter client for the `pi` coding agent.**
+
+- `server/` — Go service
+- `mockups/` — static HTML mockups
+</textarea>
+      </div>
+      <div data-panel="wysiwyg" data-group="md">
+        <div class="md" contenteditable="true" style="outline:none; border:1px solid var(--border); border-radius: var(--r-md); padding: var(--sp-4)">
+          <h1>pi-ui</h1>
+          <p><strong>Server companion + Flutter client for the <code>pi</code> coding agent.</strong></p>
+          <ul><li><code>server/</code> — Go service</li><li><code>mockups/</code> — static HTML mockups</li></ul>
+          <blockquote>Everything in the repository is written in English.</blockquote>
+        </div>
+      </div>
+      <div data-panel="read" data-group="md" hidden>
+        <div class="md"><h1>pi-ui</h1><p><strong>Server companion + Flutter client for the <code>pi</code> coding agent.</strong></p><ul><li><code>server/</code> — Go service</li><li><code>mockups/</code> — static HTML mockups</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>42 — Markdown editor</h2>
+    <dl>
+      <dt>Area</dt><dd>Tools</dd>
+      <dt>Behaviour</dt><dd>One editor over the shared markdown engine: source, WYSIWYG and read modes for templates, skills, AGENTS.md and host files. The WYSIWYG mode edits the same blocks the engine renders, so nothing is lost between modes.</dd>
+      <dt>States to check</dt><dd>unsaved change on close, file changed on disk, large document, read-only root</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

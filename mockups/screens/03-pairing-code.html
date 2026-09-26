@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 3 — Pairing — code</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#3 · Pairing — code</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Pair with a code</h1><div class="row"></div></header>
+<div class="content stack center">
+  <p class="small muted">Type this code in pi-ui on the other device.</p>
+  <div class="token-code"><span>4</span><span>K</span><span>9</span><span>M</span><span>2</span><span>7</span></div>
+  <div class="chip">expires in 4:12</div>
+  <div class="card small muted">The code is bound to this server and this pairing only. Retry generates a new one.</div>
+  <button class="btn">Generate a new code</button>
+  <button class="btn primary">Done</button>
+  <p class="tiny dim">Pairing grants the <span class="mono">operator</span> scope by default; <span class="mono">admin</span> is a separate approval.</p>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>3 — Pairing — code</h2>
+    <dl>
+      <dt>Area</dt><dd>Onboarding</dd>
+      <dt>Behaviour</dt><dd>The fallback for a device without a camera. Same one-time secret as the QR, just typed. The server rate-limits attempts and burns the code on first use.</dd>
+      <dt>States to check</dt><dd>wrong code, expired code, too many attempts (rate limited)</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

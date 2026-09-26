@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 33 — MCP configuration</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#33 · MCP configuration</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>MCP servers</h1><span class="sub">admin</span><div class="row"><button class="btn sm">＋</button></div></header>
+<div class="content stack">
+  <div class="card">
+    <div class="row between"><strong>filesystem</strong><span class="chip">stdio</span></div>
+    <div class="tiny dim mono" style="margin-top: var(--sp-1)">npx -y @modelcontextprotocol/server-filesystem ~/Projects</div>
+    <div class="row tiny" style="margin-top: var(--sp-2)"><span class="chip">MCP_FS_ROOT=~/Projects</span><span class="chip">tools · 6</span></div>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>github</strong><span class="chip">stdio</span></div>
+    <div class="tiny dim mono" style="margin-top: var(--sp-1)">npx -y @modelcontextprotocol/server-github</div>
+    <div class="row tiny" style="margin-top: var(--sp-2)"><span class="chip">GITHUB_TOKEN=••• set</span><span class="chip">tools · 12</span></div>
+  </div>
+  <div class="card" style="border-style: dashed">
+    <div class="row between"><strong>Add a server</strong><span class="chip">mcp.json</span></div>
+    <label class="field-label">Name</label><input class="input" placeholder="sqlite">
+    <label class="field-label">Command</label><input class="input" placeholder="npx -y @modelcontextprotocol/server-sqlite ./db.sqlite">
+    <label class="field-label">Environment (KEY=value per line)</label><textarea class="field" rows="2" placeholder="EMBEDDING_KEY=…"></textarea>
+    <div class="row" style="margin-top: var(--sp-2)"><button class="btn">Test</button><span class="spacer"></span><button class="btn primary">Save</button></div>
+  </div>
+  <p class="tiny dim">Environment values are write-only: the server returns key names, never values. Changes apply to the next spawn.</p>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>33 — MCP configuration</h2>
+    <dl>
+      <dt>Area</dt><dd>Settings</dd>
+      <dt>Behaviour</dt><dd>MCP servers are configuration, not tools of the client: they are injected into each child by the bridge and appear to the agent as ordinary tools. The screen never shows a secret back.</dd>
+      <dt>States to check</dt><dd>command not found, server exits at startup, duplicate name, long tool list</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

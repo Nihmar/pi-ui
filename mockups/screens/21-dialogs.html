@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 21 — Extension dialogs</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#21 · Extension dialogs</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge streaming">streaming</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 10%"></span></div><span class="tiny dim">12k / 128k · $0.42</span></div>
+  <div class="row small" style="color: var(--accent)"><span class="spinner"></span> The agent is working…<span class="spacer"></span><button class="btn ghost sm">Abort</button></div>
+</header>
+<div class="timeline">
+  <div class="tabs" style="border-bottom: 0; padding: 0">
+    <button class="tab active" data-tab="confirm" data-group="dlg">confirm</button>
+    <button class="tab" data-tab="select" data-group="dlg">select</button>
+    <button class="tab" data-tab="input" data-group="dlg">input</button>
+    <button class="tab" data-tab="editor" data-group="dlg">editor</button>
+  </div>
+  <div data-panel="confirm" data-group="dlg">
+    <div class="dialog" style="margin: 0">
+      <div class="row between"><strong>⚠ Run bash command?</strong><span class="count" data-countdown="20">20s</span></div>
+      <div class="progress" style="margin: var(--sp-2) 0"><span data-countdown-bar style="width:100%"></span></div>
+      <div class="code">rm -rf build/ && flutter build apk --debug</div>
+      <div class="row" style="margin-top: var(--sp-3)"><button class="btn danger">Deny</button><span class="spacer"></span><button class="btn primary">Approve</button></div>
+    </div>
+  </div>
+  <div data-panel="select" data-group="dlg" hidden>
+    <div class="dialog" style="margin: 0">
+      <div class="row between"><strong>Which provider?</strong><span class="count">58s</span></div>
+      <p class="small muted">The bridge found two providers with a key configured.</p>
+      <div class="wrap"><button class="btn">llama.cpp</button><button class="btn primary">anthropic</button><button class="btn">openai</button></div>
+    </div>
+  </div>
+  <div data-panel="input" data-group="dlg" hidden>
+    <div class="dialog" style="margin: 0">
+      <div class="row between"><strong>Session name</strong><span class="count">44s</span></div>
+      <input class="input" style="margin-top: var(--sp-2)" placeholder="pi-ui" value="pi-ui">
+      <div class="row" style="margin-top: var(--sp-3)"><button class="btn">Cancel</button><span class="spacer"></span><button class="btn primary">Send</button></div>
+    </div>
+  </div>
+  <div data-panel="editor" data-group="dlg" hidden>
+    <div class="dialog" style="margin: 0">
+      <div class="row between"><strong>Edit the prompt template</strong><span class="count">39s</span></div>
+      <textarea class="field" rows="6" style="margin-top: var(--sp-2)">Review {diff} against AGENTS.md and list the violations.</textarea>
+      <div class="row" style="margin-top: var(--sp-3)"><button class="btn">Cancel</button><span class="spacer"></span><button class="btn primary">Save</button></div>
+    </div>
+  </div>
+  <div class="status-line warn"><span class="dot"></span>First answer wins · later answers get already_answered</div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>21 — Extension dialogs</h2>
+    <dl>
+      <dt>Area</dt><dd>Dialogs</dd>
+      <dt>Behaviour</dt><dd>The four answerable methods of the extension UI subprotocol. Each carries the child's deadline (the countdown); when it expires the server answers cancelled:true and the card turns grey. The first answer wins.</dd>
+      <dt>States to check</dt><dd>timeout, double answer, dialog raised with no subscriber connected</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

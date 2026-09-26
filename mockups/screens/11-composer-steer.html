@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 11 — Composer — steer or follow-up</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#11 · Composer — steer or follow-up</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="chat-header">
+  <div class="row"><button class="iconbtn only-mobile" title="Back">←</button><strong>pi-ui</strong><span class="badge streaming">streaming</span><span class="spacer"></span><button class="iconbtn" title="Play a scenario">▷</button><button class="iconbtn" title="Session actions">⋮</button></div>
+  <div class="row small dim">🗀 ~/Projects/pi-ui</div>
+  <div class="wrap"><span class="chip">▤ llama.cpp · qwen-38-27b</span><span class="chip">🧠 medium</span></div>
+  <div class="row"><div class="progress" style="flex: 1"><span style="width: 12%"></span></div><span class="tiny dim">14k / 128k · $0.45</span></div>
+  <div class="row small" style="color: var(--accent)"><span class="spinner"></span> The agent is working…<span class="spacer"></span><button class="btn ghost sm">Abort</button></div>
+</header>
+<div class="timeline">
+  <div class="stack" style="align-items: flex-end"><div class="bubble-user">Add the retry to the sync queue.</div></div>
+  <div class="bubble-assistant md"><p>Working on it — the queue now retries when the network returns<span class="caret"></span></p></div>
+</div>
+<div class="composer">
+  <div class="row"><span class="chip accent">Steer</span><span class="chip">Follow-up</span><span class="spacer"></span><span class="tiny dim">Steer is delivered after the current tool calls</span></div>
+  <div class="box"><button class="iconbtn">🖼</button><div class="fake-input">Actually, run the tests first</div><button class="btn primary sm">Queue</button></div>
+  <div class="hint">A plain prompt while streaming is refused with busy_streaming: the app offers steer or follow-up instead.</div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>11 — Composer — steer or follow-up</h2>
+    <dl>
+      <dt>Area</dt><dd>Chat</dd>
+      <dt>Behaviour</dt><dd>While the session streams, the composer becomes a choice: steer (before the next model call) or follow-up (when the agent settles). Both land in the queue with their kind visible.</dd>
+      <dt>States to check</dt><dd>busy_streaming refusal, queue while offline, abort before delivery</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 34 — Updates</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#34 · Updates</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Updates</h1><span class="sub">admin</span><div class="row"></div></header>
+<div class="content stack">
+  <div class="card">
+    <div class="row between"><strong>pi</strong><span class="chip accent">0.87.1 → 0.88.0</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">Contract tests run against the new version before it becomes the default; running sessions keep the old child until they restart.</p>
+    <div class="row"><button class="btn sm">Changelog</button><span class="spacer"></span><button class="btn sm primary">Update</button></div>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>pi-ui server</strong><span class="chip">0.0.1 · up to date</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">Self-update is disabled in managed mode.</p>
+    <button class="btn sm" disabled>Check again</button>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>Packages · 2</strong><span class="chip warn">updates available</span></div>
+    <div class="row between small" style="margin-top: var(--sp-2)"><span class="mono">pi-loop-police</span><span>1.4.0 → 1.5.2</span></div>
+    <div class="row between small"><span class="mono">@scope/tool</span><span>0.2.0 → 0.3.1</span></div>
+    <button class="btn sm" style="margin-top: var(--sp-2)">Update all</button>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>Restart the service</strong><span class="chip danger">all sessions stop</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">A restart drains live sessions with the wrap-up flow, then re-execs the binary.</p>
+    <button class="btn sm danger">Restart pi-ui</button>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>34 — Updates</h2>
+    <dl>
+      <dt>Area</dt><dd>Settings</dd>
+      <dt>Behaviour</dt><dd>Updates are an admin surface with clear blast radius: pi, the server, packages and the service. Managed mode turns the self-update and restart rows into explanations instead of buttons.</dd>
+      <dt>States to check</dt><dd>update while sessions run, managed mode, offline check, failed update with rollback note</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

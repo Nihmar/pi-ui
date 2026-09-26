@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="desktop">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 24 — Errors and log tail</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#24 · Errors and log tail</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><h1>Errors</h1><div class="row"><button class="btn sm">Clear</button></div></header>
+<div class="split">
+  <div class="half">
+    <div class="content stack">
+      <div class="error-card">
+  <div class="row between"><h3>⚠ Provider quota exhausted</h3><span class="chip">model_provider_error</span></div>
+  <p class="small" style="margin-top: var(--sp-2)">The provider rejected the request: quota exceeded. Retry after the window resets.</p>
+  <button class="btn sm">Retry</button>
+</div>
+      <div class="error-card">
+  <div class="row between"><h3>⚠ Extension failed to load</h3><span class="chip">extension_error</span></div>
+  <p class="small" style="margin-top: var(--sp-2)">pi-ui-bridge threw at register: Cannot find module &#x27;mcp.json&#x27;</p>
+  <button class="btn sm">Open logs</button>
+</div>
+      <div class="card"><div class="row between"><strong class="small">Session crashed</strong><span class="chip">exit 9</span></div><p class="small muted" style="margin-top: var(--sp-2)">The child died while idle; the session stays listed and can be restarted.</p></div>
+    </div>
+  </div>
+  <div class="half">
+    <div class="content tight">
+      <div class="log-line"><span class="ts">12:01:04.221</span><span class="lvl warn">WARN</span><span>provider retry 2/3 after 429</span></div>
+      <div class="log-line"><span class="ts">12:01:05.882</span><span class="lvl error">ERR</span><span>quota exceeded for anthropic/sonnet-4.5</span></div>
+      <div class="log-line"><span class="ts">12:01:06.010</span><span class="lvl info">INFO</span><span>session s_4f2a status=streaming → ready</span></div>
+      <div class="log-line"><span class="ts">12:01:09.440</span><span class="lvl info">INFO</span><span>dialog dlg-17 answered (approved) in 3.2s</span></div>
+      <div class="log-line"><span class="ts">12:01:12.007</span><span class="lvl info">INFO</span><span>ws client pi-ui-android subscribed s_4f2a</span></div>
+      <div class="log-line"><span class="ts">12:01:15.552</span><span class="lvl warn">WARN</span><span>replay truncated: cursor e-12 aged out</span></div>
+    </div>
+  </div>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>24 — Errors and log tail</h2>
+    <dl>
+      <dt>Area</dt><dd>Observability</dd>
+      <dt>Behaviour</dt><dd>Errors are first-class cards with their taxonomy code and an action; the log tail beside them is the same stream the log viewer filters. Logs never carry tokens or conversation content.</dd>
+      <dt>States to check</dt><dd>extension error, provider error with retry, truncated replay, empty log</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>

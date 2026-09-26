@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-device="mobile">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui mockup · 5 — Network profile</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<header class="toolbar">
+  <a class="brand" href="../index.html">pi-ui mockup</a>
+  <span class="crumb">#5 · Network profile</span>
+  <div class="tools">
+    <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
+    <button class="tool" data-device-toggle="mobile">Mobile</button>
+    <button class="tool" data-device-toggle="desktop">Desktop</button>
+    <a class="tool" href="../index.html">Gallery</a>
+  </div>
+</header>
+<main class="stage">
+  <div class="device">
+    <div class="screen">
+
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>How do you reach it?</h1><div class="row"></div></header>
+<div class="content stack">
+  <div class="card selected">
+    <div class="row between"><strong>LAN</strong><span class="chip accent">selected</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">http://192.168.1.20:8787 — fastest at home, no TLS.</p>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>VPN · Tailscale</strong><span class="chip">recommended away</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">Encrypted by the tailnet; the app talks to the same server without exposing it.</p>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>Public HTTPS</strong><span class="chip warn">hardening on</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">Tailscale Funnel in front; token + admin password + rate limit are mandatory.</p>
+  </div>
+  <div class="card">
+    <div class="row between"><strong>Native TLS</strong><span class="chip">opt-in</span></div>
+    <p class="small muted" style="margin-top: var(--sp-2)">The server terminates TLS itself; HSTS and hot reload available.</p>
+  </div>
+  <button class="btn primary">Use this profile</button>
+</div>
+
+    </div>
+  </div>
+  <aside class="notes">
+    <h2>5 — Network profile</h2>
+    <dl>
+      <dt>Area</dt><dd>Onboarding</dd>
+      <dt>Behaviour</dt><dd>The profile is a client-side preset: it pre-fills the URL, decides whether certificate trust is offered, and warns when a public profile is used without the hardening settings.</dd>
+      <dt>States to check</dt><dd>public profile without token (blocked with an explanation), profile changed later in Settings</dd>
+    </dl>
+  </aside>
+</main>
+<script src="../assets/app.js"></script>
+</body>
+</html>
