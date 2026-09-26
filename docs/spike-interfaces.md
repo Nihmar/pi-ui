@@ -325,13 +325,22 @@ package spike
 
 type SpawnResult struct { N int; ReadyMs []float64; P50Ms, P95Ms float64; ChildRSSMiB []float64; TotalRSSMiB float64 }
 type ThroughputResult struct { Events int; DurationSec float64; EventsPerSec float64; Loss int; P50Ms, P95Ms float64 }
+type ServerRSSResult struct { Sessions, Clients int; ServerRSSMiB, ChildrenRSSMiB float64; ChildRSSMiB []float64; TotalRSSMiB float64 }
+type RSSSample struct { ElapsedSec, MiB float64 }
 type Machine struct { CPU string; Cores int; MemTotalMiB float64; Kernel string }
 
 func MeasureSpawn(ctx context.Context, cfg Config) (SpawnResult, error)
+func MeasureServerRSS(ctx context.Context, cfg Config) (ServerRSSResult, error)
 func MeasureThroughput(ctx context.Context, cfg Config) (ThroughputResult, error)
 // ProcessRSSMiB reads /proc/<pid>/status VmRSS, including descendants (Linux).
 func ProcessRSSMiB(pid int) (float64, error)
 ```
+
+`MeasureServerRSS` is the measurement behind C2/C3 and `MeasureThroughput` the one behind
+C5/C6/C9; both return the result even when the run did not settle, because the raw samples
+are the evidence. `ThroughputResult` samples the end-to-end latency into a bounded
+reservoir window rather than keeping one sample per event, so a soak does not grow the
+memory of the process whose RSS it measures (see `docs/spike-report.md`).
 
 ### 5.7 `cmd/pi-ui` and `internal/cli`
 
