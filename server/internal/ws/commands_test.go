@@ -285,3 +285,31 @@ func TestUIResponseWithoutHandlerAnswersUnsupported(t *testing.T) {
 		t.Fatalf("error.code = %q, want %q", code, codeUnsupported)
 	}
 }
+
+// TestCommandWithUnencodableDataStillAnswers pins finding W8: a handler result that is
+// not valid JSON cannot be framed, and dropping the terminal response would leave the
+// client waiting for that id forever. It answers internal instead.
+func TestCommandWithUnencodableDataStillAnswers(t *testing.T) {
+	handler := &stubCommandHandler{fn: func(context.Context, Command) (json.RawMessage, error) {
+		return json.RawMessage(`not json`), nil
+	}}
+	ts := newTestHub(t, nil)
+	ts.hub.SetCommandHandler(handler)
+
+	client := ts.dial(nil)
+	defer client.close()
+	client.hello()
+
+	client.sendRaw(`{"type":"command","id":"c1","sessionId":"s_0123456789abcdef","op":"session.prompt"}`)
+
+	frame := client.waitFor(frameResponse)
+	if frame["id"] != "c1" {
+		t.Fatalf("response id = %v, want c1", frame["id"])
+	}
+	if ok, _ := frame["ok"].(bool); ok {
+		t.Fatalf("response.ok = true for a result that is not JSON: %v", frame)
+	}
+	if code := errorCodeOf(t, frame); code != codeInternal {
+		t.Fatalf("error code = %q, want %q", code, codeInternal)
+	}
+}

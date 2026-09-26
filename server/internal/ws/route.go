@@ -163,7 +163,7 @@ func (h *hub) handleCommand(c *connection, frame inbound) {
 			c.enqueue(marshalErrorResponse(cmd.ID, code, message))
 			return
 		}
-		c.enqueue(marshalResponse(cmd.ID, data))
+		c.enqueue(marshalHandlerData(cmd.ID, data))
 	})
 }
 

@@ -211,6 +211,16 @@ func marshalResponse(id string, data json.RawMessage) []byte {
 	return mustMarshal(outResponse{Type: frameResponse, ID: id, OK: true, Data: data})
 }
 
+// marshalHandlerData builds the terminal `response` for a handler result. A result
+// that is not valid JSON cannot be framed, and dropping the frame would leave the
+// client waiting forever for that id, so it becomes a coded internal failure instead.
+func marshalHandlerData(id string, data json.RawMessage) []byte {
+	if len(data) > 0 && !json.Valid(data) {
+		return marshalErrorResponse(id, codeInternal, "the handler produced a result that is not valid JSON")
+	}
+	return marshalResponse(id, data)
+}
+
 // marshalErrorResponse builds a failed response.
 func marshalErrorResponse(id, code, message string) []byte {
 	return mustMarshal(outResponse{Type: frameResponse, ID: id, Error: &outError{Code: code, Message: message}})
