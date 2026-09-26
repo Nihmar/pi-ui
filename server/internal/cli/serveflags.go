@@ -31,6 +31,9 @@ const (
 	envRateRefresh   = "PIUI_RATE_REFRESH"
 	envRateWS        = "PIUI_RATE_WS"
 	envRatePrompt    = "PIUI_RATE_PROMPT"
+	envIdleTimeout   = "PIUI_IDLE_TIMEOUT"
+	envWrapUpBudget  = "PIUI_WRAP_UP_BUDGET"
+	envWrapUpPrompt  = "PIUI_WRAP_UP_PROMPT"
 )
 
 // Defaults of the serve command.
@@ -47,6 +50,14 @@ const (
 	defaultRateRefresh = 10
 	defaultRateWS      = 10
 	defaultRatePrompt  = 30
+
+	// Idle handling of PLAN.md §4.2: an hour of silence is a wrap-up, not a kill.
+	defaultIdleTimeout  = time.Hour
+	defaultWrapUpBudget = time.Minute
+	// defaultWrapUpPrompt asks for the handoff note the plan requires before an idle
+	// session is closed. It is a prompt, so it goes through the ordinary conversation.
+	defaultWrapUpPrompt = "You have been idle for a while and the server is about to close this session. " +
+		"Write a short handoff note (where we are, next steps, open questions) so the work can be resumed later, then finish."
 )
 
 // serveConfig is the resolved configuration of one `pi-ui serve`.
@@ -68,6 +79,9 @@ type serveConfig struct {
 	rateRefresh   int
 	rateWS        int
 	ratePrompt    int
+	idleTimeout   time.Duration
+	wrapUpBudget  time.Duration
+	wrapUpPrompt  string
 	sessionFlags  []string
 }
 
@@ -181,6 +195,9 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("rate-refresh", "", "token rotations per device per minute, 0 = off (default 10)")
 	fs.String("rate-ws", "", "WebSocket connects per token per minute, 0 = off (default 10)")
 	fs.String("rate-prompt", "", "prompts per session per minute, 0 = off (default 30)")
+	fs.String("idle-timeout", "", "wrap up a session after this much silence, 0 = off (default 1h)")
+	fs.String("wrap-up-budget", "", "time the handoff turn gets before the session stops (default 1m)")
+	fs.String("wrap-up-prompt", "", "what an idle session is asked before it stops (PIUI_WRAP_UP_PROMPT)")
 	var sessionArgs sessionFlag
 	fs.Var(&sessionArgs, "session", "session to start at boot: <cwd>[:<name>] (repeatable)")
 
@@ -231,7 +248,24 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	if cfg.ratePrompt, err = resolveInt(fs, "rate-prompt", envRatePrompt, defaultRatePrompt); err != nil {
 		return serveConfig{}, err
 	}
+	if cfg.idleTimeout, err = resolveDurationOrZero(fs, "idle-timeout", envIdleTimeout, defaultIdleTimeout); err != nil {
+		return serveConfig{}, err
+	}
+	if cfg.wrapUpBudget, err = resolveDuration(fs, "wrap-up-budget", envWrapUpBudget, defaultWrapUpBudget); err != nil {
+		return serveConfig{}, err
+	}
+	cfg.wrapUpPrompt = resolve(fs, "wrap-up-prompt", envWrapUpPrompt, defaultWrapUpPrompt)
 	return cfg, nil
+}
+
+// resolveDurationOrZero is resolveDuration with an explicit off switch: 0 is "disabled"
+// and anything else must be a positive duration.
+func resolveDurationOrZero(fs *flag.FlagSet, name, env string, fallback time.Duration) (time.Duration, error) {
+	raw := resolve(fs, name, env, "")
+	if strings.TrimSpace(raw) == "0" {
+		return 0, nil
+	}
+	return resolveDuration(fs, name, env, fallback)
 }
 
 // startSpecs turns the repeatable --session values into start specs.
@@ -284,6 +318,9 @@ func writeServeUsage(w io.Writer) {
 		"  --rate-refresh N           token rotations per device per minute (PIUI_RATE_REFRESH)\n"+
 		"  --rate-ws N                WebSocket connects per token per minute (PIUI_RATE_WS)\n"+
 		"  --rate-prompt N            prompts per session per minute (PIUI_RATE_PROMPT)\n"+
+		"  --idle-timeout D           wrap up a session after D of silence, 0 = off (PIUI_IDLE_TIMEOUT)\n"+
+		"  --wrap-up-budget D         time the handoff turn gets (PIUI_WRAP_UP_BUDGET)\n"+
+		"  --wrap-up-prompt TEXT      what an idle session is asked (PIUI_WRAP_UP_PROMPT)\n"+
 		"\n"+
 		"environment only: PIUI_RUNTIME_DIR (per-session runtime files, default\n"+
 		"$XDG_RUNTIME_DIR/pi-ui or os.TempDir()/pi-ui-<uid>)\n\n"+

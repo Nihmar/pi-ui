@@ -40,7 +40,29 @@ const (
 	DefaultPiCommand = "pi"
 	// DefaultPromptLimit bounds prompts per session per minute (PLAN.md §4.6).
 	DefaultPromptLimit = 30
+	// DefaultRespawnAttempts and DefaultRespawnWindow are the crash budget of PLAN.md
+	// §4.2: three restarts in ten minutes, then the session stays crashed.
+	DefaultRespawnAttempts = 3
+	DefaultRespawnWindow   = 10 * time.Minute
+	// DefaultWrapUpBudget bounds the wait for an idle session's handoff turn.
+	DefaultWrapUpBudget = time.Minute
+	// DefaultIdleTimeout is the PLAN.md §4.2 eviction window of a server started with
+	// no explicit setting.
+	DefaultIdleTimeout = time.Hour
+	// wrapUpSettle is how long a wrap-up turn must be quiet before the session is
+	// stopped: long enough for the handoff note to land, short enough not to hold the
+	// eviction.
+	wrapUpSettle = 2 * time.Second
 )
+
+// DefaultRespawnBackoff is the delay before attempt N (1-based): one second, doubling
+// up to sixteen, so a crash loop is retried quickly at first and then patiently.
+func DefaultRespawnBackoff(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	return time.Second << min(attempt-1, 4)
+}
 
 // defaultPiCommand is DefaultPiCommand spelled as argv.
 var defaultPiCommand = []string{DefaultPiCommand, "--mode", "rpc"}

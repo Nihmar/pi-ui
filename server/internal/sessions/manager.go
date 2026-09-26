@@ -27,6 +27,14 @@ type Manager struct {
 
 	// promptLimit bounds prompts per session per minute; nil when disabled.
 	promptLimit *ratelimit.Limiter
+
+	// lifeCtx is the context of the manager's own background work (respawns, the idle
+	// watchdog); Shutdown cancels it, so no goroutine outlives the server.
+	lifeCtx    context.Context
+	lifeCancel context.CancelFunc
+	// watchWG tracks the idle watchdog, which Shutdown waits for after cancelling
+	// lifeCtx, so no sweep runs while the sessions are being torn down.
+	watchWG sync.WaitGroup
 }
 
 var (
@@ -58,12 +66,44 @@ func New(cfg Config) *Manager {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.DiscardHandler)
 	}
-	return &Manager{
+	if cfg.RespawnAttempts < 0 {
+		cfg.RespawnAttempts = 0
+	}
+	if cfg.RespawnAttempts > 0 && cfg.RespawnWindow <= 0 {
+		cfg.RespawnWindow = DefaultRespawnWindow
+	}
+	if cfg.RespawnBackoff == nil {
+		cfg.RespawnBackoff = DefaultRespawnBackoff
+	}
+	if cfg.IdleTimeout < 0 {
+		cfg.IdleTimeout = 0
+	}
+	if cfg.IdleTimeout > 0 {
+		if cfg.WrapUpBudget <= 0 {
+			cfg.WrapUpBudget = DefaultWrapUpBudget
+		}
+		if cfg.WatchInterval <= 0 {
+			cfg.WatchInterval = min(cfg.IdleTimeout/4, time.Minute)
+		}
+		if cfg.WatchInterval < 50*time.Millisecond {
+			// A test may want a 10 ms timeout; the sweep still needs a floor.
+			cfg.WatchInterval = 50 * time.Millisecond
+		}
+	}
+	lifeCtx, lifeCancel := context.WithCancel(context.Background())
+	manager := &Manager{
 		cfg:         cfg,
 		logger:      cfg.Logger,
 		sessions:    map[string]*session{},
 		promptLimit: ratelimit.New(cfg.PromptLimit),
+		lifeCtx:     lifeCtx,
+		lifeCancel:  lifeCancel,
 	}
+	if cfg.IdleTimeout > 0 {
+		manager.watchWG.Add(1)
+		go manager.watchIdle()
+	}
+	return manager
 }
 
 // Start spawns one child and confirms readiness with a get_state round trip: server.spawned
@@ -95,10 +135,8 @@ func (m *Manager) Start(ctx context.Context, spec Spec) (Info, error) {
 	m.order = append(m.order, sessionID)
 	m.mu.Unlock()
 
-	bridge := rpc.New(
-		rpc.Spec{Command: argv, Dir: spec.CWD, Env: env, Stderr: s.stderrLine},
-		rpc.Options{SendTimeout: m.cfg.SendTimeout, KillGrace: killGrace, Logf: s.logf},
-	)
+	s.setLaunch(spec, argv, env)
+	bridge := m.newBridge(s)
 	s.attach(bridge)
 
 	// A Stop may land before the child exists: it sees no bridge, marks the session
@@ -134,6 +172,26 @@ func (m *Manager) Start(ctx context.Context, spec Spec) (Info, error) {
 	s.applyState(state)
 	m.publishJSON(EventServerReady, sessionID, s.info())
 	return s.info(), nil
+}
+
+// newBridge builds the child driver from the session's launch snapshot, resuming the pi
+// session when one is known: a respawn that started a fresh conversation would fork the
+// user's history, which is the whole reason resuming exists.
+func (m *Manager) newBridge(s *session) rpc.Bridge {
+	s.mu.Lock()
+	spec := s.spec
+	argv := append([]string(nil), s.argv...)
+	env := append([]string(nil), s.env...)
+	file := s.piState.SessionFile
+	s.mu.Unlock()
+
+	if file != "" && !hasFlag(argv, "--session") {
+		argv = append(argv, "--session", file)
+	}
+	return rpc.New(
+		rpc.Spec{Command: argv, Dir: spec.CWD, Env: env, Stderr: s.stderrLine},
+		rpc.Options{SendTimeout: m.cfg.SendTimeout, KillGrace: killGrace, Logf: s.logf},
+	)
 }
 
 // Get returns the projection of one session.
@@ -225,6 +283,96 @@ func validateSpec(spec Spec, cfg Config) error {
 	return nil
 }
 
+// maybeRespawn arms one automatic restart after a crash, within the configured budget
+// (PLAN.md §4.2: attempts inside a window, then the session stays crashed). It is called
+// by the pump after the terminal status is visible, so a respawn never races the
+// previous life's bookkeeping.
+func (m *Manager) maybeRespawn(s *session) {
+	if m.cfg.RespawnAttempts <= 0 || m.lifeCtx.Err() != nil {
+		return
+	}
+	now := time.Now().UTC()
+
+	s.mu.Lock()
+	if s.status != StatusCrashed {
+		s.mu.Unlock()
+		return
+	}
+	kept := s.respawn[:0]
+	for _, at := range s.respawn {
+		if now.Sub(at) < m.cfg.RespawnWindow {
+			kept = append(kept, at)
+		}
+	}
+	s.respawn = kept
+	if len(s.respawn) >= m.cfg.RespawnAttempts {
+		attempts := len(s.respawn)
+		s.mu.Unlock()
+		s.logf("respawn budget exhausted (%d attempts in %s); the session stays crashed", attempts, m.cfg.RespawnWindow)
+		return
+	}
+	s.respawn = append(s.respawn, now)
+	attempt := len(s.respawn)
+	delay := m.cfg.RespawnBackoff(attempt)
+	if delay < 0 {
+		delay = 0
+	}
+	s.finished = false
+	s.status = StatusRespawning
+	s.done = make(chan struct{})
+	s.respawnSeq++
+	seq := s.respawnSeq
+	s.respawnTimer = time.AfterFunc(delay, func() { m.respawn(s, seq) })
+	s.mu.Unlock()
+
+	s.logf("respawning after a crash (attempt %d/%d in %s)", attempt, m.cfg.RespawnAttempts, delay)
+	m.publishJSON(EventServerStatus, s.id, s.info())
+}
+
+// respawn restarts one crashed session's child. The attempt was already counted; a
+// spawn failure is treated like another crash, so the budget keeps applying.
+func (m *Manager) respawn(s *session, seq uint64) {
+	s.mu.Lock()
+	if s.finished || s.respawnSeq != seq || s.status != StatusRespawning {
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+
+	bridge := m.newBridge(s)
+	if err := bridge.Start(m.lifeCtx); err != nil {
+		s.logf("respawn failed: %v", err)
+		s.crashDuringRespawn(err)
+		return
+	}
+
+	// Install the new child under the lock: a stop that won the lock first has already
+	// cancelled this attempt (finished or a newer seq), and the child we just started
+	// must then be closed instead of adopted.
+	s.mu.Lock()
+	if s.finished || s.respawnSeq != seq {
+		s.mu.Unlock()
+		_ = bridge.Close()
+		return
+	}
+	s.bridge = bridge
+	s.pid = bridge.PID()
+	s.status = StatusSpawning
+	s.mu.Unlock()
+
+	m.publishJSON(EventServerSpawned, s.id, s.info())
+	go s.pump()
+
+	state, err := s.callPi(m.lifeCtx, commandTypeGetState, nil)
+	if err != nil {
+		s.logf("the respawned child did not answer get_state: %v", err)
+		_ = s.stop(m.lifeCtx)
+		return
+	}
+	s.applyState(state)
+	m.publishJSON(EventServerReady, s.id, s.info())
+}
+
 // Send dispatches one operation to one session (docs/spike-interfaces.md §5.3, §6). The
 // op table is the single registration point: a Phase 3 operation is one more entry there,
 // never another branch here.
@@ -273,6 +421,11 @@ func (m *Manager) Stop(ctx context.Context, sessionID string) error {
 // stopBudget, the worst case of one graceful stop, so a slow child cannot be reported as a
 // stuck one.
 func (m *Manager) Shutdown(ctx context.Context) error {
+	// Stop the background work first: the watchdog must not start an eviction (or a
+	// respawn) while the sessions are being torn down.
+	m.lifeCancel()
+	defer m.watchWG.Wait()
+
 	budget := stopBudget
 	if deadline, ok := ctx.Deadline(); ok {
 		if remaining := time.Until(deadline); remaining > 0 && remaining < budget {

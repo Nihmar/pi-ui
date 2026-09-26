@@ -30,18 +30,19 @@ type Spec struct {
 type Status string
 
 const (
-	StatusSpawning  Status = "spawning"
-	StatusReady     Status = "ready"
-	StatusStreaming Status = "streaming"
-	StatusExited    Status = "exited"
-	StatusCrashed   Status = "crashed"
-	StatusStopping  Status = "stopping"
+	StatusSpawning   Status = "spawning"
+	StatusReady      Status = "ready"
+	StatusStreaming  Status = "streaming"
+	StatusExited     Status = "exited"
+	StatusCrashed    Status = "crashed"
+	StatusStopping   Status = "stopping"
+	StatusRespawning Status = "respawning"
 )
 
 // Live reports whether a session in this state still owns a child process.
 func (s Status) Live() bool {
 	switch s {
-	case StatusSpawning, StatusReady, StatusStreaming, StatusStopping:
+	case StatusSpawning, StatusReady, StatusStreaming, StatusStopping, StatusRespawning:
 		return true
 	default:
 		return false
@@ -76,6 +77,24 @@ type Config struct {
 	DialogTimeout time.Duration // default 60s
 	SendTimeout   time.Duration // default 15s
 	PromptLimit   int           // prompts per session per minute (default 30, 0 = off)
+	// RespawnAttempts and RespawnWindow bound the automatic restart of a crashed child
+	// (default 3 attempts in 10 minutes, 0 attempts disables it).
+	RespawnAttempts int
+	RespawnWindow   time.Duration
+	// RespawnBackoff is the delay before attempt N (1-based); nil uses
+	// DefaultRespawnBackoff.
+	RespawnBackoff func(attempt int) time.Duration
+	// IdleTimeout stops a session that has seen no event for this long (0 disables the
+	// watchdog). PLAN.md §4.2: an idle session is wrapped up, not killed silently.
+	IdleTimeout time.Duration
+	// WrapUpPrompt is what an idle session is asked before it is stopped; empty stops
+	// it immediately.
+	WrapUpPrompt string
+	// WrapUpBudget bounds the wait for the wrap-up turn to settle.
+	WrapUpBudget time.Duration
+	// WatchInterval is how often the idle watchdog looks (default: a quarter of
+	// IdleTimeout, at most a minute).
+	WatchInterval time.Duration
 	Logger        *slog.Logger
 	Hub           Publisher // injected
 }

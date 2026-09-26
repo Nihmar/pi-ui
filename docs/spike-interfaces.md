@@ -286,6 +286,15 @@ Rules:
   to the child and publishes `server.dialog.timeout{requestId,method}`.
 - Exit: code 0 or explicit stop → `server.exited`; any other exit → `server.crashed`
   (both carry `exitCode`); the session stays listed with its final status.
+- Crash budget (Phase 3): a crashed session is respawned automatically up to
+  `RespawnAttempts` times inside `RespawnWindow` (default 3 in 10 minutes) with a
+  doubling backoff, resuming the same pi session (`--session <file>` from `get_state`)
+  so the history does not fork; while it waits the projection says `respawning` and a
+  manual stop cancels it. Exhausted budget → the session stays `crashed`.
+- Idle eviction (Phase 3, PLAN.md §4.2): a session that has been `ready` and quiet for
+  `IdleTimeout` (default 1 h in `serve`, 0 disables) is asked `WrapUpPrompt` (the
+  handoff note), gets `WrapUpBudget` for the turn, and is then stopped through the
+  ordinary graceful path — never killed silently. A streaming session is never idle.
 - Durable replay: `ReplayFromEntry` calls `get_entries{since}` and emits one
   `pi.entry_appended` event per entry (`payload = {"entry": {...}}`, `entryId` set), then
   reports `complete=true`. An unknown cursor is a coded `replay_cursor_invalid` failure

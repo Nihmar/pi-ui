@@ -60,6 +60,7 @@ type session struct {
 	piState   piState
 	lastEvent time.Time
 	finished  bool
+	evicting  bool // the idle watchdog is wrapping this session up
 	exitCode  *int
 	dialogs   map[string]*dialog
 
@@ -70,6 +71,28 @@ type session struct {
 	// waits for it, so a caller never observes a session whose child is already
 	// reaped but whose projection still says "stopping".
 	done chan struct{}
+
+	// launch is the resolved spawn recipe: a respawn reuses it instead of re-deriving
+	// the flags, so a restarted child is the same child.
+	spec Spec
+	argv []string
+	env  []string
+
+	// respawn is the crash budget: the timestamps of the attempts inside the window.
+	respawn []time.Time
+	// respawnSeq invalidates a scheduled respawn when a stop cancels it; respawnTimer
+	// is the pending timer, nil when none is armed.
+	respawnSeq   uint64
+	respawnTimer *time.Timer
+}
+
+// setLaunch records the resolved spawn recipe for a possible respawn.
+func (s *session) setLaunch(spec Spec, argv, env []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.spec = spec
+	s.argv = append([]string(nil), argv...)
+	s.env = append([]string(nil), env...)
 }
 
 // newSession builds the record for a child that is about to be spawned.
@@ -112,6 +135,17 @@ func (s *session) setName(name string) {
 	s.mu.Lock()
 	s.name = name
 	s.mu.Unlock()
+}
+
+// idleSince is how long the session has been quiet: since its last record, or since it
+// was created when it never produced one.
+func (s *session) idleSince(now time.Time) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.lastEvent.IsZero() {
+		return now.Sub(s.createdAt)
+	}
+	return now.Sub(s.lastEvent)
 }
 
 // isLive reports whether the session still occupies a MaxSessions slot.
@@ -215,6 +249,8 @@ func (s *session) pump() {
 	}
 	s.finish(s.bridge.Wait())
 	close(s.done)
+	// After the terminal status and done are visible: a crash may earn a respawn.
+	s.mgr.maybeRespawn(s)
 }
 
 // handleRecord publishes one child record: pi.* verbatim for everything except the
@@ -310,6 +346,23 @@ func (s *session) finish(err error) {
 	s.mgr.publishJSON(EventServerExited, s.id, exitPayload{ExitCode: code})
 }
 
+// crashDuringRespawn records a respawn that never produced a child: the projection goes
+// back to crashed, done is closed for anyone waiting, and the crash budget decides
+// whether another attempt follows.
+func (s *session) crashDuringRespawn(err error) {
+	code := exitCodeOf(err)
+
+	s.mu.Lock()
+	s.exitCode = &code
+	s.status = StatusCrashed
+	s.finished = true
+	s.mu.Unlock()
+
+	s.mgr.publishJSON(EventServerCrashed, s.id, exitPayload{ExitCode: code})
+	close(s.done)
+	s.mgr.maybeRespawn(s)
+}
+
 // exitCodeOf is the exit status of the child: 0 on an orderly exit, the process status
 // otherwise, and -1 when a signal ended it — Go reports -1 for a signalled process, which
 // is the honest answer, because a signalled child has no exit code at all.
@@ -335,6 +388,28 @@ func (s *session) stop(ctx context.Context) error {
 	bridge := s.bridge
 	if s.finished {
 		s.mu.Unlock()
+		return nil
+	}
+	if s.status == StatusRespawning {
+		// A crashed child is waiting for its respawn: stopping cancels the wait and
+		// ends the session where its exit left it.
+		timer := s.respawnTimer
+		s.respawnTimer = nil
+		s.respawnSeq++
+		s.finished = true
+		s.status = StatusExited
+		code := 0
+		if s.exitCode != nil {
+			code = *s.exitCode
+		}
+		s.mu.Unlock()
+
+		if timer != nil {
+			timer.Stop()
+		}
+		s.mgr.publishJSON(EventServerStopping, s.id, s.info())
+		s.mgr.publishJSON(EventServerExited, s.id, exitPayload{ExitCode: code})
+		close(s.done)
 		return nil
 	}
 	if s.status == StatusStopping {

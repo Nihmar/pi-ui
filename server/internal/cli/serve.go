@@ -112,6 +112,9 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		MaxSessions:   cfg.maxSessions,
 		DialogTimeout: cfg.dialogTimeout,
 		PromptLimit:   cfg.ratePrompt,
+		IdleTimeout:   cfg.idleTimeout,
+		WrapUpBudget:  cfg.wrapUpBudget,
+		WrapUpPrompt:  cfg.wrapUpPrompt,
 		Logger:        logger,
 		Hub:           hub,
 	})
@@ -170,6 +173,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		"rateRefresh", cfg.rateRefresh,
 		"rateWS", cfg.rateWS,
 		"ratePrompt", cfg.ratePrompt,
+		"idleTimeout", cfg.idleTimeout.String(),
 	)
 	// The one line on stdout: a supervisor or a test needs the address it actually bound
 	// (with --addr 127.0.0.1:0 the port is the kernel's choice).
