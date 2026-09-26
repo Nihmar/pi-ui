@@ -56,7 +56,11 @@
     },
     "Scope": {
       "type": "string",
-      "enum": ["viewer", "operator", "admin"],
+      "enum": [
+        "viewer",
+        "operator",
+        "admin"
+      ],
       "description": "Authorization scope of an authenticated client: viewer reads, operator drives sessions, admin manages the server itself."
     },
     "ErrorCode": {
@@ -74,6 +78,7 @@
         "pi_rejected",
         "pi_error",
         "model_provider_error",
+        "feature_disabled",
         "workspace_not_allowed",
         "path_escape",
         "too_large",
@@ -87,7 +92,7 @@
         "slow_consumer",
         "replay_cursor_invalid"
       ],
-      "description": "Stable machine-readable error taxonomy. Clients switch on these values, so they are never renamed or reused; new failures get a new code and unknown codes must degrade to a generic message."
+      "description": "Stable machine-readable error taxonomy. Clients switch on these values, so they are never renamed or reused; new failures get a new code and unknown codes must degrade to a generic message. `feature_disabled` is the server's own policy: an administrative setting turned the capability off (for example `git.write`), which is different from the caller's scope not covering it."
     },
     "ApiError": {
       "type": "object",
@@ -105,7 +110,10 @@
           "description": "Optional structured context (sessionId, limit, retryAfterMs, field, ...). Open map so a new detail never breaks a client; clients ignore unknown keys."
         }
       },
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "description": "Error body of every REST failure ({\"error\": {...}}) and of the WS response.error / server.error frames. Unknown sibling fields are allowed and preserved."
     },
     "ServerInfo": {
@@ -135,7 +143,13 @@
           "description": "Server limits as scalars (maxSessions, replayEvents, replayWindowSec, dialogTimeoutSec, heartbeatSec, ...). Open map so a new limit lands without a breaking schema change."
         }
       },
-      "required": ["version", "piVersion", "protocol", "features", "limits"],
+      "required": [
+        "version",
+        "piVersion",
+        "protocol",
+        "features",
+        "limits"
+      ],
       "description": "Body of GET /api/v1/server and of the server field inside the WS welcome frame."
     }
   }

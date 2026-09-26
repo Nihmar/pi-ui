@@ -30,7 +30,10 @@ const (
 	CodeTooLarge            = "too_large"
 	CodeUnsupported         = "unsupported"
 	CodeRateLimited         = "rate_limited"
-	CodeInternal            = "internal"
+	// CodeFeatureDisabled is the server's own policy: an administrative setting turned
+	// the capability off, which is not the caller's scope refusing it.
+	CodeFeatureDisabled = "feature_disabled"
+	CodeInternal        = "internal"
 )
 
 // CodedError is an error that carries its taxonomy code and a message that is safe to

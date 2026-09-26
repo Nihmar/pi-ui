@@ -226,6 +226,7 @@ Events the hub itself publishes:
 | `server.heartbeat` | `{"uptimeSec","clients","sessions"}` | every `Heartbeat` (default 30 s), server-wide. `sessions` counts sessions with at least one subscriber: the hub does not own the lifecycle, so it counts its fan-out, not live sessions. |
 | `server.replay.begin` | `{"direction":"seq"\|"entry"}` | once per replay, to the replaying subscriber only |
 | `server.replay.end` | `{"count","complete","truncated?"}` | once per replay, to the replaying subscriber only |
+| `server.settings.changed` | `{"key","value","actor"}` | an admin changed a setting (`PATCH /api/v1/settings`); server-wide, never replayed |
 | `server.error` | `{"code","message"}` | connection-scoped failures: `slow_consumer`, replay failures, an event payload that could not be encoded |
 
 The session lifecycle events (`server.spawned`, `server.exited`, …) are published by

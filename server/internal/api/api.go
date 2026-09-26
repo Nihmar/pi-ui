@@ -11,6 +11,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
+	"github.com/Nihmar/pi-ui/server/internal/settings"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
 
@@ -48,6 +49,10 @@ type Options struct {
 	Git *git.Service
 	// Search looks for text in those workspaces and in pi's session files.
 	Search *search.Service
+	// Settings is the admin surface of the server's own policy (git write, terminal
+	// limit, retention). Nil means no state directory, hence no settings: the
+	// capability follows the scope alone.
+	Settings *settings.Service
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -114,6 +119,7 @@ func NewRouter(o Options) http.Handler {
 		files:            o.FS,
 		git:              o.Git,
 		search:           o.Search,
+		settings:         o.Settings,
 		pairSchema:       compilePairSchema(),
 	}
 	switch {
@@ -168,6 +174,11 @@ func NewRouter(o Options) http.Handler {
 	// Search reads what is already there: viewer, like the other read surfaces.
 	mux.HandleFunc("GET /api/v1/search", a.authorized(ScopeViewer, a.searchAll))
 
+	// The server's own policy: everyone reads it, an admin changes it.
+	mux.HandleFunc("GET /api/v1/settings", a.authorized(ScopeViewer, a.getSettings))
+	mux.HandleFunc("PATCH /api/v1/settings", a.authorized(ScopeAdmin, a.patchSettings))
+	mux.HandleFunc("DELETE /api/v1/settings/{key}", a.authorized(ScopeAdmin, a.deleteSetting))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -206,6 +217,7 @@ type api struct {
 	files            *fs.Service
 	git              *git.Service
 	search           *search.Service
+	settings         *settings.Service
 	pairSchema       *jsonschema.Schema
 }
 

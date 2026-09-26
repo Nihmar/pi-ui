@@ -31,6 +31,7 @@ var knownCodes = map[string]struct{}{
 	string(gen.WsErrorCodeAlreadyAnswered):     {},
 	string(gen.WsErrorCodeBadRequest):          {},
 	string(gen.WsErrorCodeBusyStreaming):       {},
+	string(gen.WsErrorCodeFeatureDisabled):     {},
 	string(gen.WsErrorCodeForbiddenScope):      {},
 	string(gen.WsErrorCodeInternal):            {},
 	string(gen.WsErrorCodeManagedMode):         {},

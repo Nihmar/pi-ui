@@ -17,6 +17,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
+	"github.com/Nihmar/pi-ui/server/internal/settings"
 	"github.com/Nihmar/pi-ui/server/internal/terminal"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -165,6 +166,12 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			}
 			terminalsOf = terminals
 		}
+	}
+
+	if stateDB != nil {
+		// The settings live in the state database, and a running server publishes a
+		// change so a client showing them notices another device's edit.
+		options.Settings = settings.New(stateDB.Settings(), hub)
 	}
 
 	options.Auth = authenticator

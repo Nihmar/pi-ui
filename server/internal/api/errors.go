@@ -61,7 +61,7 @@ func statusFor(code string) int {
 	switch code {
 	case "unauthorized":
 		return http.StatusUnauthorized
-	case "forbidden_scope", "workspace_not_allowed", "path_escape":
+	case "forbidden_scope", "workspace_not_allowed", "path_escape", "feature_disabled":
 		return http.StatusForbidden
 	case "not_found", "session_not_found":
 		return http.StatusNotFound

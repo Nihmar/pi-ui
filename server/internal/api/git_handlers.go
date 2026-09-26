@@ -6,6 +6,8 @@ import (
 
 	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/git"
+	"github.com/Nihmar/pi-ui/server/internal/sessions"
+	"github.com/Nihmar/pi-ui/server/internal/settings"
 )
 
 // The git surface (docs/api-v1.md, "Git"): reads are viewer, the two mutations are
@@ -71,6 +73,11 @@ func (a *api) gitStage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !a.featureEnabled(r, settings.KeyGitWrite) {
+		writeError(w, http.StatusForbidden, sessions.CodeFeatureDisabled,
+			"git.write is off on this server; an admin can enable it in the settings")
+		return
+	}
 	var body gitStageBody
 	if err := decodeBody(r, &body); err != nil {
 		writeError(w, http.StatusBadRequest, codeOr(err, "bad_request"), err.Error())
@@ -97,6 +104,11 @@ type gitCommitBody struct {
 func (a *api) gitCommit(w http.ResponseWriter, r *http.Request) {
 	service, ok := a.gitOrError(w)
 	if !ok {
+		return
+	}
+	if !a.featureEnabled(r, settings.KeyGitWrite) {
+		writeError(w, http.StatusForbidden, sessions.CodeFeatureDisabled,
+			"git.write is off on this server; an admin can enable it in the settings")
 		return
 	}
 	var body gitCommitBody

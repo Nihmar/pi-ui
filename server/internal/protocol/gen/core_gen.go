@@ -91,6 +91,7 @@ const ErrorCodeAlreadyAnswered ErrorCode = "already_answered"
 const ErrorCodeBadRequest ErrorCode = "bad_request"
 const ErrorCodeBusyStreaming ErrorCode = "busy_streaming"
 const ErrorCodeDeviceLimit ErrorCode = "device_limit"
+const ErrorCodeFeatureDisabled ErrorCode = "feature_disabled"
 const ErrorCodeForbiddenScope ErrorCode = "forbidden_scope"
 const ErrorCodeInternal ErrorCode = "internal"
 const ErrorCodeManagedMode ErrorCode = "managed_mode"
@@ -125,6 +126,7 @@ var enumValues_ErrorCode = []interface{}{
 	"pi_rejected",
 	"pi_error",
 	"model_provider_error",
+	"feature_disabled",
 	"workspace_not_allowed",
 	"path_escape",
 	"too_large",

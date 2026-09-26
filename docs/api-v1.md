@@ -149,6 +149,7 @@ see.
 | `forbidden_scope` | 403 | the device's scope does not cover the endpoint |
 | `device_limit` | 409 | the maximum of paired devices is reached; revoke one first |
 | `rate_limited` | 429 | pairing or command rate limit, with `Retry-After` |
+| `feature_disabled` | 403 | an administrative setting turned the capability off (`git.write`) |
 | `bad_request` | 400 | body not readable or missing a required field |
 | `too_large` | 413 | body above the 1 MiB cap |
 
@@ -254,8 +255,9 @@ server makes to its clients, not something discovered later.
 
 ## Git
 
-Reads are `viewer`, the two mutations are `operator` and are audited as
-`git.write` (a refused directory is `path.escape.blocked`). Every `dir` is resolved
+Reads are `viewer`; the two mutations are `operator` **and** need the `git.write`
+setting to be on (off by default: writing a repository is a deliberate decision, and a
+server with no state directory is not gated). Both are audited as `git.write` (a refused directory is `path.escape.blocked`). Every `dir` is resolved
 through the same workspace confinement as the filesystem endpoints, so git can only
 run inside `--root` directories; the commands are `git -C <dir>`, never the server's
 own working directory, and a hook that hangs is a `timeout` instead of a held
@@ -299,3 +301,32 @@ A query shorter than two characters is a `bad_request` (a one-letter search woul
 walk every tree for nothing), a directory outside the workspaces is a `path_escape`,
 and ripgrep finding nothing is an empty `hits` array, not an error. A host without
 ripgrep answers `unsupported` when the file half is asked for.
+
+## Settings
+
+The server's own policy, in one catalogue (`internal/settings`). Any device reads it;
+only an admin changes it, and every change is audited as `settings.update`. A change
+publishes `server.settings.changed` on the WebSocket, so a settings screen notices an
+edit made from another device. A key this server does not know is a `bad_request`
+rather than a value stored under a name nothing reads.
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/api/v1/settings` | viewer | `{values, defaults, known:[{key,kind,default,description}]}` |
+| PATCH | `/api/v1/settings` | admin | a partial map, `{"git.write":true,"terminal.maxSessions":8}` → `{applied, values}` |
+| DELETE | `/api/v1/settings/{key}` | admin | back to the default → `{reset, values}` |
+
+Keys:
+
+| Key | Kind | Default | Effect |
+|---|---|---|---|
+| `git.write` | bool | `false` | allows `POST /git/stage` and `/git/commit`; off answers `feature_disabled` (403) |
+| `terminal.maxSessions` | int 1–32 | `4` | PTY terminals one client may hold open |
+| `session.idleTimeout` | duration string | `"1h"` | wraps up an idle session; `"0"` disables the watchdog |
+| `session.wrapUpPrompt` | string | `""` | what an idle session is asked before it stops |
+| `audit.retentionDays` | int 1–3650 | `30` | how long the audit trail is kept |
+
+A value is validated before it is written (type, range, duration syntax) and a
+`PATCH` carrying one invalid entry changes nothing at all. A server started with
+`--token` instead of a state directory answers `501 unsupported` here: it has nowhere
+to remember a setting, and its scope rules alone decide what a token may do.
