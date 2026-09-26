@@ -122,3 +122,15 @@ func (r *ring) latest() uint64 {
 	}
 	return r.buf[(r.head+r.n-1)%r.size].event.Seq
 }
+
+// reusable reports whether the ring can still serve a replay: it holds at least
+// one entry after aging out everything past the replay window. The hub drops the
+// history of a session nobody subscribes to once this is false, so a server that
+// churns sessions does not keep one ring per session forever.
+func (r *ring) reusable(now time.Time) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.pruneLocked(now)
+	return r.n > 0
+}

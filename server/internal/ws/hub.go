@@ -466,6 +466,34 @@ func (h *hub) heartbeatLoop() {
 				Sessions:  sessions,
 			}),
 		})
+		h.sweepRings(tick)
+	}
+}
+
+// sweepRings releases the replay history of sessions that have no subscribers and
+// nothing left to replay. Without it a long-running server that churns sessions
+// would keep one ring per session forever; with it, a ring lives until it is older
+// than ReplayWindow and nobody is watching, which is exactly the point at which it
+// can no longer serve a replay anyway.
+//
+// It runs on the heartbeat tick rather than in Publish, so the publisher path
+// stays O(subscribers) and never walks the sessions that are not involved. A ring
+// released while a replay goroutine still holds its pointer is harmless: the
+// replay finishes on the old ring and later events start a new one.
+func (h *hub) sweepRings(now time.Time) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.closed {
+		return
+	}
+	for sessionID, r := range h.rings {
+		if len(h.bySession[sessionID]) > 0 {
+			continue
+		}
+		if !r.reusable(now) {
+			delete(h.rings, sessionID)
+		}
 	}
 }
 

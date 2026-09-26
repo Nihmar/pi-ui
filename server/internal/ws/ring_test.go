@@ -155,3 +155,43 @@ func TestRingDoesNotReportTruncationWithoutEviction(t *testing.T) {
 		t.Fatal("truncated = true although nothing was evicted")
 	}
 }
+
+// TestSweepRingsReleasesHistoryNobodyCanReplay pins the ring lifecycle: a ring of a
+// session nobody subscribes to is released once it has nothing left to replay, so a
+// server that churns sessions does not keep one ring per session forever — while a
+// session with a subscriber keeps its history, emptier or not.
+func TestSweepRingsReleasesHistoryNobodyCanReplay(t *testing.T) {
+	const quiet = "s_aaaaaaaaaaaaaaa1"
+	const watched = "s_bbbbbbbbbbbbbbb2"
+	ts := newTestHub(t, func(o *Options) { o.ReplayWindow = 20 * time.Millisecond })
+
+	ts.hub.Publish(Event{Type: "pi.message_update", SessionID: quiet, Payload: json.RawMessage(`{"i":1}`)})
+
+	// A fresh ring is kept even without a subscriber: it still has history to replay.
+	ts.hub.sweepRings(time.Now())
+	if _, ok := ts.hub.rings[quiet]; !ok {
+		t.Fatal("the ring was released while it still held replayable events")
+	}
+
+	// A subscribed session keeps its ring even after the window emptied it.
+	ts.hub.Publish(Event{Type: "pi.message_update", SessionID: watched, Payload: json.RawMessage(`{"i":2}`)})
+	conn := &connection{}
+	ts.hub.addSubscriber(watched, conn)
+	time.Sleep(30 * time.Millisecond)
+	ts.hub.sweepRings(time.Now())
+	if _, ok := ts.hub.rings[watched]; !ok {
+		t.Fatal("the ring of a watched session was released")
+	}
+
+	// The quiet session's history aged out and nobody is watching: it can no longer
+	// serve a replay, so the sweep releases it.
+	ts.hub.sweepRings(time.Now())
+	if _, ok := ts.hub.rings[quiet]; ok {
+		t.Fatal("the ring survived after the replay window and without subscribers")
+	}
+	ts.hub.removeSubscriber(watched, conn)
+	ts.hub.sweepRings(time.Now())
+	if _, ok := ts.hub.rings[watched]; ok {
+		t.Fatal("the ring survived after its subscriber left")
+	}
+}

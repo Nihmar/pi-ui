@@ -184,7 +184,10 @@ server.replay.begin {direction:"seq"} → <events> → server.replay.end {count,
   (default 2000), forgetting events older than `ReplayWindow` (default 15 m) by the
   moment the hub accepted them, not by their `ts` (a replayed event may carry an old
   timestamp). A busy session therefore cannot shrink a quiet one's replay window, and
-  server-wide events are never kept: they have no session to replay into.
+  server-wide events are never kept: they have no session to replay into. A ring that has
+  no subscriber and nothing replayable left (every entry aged past `ReplayWindow`) is
+  released, so a long-running server that churns sessions does not keep one ring per
+  session forever.
 - `truncated:true` means events of **this** session with a `seq` above the cursor were
   evicted or aged out. The client is expected to reload the session through REST instead
   of rendering a stream with a hole in it. `complete` is `true` here: the server did
