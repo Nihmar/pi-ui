@@ -3,6 +3,7 @@ package adversarial_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -132,25 +133,53 @@ func TestLifecycle_SIGTERMReapsAllChildrenWithinTwoSeconds(t *testing.T) {
 func TestLifecycle_CrashAndCleanExitClassified(t *testing.T) {
 	stack := newStack(t, nil)
 
-	// --exit-after/--crash-after are armed from process start, so the delay must
-	// comfortably outlast the get_state round trip that Start performs.
-	crashing := stack.startSession(t, t.TempDir(), "--crash-after", "1500")
-	orderly := stack.startSession(t, t.TempDir(), "--exit-after", "2500")
+	// The fault is armed by a command, not by a wall-clock timer: the child answers
+	// session.abort and then exits with the scripted status. A delay would race the
+	// get_state round trip that Start performs on a loaded machine.
+	crashCode := 9
+	crashScript := fakeharness.WriteScript(t, fakeharness.Script{Commands: map[string]fakeharness.CommandScript{
+		"abort": {ExitCode: &crashCode},
+	}})
+	orderlyCode := 0
+	orderlyScript := fakeharness.WriteScript(t, fakeharness.Script{Commands: map[string]fakeharness.CommandScript{
+		"abort": {ExitCode: &orderlyCode},
+	}})
+	crashing := stack.startSession(t, t.TempDir(), "--script", crashScript)
+	orderly := stack.startSession(t, t.TempDir(), "--script", orderlyScript)
 
 	client := stack.mustDial(nil)
 	client.hello()
 	client.send(`{"type":"subscribe","sessionId":"` + crashing.ID + `"}`)
 	client.send(`{"type":"subscribe","sessionId":"` + orderly.ID + `"}`)
+	client.send(`{"type":"command","id":"c1","sessionId":"` + crashing.ID + `","op":"session.abort"}`)
+	client.send(`{"type":"command","id":"c2","sessionId":"` + orderly.ID + `","op":"session.abort"}`)
 
-	crashed := client.mustNext("server.crashed", hasType("server.crashed"))
+	// Both children answer in their own goroutine, so the two terminal events can arrive
+	// in either order: collect them by type instead of by sequence.
+	var crashed, exited map[string]json.RawMessage
+	eventsDeadline := time.Now().Add(waitTimeout)
+	for (crashed == nil || exited == nil) && time.Now().Before(eventsDeadline) {
+		frame, err := client.next(time.Until(eventsDeadline))
+		if err != nil {
+			t.Fatalf("waiting for the terminal events: %v (frames read: %v)", err, client.frames)
+		}
+		switch frameType(frame) {
+		case "server.crashed":
+			crashed = frame
+		case "server.exited":
+			exited = frame
+		}
+	}
+	if crashed == nil || exited == nil {
+		t.Fatalf("terminal events missing (frames read: %v)", client.frames)
+	}
+
 	if got := fieldString(crashed, "sessionId"); got != crashing.ID {
 		t.Fatalf("server.crashed sessionId = %q, want %s", got, crashing.ID)
 	}
 	if got := fieldInt(t, payloadOf(t, crashed), "exitCode"); got != 9 {
 		t.Fatalf("server.crashed exitCode = %d, want 9", got)
 	}
-
-	exited := client.mustNext("server.exited", hasType("server.exited"))
 	if got := fieldString(exited, "sessionId"); got != orderly.ID {
 		t.Fatalf("server.exited sessionId = %q, want %s", got, orderly.ID)
 	}
@@ -159,8 +188,8 @@ func TestLifecycle_CrashAndCleanExitClassified(t *testing.T) {
 	}
 
 	// Both sessions stay listed with their final status and exit code.
-	deadline := time.Now().Add(waitTimeout)
-	for time.Now().Before(deadline) {
+	statusDeadline := time.Now().Add(waitTimeout)
+	for time.Now().Before(statusDeadline) {
 		crashInfo, crashOK := stack.mgr.Get(crashing.ID)
 		exitInfo, exitOK := stack.mgr.Get(orderly.ID)
 		if crashOK && crashInfo.Status == sessions.StatusCrashed && crashInfo.ExitCode != nil && *crashInfo.ExitCode == 9 &&

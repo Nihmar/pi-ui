@@ -157,7 +157,14 @@ func answer(cmd command, em *emitter, script *Script, cfg config) error {
 		}
 	}
 	if cmd.Type == commandPrompt {
-		return em.emitSyntheticRun(cfg)
+		if err := em.emitSyntheticRun(cfg); err != nil {
+			return err
+		}
+	}
+	if scripted && cs.ExitCode != nil {
+		// Deterministic fault: the answer (and its events) are on stdout before the
+		// process ends, because exit waits for the record in flight.
+		em.exit(*cs.ExitCode)
 	}
 	return nil
 }

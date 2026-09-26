@@ -38,12 +38,14 @@ type Step struct {
 }
 
 // CommandScript is the answer to one command type. An omitted response falls back to the
-// harness default for that command; Error forces a failing response.
+// harness default for that command; Error forces a failing response; ExitCode makes the
+// child exit right after the answer, which is how a test arms a crash without a timer.
 type CommandScript struct {
 	DelayMs  int             `json:"delayMs,omitempty"`
 	Response json.RawMessage `json:"response,omitempty"`
 	Events   []Step          `json:"events,omitempty"`
 	Error    string          `json:"error,omitempty"`
+	ExitCode *int            `json:"exitCode,omitempty"`
 }
 
 // Faults are scripted wall-clock faults; nil means "not set".

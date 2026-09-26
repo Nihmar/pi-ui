@@ -32,6 +32,10 @@ type CommandScript struct {
 	Response json.RawMessage `json:"response,omitempty"`
 	Events   []Step          `json:"events,omitempty"`
 	Error    string          `json:"error,omitempty"`
+	// ExitCode, when set, exits the child right after this command's answer and events.
+	// It is the deterministic counterpart of the wall-clock --exit-after/--crash-after:
+	// a test arms a crash after readiness by sending the command, never by racing a timer.
+	ExitCode *int `json:"exitCode,omitempty"`
 }
 
 // Faults are the scripted wall-clock faults; nil means "not set".
@@ -114,6 +118,9 @@ func (s *Script) validate() error {
 func validateCommandScript(where string, cs CommandScript) error {
 	if cs.DelayMs < 0 {
 		return fmt.Errorf("%s: delayMs must not be negative", where)
+	}
+	if cs.ExitCode != nil && (*cs.ExitCode < 0 || *cs.ExitCode > 255) {
+		return fmt.Errorf("%s: exitCode %d is not a process status (0-255)", where, *cs.ExitCode)
 	}
 	if len(cs.Response) > 0 {
 		if err := validateRecord(cs.Response); err != nil {

@@ -460,7 +460,8 @@ Script format (JSON):
   "commands": {
     "prompt": { "response": { "type": "response", "command": "prompt", "success": true },
                 "events": [ { "delayMs": 1, "record": { "type": "message_update", "assistantMessageEvent": { "type": "text_delta", "delta": "hi" } } } ] },
-    "bash":   { "events": [ { "delayMs": 1, "record": { "type": "bash_execution_update", "delta": "out" } } ] }
+    "bash":   { "events": [ { "delayMs": 1, "record": { "type": "bash_execution_update", "delta": "out" } } ] },
+    "abort":  { "exitCode": 9 }
   },
   "default": { "response": { "type": "response", "success": true } },
   "faults": { "stallMs": 0, "crashAfterMs": null, "exitAfterMs": null }
@@ -478,7 +479,9 @@ Rules:
 - `--big BYTES`: one `message_update` whose `delta` is that many bytes.
 - `--separators`: embed `U+2028` and `U+2029` inside a record; `--crlf`: terminate records
   with CRLF; `--stderr LINES`: write LINES to stderr before the first record.
-- Exit on stdin EOF (like pi); `--exit-after`/`--crash-after` exit with 0/9.
+- Exit on stdin EOF (like pi); `--exit-after`/`--crash-after` exit with 0/9 after a
+  wall-clock delay, and a command entry with `"exitCode": N` exits right after that
+  command's answer and events — the deterministic way to arm a crash in a test.
 
 `server/test/fakeharness` is the Go helper imported by tests of every package:
 
@@ -507,6 +510,7 @@ type CommandScript struct {
     Response json.RawMessage `json:"response,omitempty"`
     Events   []Step          `json:"events,omitempty"`
     Error    string          `json:"error,omitempty"`
+    ExitCode *int            `json:"exitCode,omitempty"`
 }
 type Faults struct {
     StallMs      int  `json:"stallMs,omitempty"`

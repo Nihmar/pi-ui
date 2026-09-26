@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/coder/websocket"
 )
 
 // TestHeartbeatEventIsPublished proves the server-wide observation reaches every
@@ -129,60 +131,106 @@ func TestHandlerContextIsCancelledOnDisconnect(t *testing.T) {
 	}
 }
 
-// TestSlowConsumerIsDisconnected: a subscriber that stops reading is told why
-// instead of being starved of events without an explanation.
+// TestSlowConsumerIsDisconnected: a subscriber that stops reading is told why and
+// disconnected. The trigger is the connection's own failed state, not how much the kernel
+// socket buffer absorbed: the client never reads until the one-slot queue has overflowed,
+// which is what makes the test independent of the host's buffering.
 func TestSlowConsumerIsDisconnected(t *testing.T) {
 	const session = "s_0123456789abcdef"
 	ts := newTestHub(t, func(o *Options) {
 		o.SendBuffer = 1
-		o.WriteTimeout = 200 * time.Millisecond
+		// Long enough that the queue decides the outcome, not a write deadline.
+		o.WriteTimeout = 30 * time.Second
 	})
 
 	client := ts.dial(nil)
 	defer client.close()
 	client.hello()
 	subscribe(t, ts, client, `{"type":"subscribe","sessionId":"`+session+`","replay":false}`, 1)
+	conn := onlyConnection(t, ts.hub)
 
-	// Payloads large enough that the socket buffers fill while the reader is stalled:
-	// the writer blocks, the one-slot queue overflows, and the hub drops the backlog.
+	// Payloads large enough that the socket fills while the reader is stalled: the
+	// writer blocks, the one-slot queue overflows, and the hub fails the connection.
 	payload := make([]byte, 64<<10)
 	for i := range payload {
 		payload[i] = 'x'
 	}
 	big := json.RawMessage(`{"delta":"` + string(payload) + `"}`)
 
-	// The reader is the slow one: it stalls long enough for the publisher to fill the
-	// queue and the socket, then resumes. That is the shape of a real slow consumer,
-	// and it is why the terminal frame can still be delivered at all.
-	var (
-		observedSlowConsumer bool
-		readerDone           = make(chan struct{})
-	)
-	go func() {
-		defer close(readerDone)
-		time.Sleep(150 * time.Millisecond)
-		for {
-			frame, err := client.read()
-			if err != nil {
-				return
-			}
-			if frame["type"] == EventError && errorCodeOf(t, frame) == codeSlowConsumer {
-				observedSlowConsumer = true
-				return
-			}
-		}
-	}()
-
-	for i := 0; i < 400; i++ {
+	// The cap is far more than any socket buffer absorbs, so the loop cannot spin.
+	for i := 0; i < 4096 && !connectionFailed(conn); i++ {
 		ts.hub.Publish(Event{Type: "pi.message_update", SessionID: session, Payload: big})
 	}
+	if !connectionFailed(conn) {
+		t.Fatal("the one-slot queue never overflowed")
+	}
 
-	<-readerDone
-	if !observedSlowConsumer {
-		t.Fatal("the slow subscriber was dropped without a slow_consumer frame")
+	// The terminal frame is queued behind the backlog the writer already wrote.
+	for {
+		frame, err := client.read()
+		if err != nil {
+			t.Fatalf("reading the terminal frame: %v", err)
+		}
+		if frame["type"] == EventError && errorCodeOf(t, frame) == codeSlowConsumer {
+			break
+		}
 	}
 	eventually(t, "the slow subscriber to be dropped", func() bool {
 		clients, _ := ts.hub.counts()
 		return clients == 0
 	})
+}
+
+// TestEnqueueOverflowQueuesTheSlowConsumerFrame pins the overflow decision without a
+// socket: the one-slot queue fills, the next frame fails the connection, the terminal
+// server.error{slow_consumer} is queued and the close status is 1008.
+func TestEnqueueOverflowQueuesTheSlowConsumerFrame(t *testing.T) {
+	ts := newTestHub(t, nil)
+	conn := &connection{hub: ts.hub, ctx: context.Background(), send: make(chan []byte, 1)}
+	frame := []byte(`{"type":"pong"}`)
+
+	if !conn.enqueue(frame) {
+		t.Fatal("the first frame was refused although the queue had room")
+	}
+	if conn.enqueue(frame) {
+		t.Fatal("the second frame was accepted although the queue was full")
+	}
+	if code, reason := conn.closingCode(); code != websocket.StatusPolicyViolation || reason != "slow consumer" {
+		t.Fatalf("close = %v %q, want %d slow consumer", code, reason, websocket.StatusPolicyViolation)
+	}
+	terminal, ok := <-conn.send
+	if !ok {
+		t.Fatal("no terminal frame was queued")
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(terminal, &decoded); err != nil {
+		t.Fatalf("terminal frame is not JSON: %v", err)
+	}
+	if decoded["type"] != EventError || errorCodeOf(t, decoded) != codeSlowConsumer {
+		t.Fatalf("terminal frame = %v, want server.error{slow_consumer}", decoded)
+	}
+}
+
+// connectionFailed reports whether the connection has entered its closing state.
+func connectionFailed(c *connection) bool {
+	c.sendMu.Lock()
+	defer c.sendMu.Unlock()
+	return c.failed
+}
+
+// onlyConnection returns the one registered connection, waiting for it to register.
+func onlyConnection(t *testing.T, h *hub) *connection {
+	t.Helper()
+
+	eventually(t, "the connection to register", func() bool {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return len(h.conns) == 1
+	})
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for c := range h.conns {
+		return c
+	}
+	return nil
 }
