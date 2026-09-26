@@ -79,6 +79,7 @@ server/bin/pi-ui measure [--sessions 8] [--pi <path>|--fake-pi <path>] \
 ## Documentation
 
 - [`docs/spike-interfaces.md`](docs/spike-interfaces.md) — the frozen Phase 1 interface contract.
+- [`docs/api-v1.md`](docs/api-v1.md) — REST conventions, scopes and the pairing/device contract.
 - [`docs/ws-protocol.md`](docs/ws-protocol.md) — WebSocket v1 handshake, frames, replay and error codes.
 - [`docs/spike-report.md`](docs/spike-report.md) — the acceptance measurements C1–C9 with their raw samples.
 - [`docs/mockups.md`](docs/mockups.md) — the Phase 2 screen inventory, the mandatory states and the approval checklist.
