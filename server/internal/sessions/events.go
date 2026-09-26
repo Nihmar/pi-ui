@@ -13,7 +13,9 @@ import (
 //
 // The payload of every event published by this package is documented at its publish
 // site: lifecycle events carry the session Info, pi.* events carry the child's record
-// bytes verbatim, ext.* events carry the extension_ui_request record verbatim.
+// bytes verbatim — except a line that is not valid JSON, which travels as
+// {"raw":"<line>"} because the hub only frames an event payload that is valid JSON —
+// and ext.* events carry the extension_ui_request record verbatim.
 const (
 	EventServerSpawned       = "server.spawned"
 	EventServerReady         = "server.ready"
@@ -30,7 +32,9 @@ const (
 	EventExtEditorText = "ext.editor_text"
 
 	// EventPiUnknown is what a record without a readable `type` becomes, so a malformed
-	// child line is still forwarded instead of dropped.
+	// child line is still forwarded instead of dropped. A line that is not valid JSON
+	// travels as {"raw":"<line>"} (see recordPayload), because the hub only frames an
+	// event payload that is valid JSON.
 	EventPiUnknown = "pi.unknown"
 
 	piEventPrefix = "pi."
@@ -40,6 +44,13 @@ const (
 type errorPayload struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+// rawLinePayload is the body of a pi.unknown event whose record is not valid JSON: the
+// child's line as a JSON string, so the hub can frame it and a client can still recover
+// the bytes it received (`raw` round-trips them exactly).
+type rawLinePayload struct {
+	Raw string `json:"raw"`
 }
 
 // exitPayload is the body of server.exited and server.crashed: the exit status of the

@@ -4,9 +4,12 @@
 //
 // The supervisor is the only place that talks to rpc.Bridge, and it never interprets pi
 // payloads: every non-response record is published as `pi.<record.type>` with the record
-// bytes as the payload, so a new pi event reaches clients without a server change. The
-// single exception is the extension UI subprotocol of §8, which the server terminates
-// (dialogs are answerable) instead of forwarding verbatim.
+// bytes as the payload, so a new pi event reaches clients without a server change. A line
+// the child got wrong (not valid JSON) cannot be framed as-is, so it travels as
+// `pi.unknown` with a `{"raw":"<line>"}` payload: the bytes survive as a JSON string
+// instead of being refused by the hub. The single exception is the extension UI
+// subprotocol of §8, which the server terminates (dialogs are answerable) instead of
+// forwarding verbatim.
 //
 // Wiring (one seam, no globals):
 //

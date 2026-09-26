@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Nihmar/pi-ui/server/internal/rpc"
 	"github.com/Nihmar/pi-ui/server/test/fakeharness"
 )
 
@@ -126,6 +127,43 @@ func TestUnreadableRecordIsNotDropped(t *testing.T) {
 	unknown := waitForEvent(t, rec, EventPiUnknown)
 	if string(unknown.Payload) != `{"unknown":"shape"}` {
 		t.Errorf("payload = %s, want the record verbatim", unknown.Payload)
+	}
+}
+
+// TestUnparseableRecordStaysReadableOnTheWire pins finding 6.2: a line the child got wrong
+// is not valid JSON and cannot be a WS payload as-is (the hub refuses what it cannot
+// frame), so it travels as pi.unknown with a {"raw":"<line>"} payload that round-trips the
+// original bytes. A record that is valid JSON still travels verbatim.
+func TestUnparseableRecordStaysReadableOnTheWire(t *testing.T) {
+	mgr, rec := newTestManager(t, nil)
+	s := newSession(mgr, codegenSessionID, Spec{CWD: "/work"})
+
+	line := "not json: {\"type\": \"message\", \"text\": \"a\u2028b\"}"
+	s.handleRecord(rpc.Record{Raw: []byte(line)})
+
+	events := rec.ofType(EventPiUnknown)
+	if len(events) != 1 {
+		t.Fatalf("%s events = %d, want 1", EventPiUnknown, len(events))
+	}
+	if !json.Valid(events[0].Payload) {
+		t.Fatalf("payload = %s, want valid JSON the hub can frame", events[0].Payload)
+	}
+	envelope := decodePayload(t, events[0])
+	if len(envelope) != 1 {
+		t.Errorf("payload = %s, want exactly the raw field", events[0].Payload)
+	}
+	if got := payloadString(t, events[0], "raw"); got != line {
+		t.Errorf("raw = %q, want the original line %q", got, line)
+	}
+
+	record := json.RawMessage(`{"unknown":"shape"}`)
+	s.handleRecord(rpc.Record{Raw: record})
+	events = rec.ofType(EventPiUnknown)
+	if len(events) != 2 {
+		t.Fatalf("%s events = %d, want 2", EventPiUnknown, len(events))
+	}
+	if string(events[1].Payload) != string(record) {
+		t.Errorf("payload = %s, want a valid-JSON record verbatim (%s)", events[1].Payload, record)
 	}
 }
 

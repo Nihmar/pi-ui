@@ -23,7 +23,8 @@ const (
 )
 
 // Record types of the pi protocol this package interprets. Every other type is forwarded
-// verbatim as pi.<type>.
+// as pi.<type>: its bytes verbatim when they are valid JSON, a {"raw":"<line>"} envelope
+// otherwise (see recordPayload).
 const (
 	recordExtensionUIRequest = "extension_ui_request"
 	recordAgentEnd           = "agent_end"
@@ -203,6 +204,8 @@ func (s *session) pump() {
 
 // handleRecord publishes one child record: pi.* verbatim for everything except the
 // extension UI subprotocol, which the server terminates instead of forwarding (§5.3, §8).
+// A line the child got wrong is not valid JSON and cannot be framed as-is; it still
+// reaches clients as pi.unknown, carrying the line in a {"raw":"<line>"} payload.
 func (s *session) handleRecord(record rpc.Record) {
 	s.touch()
 	switch record.Type {
@@ -215,8 +218,19 @@ func (s *session) handleRecord(record rpc.Record) {
 		Type:      piEventType(record.Type),
 		SessionID: s.id,
 		EntryID:   entryIDOf(record.Raw, record.Type),
-		Payload:   record.Raw,
+		Payload:   recordPayload(record),
 	})
+}
+
+// recordPayload is the wire payload of one pi.* event: the child's record bytes verbatim
+// when they are valid JSON, or {"raw":"<line>"} when they are not. The hub refuses an
+// event payload that is not valid JSON, and a malformed line must stay readable on the
+// wire instead of surfacing as a connection-scoped server.error.
+func recordPayload(record rpc.Record) json.RawMessage {
+	if json.Valid(record.Raw) {
+		return record.Raw
+	}
+	return mustJSON(rawLinePayload{Raw: string(record.Raw)})
 }
 
 // Record types that say whether a session is working. Only the types the spike documents
