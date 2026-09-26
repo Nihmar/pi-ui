@@ -125,7 +125,9 @@ is a new map entry, not a hub change.
 | `ext.*` | fire-and-forget extension UI notification (never answerable) | `ext.notify`, `ext.status`, `ext.widget`, `ext.title`, `ext.editor_text` |
 
 A client must ignore an unknown event name: that is what lets the server ship new pi
-events without a protocol bump.
+events without a protocol bump. The `type` pattern in `schemas/ws.json` documents the
+namespaces, it is **not** the gate: the hub publishes a type it does not recognise instead
+of dropping the event, so a new pi record reaches clients without a server change.
 
 A child line that is not valid JSON cannot travel byte for byte, so it becomes
 `pi.unknown` with payload `{"raw":"<line>"}` — readable on the wire instead of a
@@ -137,6 +139,11 @@ invalid byte with `U+FFFD`; a client that needs the record reconstructs it from 
   orders every stream a client sees. It is deliberately **not** per session: a session
   stream may have gaps, and a cursor is only ever compared against the same session's
   events.
+- The hub's own meta frames — `server.heartbeat`, `server.replay.begin`,
+  `server.replay.end` and `server.error` — carry a `seq` too, because every event does,
+  but they are **not** cursors: `begin`/`end` are stamped as they are emitted and can carry
+  a higher seq than the events they wrap. A client advances its `since.seq` only on the
+  session events it renders, never on a meta frame.
 - `ts` is RFC3339 UTC with milliseconds, filled by the hub when the publisher leaves it
   empty.
 - `entryId` is set when the record carries one (`pi.entry_appended` →
@@ -148,7 +155,7 @@ Events the hub itself publishes:
 
 | Event | Payload | Emitted |
 |---|---|---|
-| `server.heartbeat` | `{"uptimeSec","clients","sessions"}` | every `Heartbeat` (default 30 s), server-wide |
+| `server.heartbeat` | `{"uptimeSec","clients","sessions"}` | every `Heartbeat` (default 30 s), server-wide. `sessions` counts sessions with at least one subscriber: the hub does not own the lifecycle, so it counts its fan-out, not live sessions. |
 | `server.replay.begin` | `{"direction":"seq"\|"entry"}` | once per replay, to the replaying subscriber only |
 | `server.replay.end` | `{"count","complete","truncated?"}` | once per replay, to the replaying subscriber only |
 | `server.error` | `{"code","message"}` | connection-scoped failures: `slow_consumer`, replay failures, an event payload that could not be encoded |
@@ -282,7 +289,7 @@ Two independent mechanisms, and they do different jobs:
 |---|---|---|
 | WebSocket protocol ping/pong | server → client, every `Heartbeat` | liveness: **three** consecutive unanswered pings close the connection with `1008`. It is a control frame, so it is invisible to the frame schema and every standards-compliant client (a browser included) answers it without application code. |
 | `{"type":"ping"}` / `{"type":"pong"}` | client → server | application-level liveness a client can issue whenever it wants, e.g. while it has no subscription. |
-| `server.heartbeat` event | server → every client, every `Heartbeat` | the observation a client renders: uptime and the live client/session counts. |
+| `server.heartbeat` event | server → every client, every `Heartbeat` | the observation a client renders: uptime, the connected clients and the sessions with at least one subscriber (the hub counts its fan-out, not session lifetimes). |
 
 Because protocol pings are answered by the client's *reader*, a client that never reads
 its socket is closed after three intervals — a half-open TCP connection cannot hold a

@@ -27,9 +27,9 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | R3 | should-fix | The old `TestCloseLeavesNoZombieWhenConsumerStops` did not exercise the path it documented: one record fits a one-slot buffer, so the reader waited on the pipe and reaped the child itself. | Fixed with R2 |
 | R4 | should-fix | The new pacer accepted a NaN rate (`rate <= 0` is false for NaN) and `time.Duration(NaN)` is implementation-defined. | Fixed `df82ca0`, pinned by `TestNewPacerRejectsUnusableRates` |
 | R5 | nit | `time.Duration(i) * p.interval` overflows int64 for absurdly small rates and the wrapped deadline made every record look behind schedule. | Fixed `df82ca0` |
-| R6 | nit | `Start` racing `Close` between `claimStart` and `register` can leave the just-spawned child unkilled. | Open |
+| R6 | nit | `Start` racing `Close` between `claimStart` and `register` can leave the just-spawned child unkilled. | Fixed `b3d7c97`: `register` kills a child it publishes to an already-closed bridge, pinned by `TestRegisterAfterCloseKillsTheChild` |
 | R7 | nit | The elapsed bound in `TestSyntheticPromptStreamCatchesUp` only discriminates on a host with ~1 ms timer granularity. | Partly addressed (`TestNewPacerRejectsUnusableRates` covers the rate edges; the timing bound stays host-dependent) |
-| R8 | nit | No test covers `ErrTimeout`, an unknown-id response being dropped, or the "already in flight" rejection. | Partly addressed (the late-response drop is pinned by R1's test; the rest are open) |
+| R8 | nit | No test covers `ErrTimeout`, an unknown-id response being dropped, or the "already in flight" rejection. | Fixed `ae8eb4c`, pinned by `TestSendTimeoutReturnsErrTimeout`, `TestResponseForAnUnknownIDIsDropped` and `TestSendRejectsASecondCommandInFlight` |
 
 ## 3. `internal/ws` — hub, replay, handshake
 
@@ -40,12 +40,12 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | W3 | should-fix | A replay buffer that overflowed enqueued `server.error{slow_consumer}` but never closed the connection, while `docs/ws-protocol.md` ("Buffered events are capped by `SendBuffer` … disconnected like any other slow consumer") promises `1008`. | Fixed, pinned by `TestReplayBufferOverflowClosesTheSubscriber` |
 | W4 | should-fix | `since.entryId` for a session the server does not know answers `server.error{session_not_found}`, while the `since.seq` path is silently empty and the doc says an unknown session "is not an error". | Fixed `30a4703`: both cursor paths answer an empty replay, pinned by `TestEntryReplayForAnUnknownSessionIsEmptyNotAnError` |
 | W5 | should-fix | `h.rings` is never reduced when a session goes away, so a long-running server that churns sessions keeps one ring per session forever. | Fixed `628cbda`: the heartbeat sweep releases a ring with no subscriber and nothing replayable left, pinned by `TestSweepRingsReleasesHistoryNobodyCanReplay` |
-| W6 | nit | A binary first frame is fatal in the handshake (close 4401) but ignored after it. | Open |
-| W7 | nit | The `frame.V != protocolVersion` branch is dead (the schema already pins `v: 1`) and its message misleads for a well-formed `v:2`. | Open |
-| W8 | nit | A handler result that is not valid JSON makes `marshalResponse` fail and the terminal `response` frame is dropped, so the client waits forever for that id. | Open |
+| W6 | nit | A binary first frame is fatal in the handshake (close 4401) but ignored after it. | Fixed `b33afbc`: the handshake skips binary frames exactly like the read loop, pinned by `TestHandshakeSkipsBinaryFrames` |
+| W7 | nit | The `frame.V != protocolVersion` branch is dead (the schema already pins `v: 1`) and its message misleads for a well-formed `v:2`. | Fixed `b33afbc`: the dead branch is gone and a well-formed foreign hello reports its version, pinned by `TestHandshakeRejectsUnsupportedVersion` |
+| W8 | nit | A handler result that is not valid JSON makes `marshalResponse` fail and the terminal `response` frame is dropped, so the client waits forever for that id. | Fixed `e0fba9f`: the command path answers `internal` instead, pinned by `TestCommandWithUnencodableDataStillAnswers` |
 | W9 | nit | `sameAuthority` accepts a portless `Origin` against any port (the Host check does compare ports). | Open |
-| W10 | nit | `server.heartbeat.sessions` counts sessions with a subscriber, not live sessions. | Open |
-| W11 | nit | `server.replay.begin`/`end` carry a higher `seq` than the replayed events they wrap, so a client that advances its cursor on every frame sees a backwards stream. | Open — document that meta frames are not cursors |
+| W10 | nit | `server.heartbeat.sessions` counts sessions with a subscriber, not live sessions. | Documented in `docs/ws-protocol.md` (the hub counts its fan-out, not session lifetimes) |
+| W11 | nit | `server.replay.begin`/`end` carry a higher `seq` than the replayed events they wrap, so a client that advances its cursor on every frame sees a backwards stream. | Documented in `docs/ws-protocol.md`: meta frames are not cursors |
 | W12 | observation | Close codes `4403`, `4409`, `4426` are specified in §5.2/§6 but appear nowhere in the repository; only `4401` is implemented. | Open — implement or strike from the contract |
 
 ## 4. `internal/sessions`, `internal/api`, `internal/cli`
@@ -60,9 +60,9 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | S6 | nit | `stop` ignores its `context.Context`. | Open |
 | S7 | nit | `stopSession`'s 202 comment still says the child is exiting when the response is written, while `Stop` now blocks until the terminal status is written. | Fixed `86cba37` (the comment now states that the 202 carries the state the session is in when Stop returns) |
 | S8 | nit | CLI usage errors exit 1 while `doc.go` documents `ExitUsage = 2` for a wrong command line. | Open |
-| S9 | nit | The dialog fallback branches publish `Payload: raw` directly instead of going through `recordPayload`. | Open |
+| S9 | nit | The dialog fallback branches publish `Payload: raw` directly instead of going through `recordPayload`. | Fixed `4eff62d`: every dialog payload goes through `recordPayload` |
 | S10 | nit | `Stop` in the window between the registry insert and `s.attach(bridge)` is discarded and the session ends up ready. | Open |
-| S11 | nit | `Info.ExitCode` hands out the session's own pointer. | Open |
+| S11 | nit | `Info.ExitCode` hands out the session's own pointer. | Fixed `6135465`, pinned by `TestInfoDoesNotAliasTheExitCode` |
 
 ## 5. Repository, tests, CI and bridge
 
@@ -79,7 +79,7 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | C9 | nit | Commit `a5b393b` ends with a `Generated with …` line, which `AGENTS.md` forbids verbatim. | Open — history is not rewritten |
 | C10 | nit | `server/test/fixtures/*.jsonl` embed host paths (`/home/alessandro/...`) and a loopback endpoint. | Open |
 | C11 | nit | Fixtures are checked for shape only; no fixture is replayed through the pipeline or validated against `schemas/pi.json`. | Open |
-| C12 | nit | Outbound event `type` is never validated against `schemas/ws.json`'s pattern (deliberate lenient pass-through, but the schema reads as if it were the gate). | Open — document the divergence |
+| C12 | nit | Outbound event `type` is never validated against `schemas/ws.json`'s pattern (deliberate lenient pass-through, but the schema reads as if it were the gate). | Documented in `docs/ws-protocol.md`: the pattern documents the namespaces, the hub publishes what it does not recognise |
 | C13 | nit | Timing/pressure-dependent assertions: `test/adversarial/lifecycle_test.go` arms `--crash-after`/`--exit-after` on wall-clock budgets, and `internal/ws/TestSlowConsumerIsDisconnected` depends on socket-buffer pressure — it failed once under a full-suite `-race` run in this session and passed 3/3 in isolation. | Open |
 | C14 | nit | A `--fake-pi` run also prints a `throughput:` line for the idle-RSS measurements (a 1-event smoke pass), and `rssGrowthPct` reads `0.00` when the sampler produced no samples rather than "n/a". | Open — documented in `docs/spike-report.md` §1 so the C2/C3 rows cannot be misread |
 | C15 | nit | `spike.machineSnapshot` has no callers; `writeRaw`'s comment claims raw samples "never half-land" while `os.WriteFile` truncates first. | Open |
