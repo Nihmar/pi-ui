@@ -29,7 +29,9 @@
 //   - Config carries no runtime-dir field. The per-session PI_UI_BRIDGE_CONFIG documents
 //     of §5.7 live in RuntimeDir(), which implements the documented PIUI_RUNTIME_DIR rule,
 //     so the CLI and this package can never disagree about the path.
-//   - The frozen ws.Hub has no method to emit a `request` frame. A hub that implements the
-//     optional DialogSender interface is used directly; any other publisher receives an
-//     event of type "request" whose payload is the complete frame (see Manager.sendDialog).
+//   - The frozen ws.Hub has no method to emit a `request` frame. The hub's optional
+//     ws.Requester interface is used through a type assertion in Manager.sendDialog; a hub
+//     that does not implement it logs an error, because a dialog is not an event — it has
+//     no seq and is never replayed — and routing it through Publish would make a blocking
+//     question look like a log line.
 package sessions

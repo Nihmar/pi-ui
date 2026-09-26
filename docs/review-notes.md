@@ -46,7 +46,7 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | W9 | nit | `sameAuthority` accepts a portless `Origin` against any port (the Host check does compare ports). | Open |
 | W10 | nit | `server.heartbeat.sessions` counts sessions with a subscriber, not live sessions. | Documented in `docs/ws-protocol.md` (the hub counts its fan-out, not session lifetimes) |
 | W11 | nit | `server.replay.begin`/`end` carry a higher `seq` than the replayed events they wrap, so a client that advances its cursor on every frame sees a backwards stream. | Documented in `docs/ws-protocol.md`: meta frames are not cursors |
-| W12 | observation | Close codes `4403`, `4409`, `4426` are specified in §5.2/§6 but appear nowhere in the repository; only `4401` is implemented. | Open — implement or strike from the contract |
+| W12 | observation | Close codes `4403`, `4409`, `4426` are specified in §5.2/§6 but appear nowhere in the repository; only `4401` is implemented. | Scoped: those codes belong to the plan's protocol (in the local, unversioned `PLAN.md`), while the versioned contract reserves 4401 only; `docs/ws-protocol.md` now says so instead of inventing the codes early |
 
 ## 4. `internal/sessions`, `internal/api`, `internal/cli`
 

@@ -57,6 +57,10 @@ status code. The hub therefore splits it by phase:
 Both carry the same meaning and the same code (`unauthorized` / 4401) to the client; a
 client should treat either as "re-handshake, do not retry with the same credentials".
 
+Only 4401 is a private-use close code in the spike. Scope denial, connection-limit and
+version-negotiation closes belong to the features that need them — scopes, a client cap
+and a second protocol version — and are deliberately not reserved here.
+
 ## Authentication and origin rules
 
 | Input | Rule |
