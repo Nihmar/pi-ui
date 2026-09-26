@@ -105,6 +105,21 @@ piui://pair?v=1&url=http%3A%2F%2Fpi-ui.local%3A8787&code=7K4M2Q&fp=4f2a…
 `code` and `secret` above are the short-lived invite; the QR never contains a
 device token.
 
+### Operate it from the CLI
+
+The device records, the admin password and the pending invitations live in
+`$PIUI_STATE_DIR/state.db` (default `$XDG_STATE_HOME/pi-ui/state.db`), one SQLite
+file the running server and the one-shot commands share:
+
+```bash
+pi-ui auth set-password                 # store the admin password verifier
+pi-ui pair --url http://<host>:8787     # mint an invitation (code + QR)
+pi-ui status                            # devices, password, pending invitations
+```
+
+A server started with nothing configured mints one invitation itself and logs its
+code. `serve --token <token>` selects the static-token mode instead.
+
 ### Refresh and revocation
 
 ```
@@ -153,9 +168,10 @@ by the deployment's liveness probe. Never leaks cwd, names or versions.
 
 ### `GET /server`
 
-Scope `viewer`. A loopback peer without a token is a viewer in every
-configuration, so the admin's own machine can check the server before it has
-paired; a remote client pairs first. Returns `SrvServerIdentity`: version,
-`piVersion`, protocol, `features[]`, `limits{}` and `tls` when the server
-terminates TLS. The app uses it to negotiate capabilities and to confirm a
-certificate fingerprint (TOFU/pin).
+Scope `viewer`. A loopback peer without a token is the **operator** until the
+server is configured (no device paired, no admin password), which is the
+bootstrap state the plan describes; once an identity exists it is only a viewer,
+and a token is what unlocks operator and admin from anywhere. Returns
+`SrvServerIdentity`: version, `piVersion`, protocol, `features[]`, `limits{}`
+and `tls` when the server terminates TLS. The app uses it to negotiate
+capabilities and to confirm a certificate fingerprint (TOFU/pin).

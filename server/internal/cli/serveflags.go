@@ -53,6 +53,7 @@ type serveConfig struct {
 	heartbeat     time.Duration
 	allowHosts    []string
 	allowOrigins  []string
+	stateDir      string
 	sessionFlags  []string
 }
 
@@ -161,6 +162,7 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("heartbeat", "", "server heartbeat interval (default 30s)")
 	fs.String("allow-hosts", "", "comma-separated extra Host values accepted by /ws/v1")
 	fs.String("allow-origins", "", "comma-separated extra Origin values accepted by /ws/v1")
+	fs.String("state-dir", "", "state directory holding the SQLite database (PIUI_STATE_DIR)")
 	var sessionArgs sessionFlag
 	fs.Var(&sessionArgs, "session", "session to start at boot: <cwd>[:<name>] (repeatable)")
 
@@ -179,6 +181,7 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 		logLevel:     resolve(fs, "log-level", envLogLevel, defaultLogLevel),
 		allowHosts:   splitList(resolve(fs, "allow-hosts", envAllowHosts, "")),
 		allowOrigins: splitList(resolve(fs, "allow-origins", envAllowOrigins, "")),
+		stateDir:     resolve(fs, "state-dir", envStateDir, ""),
 		sessionFlags: sessionArgs,
 	}
 
@@ -246,10 +249,15 @@ func writeServeUsage(w io.Writer) {
 		"  --heartbeat D              heartbeat interval (PIUI_HEARTBEAT)\n"+
 		"  --allow-hosts a,b          extra Host values accepted by /ws/v1 (PIUI_ALLOW_HOSTS)\n"+
 		"  --allow-origins a,b        extra Origin values accepted by /ws/v1 (PIUI_ALLOW_ORIGINS)\n"+
+		"  --state-dir <path>         SQLite state database (PIUI_STATE_DIR)\n"+
 		"\n"+
 		"environment only: PIUI_RUNTIME_DIR (per-session runtime files, default\n"+
 		"$XDG_RUNTIME_DIR/pi-ui or os.TempDir()/pi-ui-<uid>)\n\n"+
 		"Every flag can be supplied through its PIUI_* variable instead; a flag wins.\n"+
 		"The process logs to stderr, prints the listening address on stdout and shuts down\n"+
-		"gracefully on SIGINT/SIGTERM, reaping every child within two seconds.\n")
+		"gracefully on SIGINT/SIGTERM, reaping every child within two seconds.\n\n"+
+		"Device access: without --token the server mints device tokens through pairing.\n"+
+		"On first start it logs a pairing code; `pi-ui pair --url <origin>` prints a QR.\n"+
+		"A revoked or lost device can always be recovered with the admin password\n"+
+		"(`pi-ui auth set-password`), and --token selects the static-token mode instead.\n")
 }

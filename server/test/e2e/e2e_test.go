@@ -135,7 +135,8 @@ func (p *serverProcess) waitErrOf() error {
 func startServer(t *testing.T, extra ...string) *serverProcess {
 	t.Helper()
 	binary := buildServer(t)
-	args := append([]string{"serve", "--addr", "127.0.0.1:0", "--log-level", "error"}, extra...)
+	// Every run gets its own state directory: the server must never touch the real one.
+	args := append([]string{"serve", "--addr", "127.0.0.1:0", "--log-level", "error", "--state-dir", t.TempDir()}, extra...)
 	cmd := exec.Command(binary, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

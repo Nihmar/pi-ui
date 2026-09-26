@@ -55,6 +55,18 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
+	// The state database is opened before anything serves: a server that cannot
+	// remember its devices and password must not start.
+	stateDir, err := resolveStateDir(cfg.stateDir)
+	if err != nil {
+		return err
+	}
+	stateDB, authService, err := openState(ctx, stateDir)
+	if err != nil {
+		return err
+	}
+	defer stateDB.Close()
+
 	// One hub, one supervisor, one router: the supervisor is wired into the hub as command
 	// handler, dialog handler and replay source, which is the whole cross-package seam.
 	hub := ws.New(ws.Options{
@@ -81,7 +93,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	hub.SetDialogHandler(supervisor)
 	hub.SetReplayer(supervisor)
 
-	router := api.NewRouter(api.Options{
+	options := api.Options{
 		Supervisor: supervisor,
 		Hub:        hub,
 		Info: api.ServerInfo{
@@ -92,8 +104,15 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			Features:  cfg.features(),
 			Limits:    cfg.limits(),
 		},
-		Auth: api.NewLoopbackOrToken(cfg.token),
-	})
+	}
+	if cfg.token != "" {
+		// Compatibility mode: one static token, no device surface. Scripts and the
+		// Phase 1 harness keep working with --token; pairing is the default otherwise.
+		options.Auth = api.NewLoopbackOrToken(cfg.token)
+	} else {
+		options.AuthService = authService
+	}
+	router := api.NewRouter(options)
 
 	listener, err := net.Listen("tcp", cfg.addr)
 	if err != nil {
@@ -112,8 +131,10 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		"pi", cfg.pi,
 		"maxSessions", cfg.maxSessions,
 		"runtimeDir", sessions.RuntimeDir(),
+		"stateDir", stateDir,
 		"bridge", cfg.bridge != "",
 		"tokenRequired", cfg.token != "",
+		"deviceAuth", cfg.token == "",
 	)
 	// The one line on stdout: a supervisor or a test needs the address it actually bound
 	// (with --addr 127.0.0.1:0 the port is the kernel's choice).
@@ -121,6 +142,20 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
+
+	// Bootstrap: a server with neither a device nor a password has no way in yet, so it
+	// mints one invitation and logs it. The QR comes from `pi-ui pair`, which writes to
+	// the same state database.
+	if cfg.token == "" && !authService.HasAdminPassword() && len(authService.Devices()) == 0 && authService.PendingInvites() == 0 {
+		if invite, inviteErr := authService.NewInvite(authInviteKindQR); inviteErr != nil {
+			logger.Error("pi-ui: could not mint the bootstrap pairing invitation", "error", inviteErr)
+		} else {
+			logger.Info("pi-ui: no device is paired yet; minted a pairing invitation",
+				"code", invite.Code,
+				"expiresInSec", int(time.Until(invite.ExpiresAt).Seconds()),
+				"hint", "run `pi-ui pair --url http://<host>:<port>` on this host for a scannable QR")
+		}
+	}
 
 	// Boot sessions after the listener is up, so a client can watch them spawn. A session
 	// that does not start is logged and skipped: the server keeps serving.

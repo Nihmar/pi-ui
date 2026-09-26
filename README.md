@@ -43,6 +43,23 @@ WebSockets on `/ws/v1`, and shuts down gracefully on SIGINT/SIGTERM, reaping eve
 Configuration also comes from `PIUI_*` environment variables (see
 `docs/spike-interfaces.md` §5.7).
 
+## Pair a device
+
+The server keeps its state (paired devices, the admin password, pending pairing
+invitations) in one SQLite file, `$PIUI_STATE_DIR/state.db`
+(default `$XDG_STATE_HOME/pi-ui/state.db`).
+
+```bash
+./bin/pi-ui auth set-password          # the admin credential and recovery path
+./bin/pi-ui pair --url http://<host>:8787   # code, deep link and a scannable QR
+./bin/pi-ui status                     # devices, password, pending invitations
+```
+
+`pair` mints a single-use invitation that expires after ten minutes; a running
+`serve` over the same state directory consumes it and returns a device token once.
+A server that starts with nothing configured mints one invitation itself and logs
+its code. `serve --token <token>` keeps the old static-token mode.
+
 ## Test
 
 ```bash

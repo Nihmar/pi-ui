@@ -427,6 +427,15 @@ func (s *Service) HasAdminPassword() bool {
 	return ok
 }
 
+// Configured reports whether any identity exists yet: a paired device or an admin
+// password. An unconfigured server is the bootstrap state the plan describes (loopback,
+// first start), where a local peer is trusted as the operator because there is nothing
+// to check it against; the moment an identity exists, a local peer without a token is
+// only a viewer.
+func (s *Service) Configured() bool {
+	return s.HasAdminPassword() || len(s.Devices()) > 0
+}
+
 // encodeToken builds the bearer credential: the public device id plus the secret.
 func encodeToken(id string, secret []byte) string {
 	return id + "." + base64.RawURLEncoding.EncodeToString(secret)

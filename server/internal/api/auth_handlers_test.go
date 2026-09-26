@@ -276,8 +276,39 @@ func TestRevokeDeviceEndsItsAccess(t *testing.T) {
 	}
 }
 
+func TestLoopbackWithoutATokenIsOperatorUntilTheServerIsConfigured(t *testing.T) {
+	handler, service := newAuthRouter(t)
+
+	// Nothing paired and no password: the bootstrap state, where the local operator can
+	// create the first session.
+	create := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(`{"cwd":"/tmp/x"}`))
+	created := do(t, handler, create, "127.0.0.1:55001")
+	requireJSON(t, created)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("bootstrap POST /sessions = %d, want 201 (body %s)", created.Code, created.Body.String())
+	}
+
+	// As soon as an identity exists, a local peer without a token is only a viewer.
+	if err := service.SetAdminPassword("correct horse battery staple"); err != nil {
+		t.Fatalf("SetAdminPassword: %v", err)
+	}
+	write := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(`{"cwd":"/tmp/y"}`))
+	forbidden := do(t, handler, write, "127.0.0.1:55001")
+	requireJSON(t, forbidden)
+	if forbidden.Code != http.StatusForbidden {
+		t.Fatalf("configured loopback write = %d, want 403", forbidden.Code)
+	}
+	read := httptest.NewRequest(http.MethodGet, "/api/v1/sessions", nil)
+	if got := do(t, handler, read, "127.0.0.1:55001"); got.Code != http.StatusOK {
+		t.Fatalf("configured loopback read = %d, want 200", got.Code)
+	}
+}
+
 func TestLoopbackWithoutATokenIsAViewer(t *testing.T) {
-	handler, _ := newAuthRouter(t)
+	handler, service := newAuthRouter(t)
+	if err := service.SetAdminPassword("correct horse battery staple"); err != nil {
+		t.Fatalf("SetAdminPassword: %v", err)
+	}
 
 	read := httptest.NewRequest(http.MethodGet, "/api/v1/sessions", nil)
 	if got := do(t, handler, read, "127.0.0.1:55001"); got.Code != http.StatusOK {

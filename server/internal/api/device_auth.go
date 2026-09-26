@@ -23,6 +23,9 @@ type AuthService interface {
 	Devices() []auth.Device
 	// Revoke makes a device stop authenticating immediately.
 	Revoke(deviceID string) error
+	// Configured reports whether any identity exists yet (a paired device or an admin
+	// password); an unconfigured server is the loopback bootstrap.
+	Configured() bool
 }
 
 // DeviceAuthenticator authenticates bearer tokens against the auth service.
@@ -49,6 +52,12 @@ func (d DeviceAuthenticator) AuthenticateDevice(r *http.Request) (Scope, string,
 	token, ok := bearerToken(r)
 	if !ok {
 		if IsLoopback(r) {
+			// The bootstrap state of the plan: no device and no password yet, so a local
+			// peer is the operator and can set one up. With an identity configured, a
+			// local peer without a token is a viewer.
+			if !d.Service.Configured() {
+				return ScopeOperator, "", nil
+			}
 			return ScopeViewer, "", nil
 		}
 		return "", "", errors.New("a device token is required for requests from outside the loopback interface")

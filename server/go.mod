@@ -6,7 +6,9 @@ require (
 	github.com/atombender/go-jsonschema v0.24.1
 	github.com/coder/websocket v1.8.15
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.57.0
+	golang.org/x/term v0.46.0
 	modernc.org/sqlite v1.59.0
 )
 

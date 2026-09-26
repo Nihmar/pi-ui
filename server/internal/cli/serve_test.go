@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"syscall"
@@ -47,6 +48,9 @@ func clearServeEnv(t *testing.T) {
 	} {
 		t.Setenv(name, "")
 	}
+	// The state database must never land in the developer's real state directory: every
+	// serve test gets its own.
+	t.Setenv(envStateDir, t.TempDir())
 }
 
 func TestParseServeConfigDefaults(t *testing.T) {
@@ -187,6 +191,43 @@ func TestServeHelpIsNotAFailure(t *testing.T) {
 }
 
 // TestServeEndToEnd starts the real server with a fake-pi child and drives it over HTTP.
+// TestServeBootstrapsAPairingInvitation: a server with nothing configured mints one
+// invitation in the state database and logs it, so the very first device can pair
+// without a prior `pi-ui pair` run.
+func TestServeBootstrapsAPairingInvitation(t *testing.T) {
+	clearServeEnv(t)
+	stateDir := os.Getenv(envStateDir)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var stdout, stderr syncBuffer
+	done := make(chan error, 1)
+	go func() {
+		done <- Serve(ctx, []string{"--addr", "127.0.0.1:0"}, &stdout, &stderr)
+	}()
+	waitForAddress(t, &stdout)
+
+	waitFor(t, "the bootstrap invitation to be logged", func() bool {
+		return strings.Contains(stderr.String(), "pairing invitation")
+	})
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Serve: %v (stderr %s)", err, stderr.String())
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Serve did not return after cancel")
+	}
+
+	service, closeState := stateService(t, stateDir)
+	defer closeState()
+	if got := service.PendingInvites(); got != 1 {
+		t.Fatalf("pending invitations = %d, want the bootstrap one", got)
+	}
+}
+
 func TestServeEndToEnd(t *testing.T) {
 	clearServeEnv(t)
 	binary := fakeharness.Build(t)
