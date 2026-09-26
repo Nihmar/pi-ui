@@ -308,7 +308,15 @@ Endpoints (spike subset, JSON, `X-Piui-Protocol: 1` echoed):
   the fallback is a hand-written struct in the owning package plus validation through
   `jsonschema/v6`.
 - Each schema also lands as an embedded literal: `gen.SchemaJSON("ws")` returns the raw
-  schema bytes the hub uses to validate inbound frames.
+  schema bytes used by the hub to validate inbound frames.
+- **Schemas are self-contained**: `scripts/gen.sh` runs the generator once per file, so a
+  schema must not `$ref` another schema file (no cross-file `$ref`; `ws.json` re-declares
+  the few shapes it shares with `core.json`). A test in `internal/protocol/gen` guards this.
+- Generator caveats observed with `atombender/go-jsonschema` v0.24.1: use `additionalProperties: true`
+  only on property-less open maps (else the generator imports `mapstructure`, which is not a
+  module dependency); prefer a `pattern` over `format: date-time` for timestamps (the latter
+  generates `time.Time`, which does not round-trip as text); `required` is enforced by the
+  generated `UnmarshalJSON`, so callers that need tolerance keep the raw JSON.
 
 ### 5.6 `internal/spike` — measurements
 
