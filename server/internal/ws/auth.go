@@ -194,16 +194,14 @@ func splitHostPort(authority string) (host, port string) {
 	return strings.Trim(authority, "[]"), ""
 }
 
-// sameAuthority compares two authorities case-insensitively. A missing port on
-// either side matches the other: a reverse proxy may drop the port, and the host
-// is what the check is about.
+// sameAuthority compares two authorities case-insensitively and by port: a missing port
+// matches only a missing port. Treating one as a wildcard would accept `http://localhost`
+// (the default port, written by omission) for `localhost:8787`, which is a different
+// origin; a proxy that strips the port leaves both sides portless, so it still matches.
 func sameAuthority(a, b string) bool {
 	aHost, aPort := splitHostPort(a)
 	bHost, bPort := splitHostPort(b)
-	if !strings.EqualFold(aHost, bHost) {
-		return false
-	}
-	return aPort == "" || bPort == "" || aPort == bPort
+	return strings.EqualFold(aHost, bHost) && aPort == bPort
 }
 
 // isLoopbackHost reports whether host names the local machine: "localhost", an

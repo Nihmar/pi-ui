@@ -224,6 +224,21 @@ func TestHandshakeOriginRules(t *testing.T) {
 		}
 	})
 
+	t.Run("portless origin is not any port", func(t *testing.T) {
+		// The browser writes the port by omission only for the scheme's default, so
+		// http://127.0.0.1 is port 80, not the test server's ephemeral port.
+		host, _ := splitHostPort(authority)
+		_, resp, err := ts.dialRaw(func(o *websocket.DialOptions) {
+			o.HTTPHeader = http.Header{"Origin": {"http://" + host}}
+		})
+		if err == nil {
+			t.Fatal("dial succeeded, want a refused handshake")
+		}
+		if resp == nil || resp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("status = %v (%v), want %d", resp, err, http.StatusUnauthorized)
+		}
+	})
+
 	t.Run("allow-listed origin", func(t *testing.T) {
 		client := ts.dial(func(o *websocket.DialOptions) {
 			o.HTTPHeader = http.Header{"Origin": {"http://localhost:5173"}}
