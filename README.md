@@ -7,8 +7,9 @@ pi runs the agent; pi-ui wraps it. The Go server orchestrates one `pi --mode rpc
 process per session — each in the working directory you choose — and exposes REST
 (`/api/v1`) and WebSocket (`/ws/v1`) for clients, adding the capabilities pi does not
 have on its own: PTY terminals, files, git, search, MCP, background tasks and updates.
-The Flutter client lives in `app/`; the current milestone is the Phase 1 server spike,
-whose measured numbers and protocol contracts are in `docs/`.
+The Flutter client lives in `app/`; the current milestone is the Phase 2 mockup in
+`mockups/` (see `docs/mockups.md`), built on the Phase 1 server spike whose measured
+numbers and protocol contracts are in `docs/`.
 
 ## Repository layout
 
@@ -80,6 +81,7 @@ server/bin/pi-ui measure [--sessions 8] [--pi <path>|--fake-pi <path>] \
 - [`docs/spike-interfaces.md`](docs/spike-interfaces.md) — the frozen Phase 1 interface contract.
 - [`docs/ws-protocol.md`](docs/ws-protocol.md) — WebSocket v1 handshake, frames, replay and error codes.
 - [`docs/spike-report.md`](docs/spike-report.md) — the acceptance measurements C1–C9 with their raw samples.
+- [`docs/mockups.md`](docs/mockups.md) — the Phase 2 screen inventory, the mandatory states and the approval checklist.
 - [`docs/adr/0007-go-spike-decision.md`](docs/adr/0007-go-spike-decision.md) — why the Go server stands.
 - [`docs/verification-report.md`](docs/verification-report.md) — adversarial verification of framing and shutdown.
 - [`docs/review-notes.md`](docs/review-notes.md) — Phase 1 code review: findings, severity and status.
