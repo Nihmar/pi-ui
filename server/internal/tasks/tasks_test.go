@@ -87,8 +87,14 @@ func TestATaskRunsAndKeepsItsOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if task.Status != StatusRunning || task.PID == 0 || task.Name != "greet" {
+	// A command that exits instantly may already be done when Start returns: what is
+	// guaranteed is that the task exists, is named and is reported, not that it is still
+	// running at that microsecond.
+	if task.ID == "" || task.Name != "greet" || task.PID == 0 {
 		t.Fatalf("unexpected task %+v", task)
+	}
+	if task.Status != StatusRunning && task.Status != StatusExited {
+		t.Fatalf("a freshly started task is running or already done: %+v", task)
 	}
 	final := waitFor(t, service, task.ID, StatusExited)
 	if final.ExitCode != 0 || final.EndedAt == "" {
