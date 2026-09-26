@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Nihmar/pi-ui/schemas/pi.json",
+  "title": "pi child protocol (pi --mode rpc)",
+  "description": "Records exchanged with one `pi --mode rpc` child over LF-only JSONL stdio. Self-contained on purpose (one generated Go file per schemas/*.json). This file is deliberately lenient: pi payloads are forwarded verbatim, so unknown fields must survive a round trip, unknown record types must never be rejected and the required lists only cover fields the server actually reads. The authoritative pi contract stays pi itself (0.87.1 in the spike); this file pins the subset the server reasons about.",
+  "$defs": {
+    "RpcResponseEnvelope": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "response"
+        },
+        "id": {
+          "type": "string",
+          "description": "Correlation id copied from the command the server wrote to the child's stdin; absent for responses the child emits on its own."
+        },
+        "command": {
+          "type": "string",
+          "description": "pi command name that produced the response (\"get_state\", \"prompt\", ...), echoed verbatim when present."
+        },
+        "success": {
+          "type": "boolean",
+          "description": "false means pi rejected the command or the run failed; the reason is then in error."
+        },
+        "data": {
+          "description": "Command-specific result, verbatim from pi. Typed per command by the callers, never rewritten by the server."
+        },
+        "error": {
+          "description": "pi-side failure object (at least a message). Kept untyped because the shape belongs to pi, not to this server."
+        }
+      },
+      "required": ["type", "success"],
+      "description": "Child stdout record that answers one command."
+    },
+    "RpcEventEnvelope": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "pi event type (\"message_update\", \"entry_appended\", ...). Types this server has never seen are still forwarded."
+        },
+        "id": {
+          "type": "string",
+          "description": "Correlation id, present only when the event belongs to a command."
+        }
+      },
+      "required": ["type"],
+      "description": "Minimal view of a pi event record. Events pass through verbatim: the payload keeps every pi field, additionalProperties default to true, so the server never validates away data it does not understand."
+    },
+    "ExtensionUiRequest": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "extension_ui_request"
+        },
+        "id": {
+          "type": "string",
+          "description": "Dialog id minted by the child. The client answers with the same id; a second answer for the same id gets already_answered."
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "select",
+            "confirm",
+            "input",
+            "editor",
+            "notify",
+            "setStatus",
+            "setWidget",
+            "setTitle",
+            "set_editor_text"
+          ],
+          "description": "Dialog methods (select, confirm, input, editor) become a WS request frame; the rest are fire-and-forget and only publish ext.* events."
+        },
+        "title": {
+          "type": "string",
+          "description": "Dialog heading; also carries the status key / widget key / title text for the fire-and-forget methods."
+        },
+        "message": {
+          "type": "string",
+          "description": "Body text of the dialog or of the notify notification."
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "select: the choices offered to the user, in display order."
+        },
+        "placeholder": {
+          "type": "string",
+          "description": "input/editor: hint shown while the field is empty."
+        },
+        "prefill": {
+          "type": "string",
+          "description": "input/editor: initial text offered to the user."
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Child-side timeout in milliseconds. The server enforces PIUI_DIALOG_TIMEOUT instead and answers cancelled:true when it fires."
+        },
+        "notifyType": {
+          "type": "string",
+          "description": "notify: severity hint (\"info\", \"warning\", \"error\", ...), forwarded verbatim."
+        },
+        "statusKey": {
+          "type": "string",
+          "description": "setStatus: key of the status entry to add or replace."
+        },
+        "statusText": {
+          "type": "string",
+          "description": "setStatus: text for statusKey; an empty value clears the entry."
+        },
+        "widgetKey": {
+          "type": "string",
+          "description": "setWidget: key of the widget to add or replace."
+        },
+        "widgetLines": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "setWidget: widget content, one string per line."
+        },
+        "widgetPlacement": {
+          "type": "string",
+          "description": "setWidget: where pi renders the widget; pi-defined value forwarded verbatim."
+        },
+        "text": {
+          "type": "string",
+          "description": "set_editor_text: text to place in the editor."
+        }
+      },
+      "required": ["type", "id", "method"],
+      "description": "Extension UI subprotocol request emitted by the pi-ui-bridge extension through the child's stdout."
+    },
+    "ExtensionUiResponse": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "extension_ui_response"
+        },
+        "id": {
+          "type": "string",
+          "description": "Id of the extension_ui_request being answered."
+        },
+        "value": {
+          "description": "select/input/editor answer: the chosen option or the entered text. confirm answers use confirmed instead."
+        },
+        "confirmed": {
+          "type": "boolean",
+          "description": "confirm: true when the user approved, false when they declined."
+        },
+        "cancelled": {
+          "type": "boolean",
+          "description": "Set by the server when the dialog timed out or the session is going away."
+        }
+      },
+      "required": ["type", "id"],
+      "description": "Record the server writes to the child's stdin for every ui_response. Exactly one of value, confirmed, cancelled is meaningful per method."
+    },
+    "RpcSessionState": {
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "pi session id (pi's own id, not the pi-ui ServerSessionId)."
+        },
+        "sessionFile": {
+          "type": "string",
+          "description": "Path of the session JSONL as pi reports it. Server-local: only operator/admin scopes may see it."
+        },
+        "sessionName": {
+          "type": "string",
+          "description": "User-visible session name when pi has one."
+        },
+        "thinkingLevel": {
+          "type": "string",
+          "description": "Active thinking level, verbatim from pi (pi-defined vocabulary)."
+        },
+        "isStreaming": {
+          "type": "boolean",
+          "description": "true while the model is producing output; new prompts are then rejected with busy_streaming unless they steer."
+        },
+        "isCompacting": {
+          "type": "boolean",
+          "description": "true while pi compacts the context."
+        },
+        "steeringMode": {
+          "type": "string",
+          "description": "How pi treats a prompt sent during streaming, verbatim from pi."
+        },
+        "followUpMode": {
+          "type": "string",
+          "description": "How pi queues messages that arrive after the current run, verbatim from pi."
+        },
+        "autoCompactionEnabled": {
+          "type": "boolean",
+          "description": "Whether pi compacts automatically when the context grows."
+        },
+        "messageCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of messages in the session."
+        },
+        "pendingMessageCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Messages queued but not yet processed (steering/follow-up)."
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Active model descriptor as pi reports it (provider, id, context window, ...). Open map, so new pi fields appear without a schema change."
+        }
+      },
+      "required": [
+        "sessionId",
+        "thinkingLevel",
+        "isStreaming",
+        "isCompacting",
+        "steeringMode",
+        "followUpMode",
+        "autoCompactionEnabled",
+        "messageCount",
+        "pendingMessageCount"
+      ],
+      "description": "Result of the pi get_state command as far as the server reads it. The generated Go type enforces the required list; callers that must tolerate a partial record keep the raw JSON instead."
+    }
+  }
+}

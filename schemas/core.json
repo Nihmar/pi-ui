@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Nihmar/pi-ui/schemas/core.json",
+  "title": "pi-ui core vocabulary",
+  "description": "Identifiers, versions and errors shared by the whole pi-ui wire surface (REST /api/v1, WebSocket /ws/v1, pi child protocol). Self-contained on purpose: server/scripts/gen.sh generates one Go file per schemas/*.json, so a cross-file $ref would produce code that does not compile. Objects are lenient: additionalProperties defaults to true and is never written out, so unknown fields survive a round trip and the generated Go types stay dependency-free.",
+  "$defs": {
+    "ServerSessionId": {
+      "type": "string",
+      "pattern": "^s_[0-9a-f]{16}$",
+      "description": "Server-assigned session id: \"s_\" plus 16 lowercase hex characters drawn from crypto/rand. Never derived from the cwd or the session name."
+    },
+    "DeviceId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque device identifier minted by the server at pairing time. The minting format belongs to the pairing implementation, so clients must treat the value as opaque and never parse it."
+    },
+    "TerminalId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque identifier of one server-owned PTY terminal. Scoped to a session; never interpreted by the client."
+    },
+    "TaskId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque identifier of one server-owned background task (long command, job wrapper)."
+    },
+    "JobId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque identifier of one long-running server job such as an update or index run."
+    },
+    "RequestId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Correlation id of one request/response pair: a REST request, a WS command (\"c1\"), an extension UI dialog or a replay cursor."
+    },
+    "EntryId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "pi session entry id, copied verbatim from the child's entry_appended records (payload.entry.id). Never generated or rewritten by the server."
+    },
+    "Seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic per-session event sequence number assigned by the WS hub. Replay cursors are expressed in Seq values."
+    },
+    "Timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,9})?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "RFC3339 timestamp. The server emits UTC with milliseconds when the publisher leaves it empty. Expressed as a pattern instead of \"format\": \"date-time\" so codegen keeps it a string; a time.Time alias would not round-trip as text on the wire."
+    },
+    "ProtocolVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Wire protocol version. Negotiated in the WS hello/welcome frames and echoed in the X-Piui-Protocol header. A future v2 ships alongside v1 (dual support) instead of changing v1 shapes."
+    },
+    "Scope": {
+      "type": "string",
+      "enum": ["viewer", "operator", "admin"],
+      "description": "Authorization scope of an authenticated client: viewer reads, operator drives sessions, admin manages the server itself."
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "unauthorized",
+        "forbidden_scope",
+        "rate_limited",
+        "not_found",
+        "session_not_found",
+        "session_not_ready",
+        "session_exited",
+        "busy_streaming",
+        "pi_rejected",
+        "pi_error",
+        "model_provider_error",
+        "workspace_not_allowed",
+        "path_escape",
+        "too_large",
+        "timeout",
+        "managed_mode",
+        "already_answered",
+        "unsupported",
+        "internal",
+        "bad_request",
+        "session_limit",
+        "slow_consumer",
+        "replay_cursor_invalid"
+      ],
+      "description": "Stable machine-readable error taxonomy. Clients switch on these values, so they are never renamed or reused; new failures get a new code and unknown codes must degrade to a generic message."
+    },
+    "ApiError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable English message, safe to display: no provider secrets, no paths outside the session cwd, no conversation content."
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional structured context (sessionId, limit, retryAfterMs, field, ...). Open map so a new detail never breaks a client; clients ignore unknown keys."
+        }
+      },
+      "required": ["code", "message"],
+      "description": "Error body of every REST failure ({\"error\": {...}}) and of the WS response.error / server.error frames. Unknown sibling fields are allowed and preserved."
+    },
+    "ServerInfo": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "pi-ui server version, e.g. \"0.0.1-spike\" (stamped into the binary at build time)."
+        },
+        "piVersion": {
+          "type": "string",
+          "description": "pi version the server was built and probed against (0.87.1 in the spike). A mismatch degrades with a clear message instead of failing mid-run."
+        },
+        "protocol": {
+          "$ref": "#/$defs/ProtocolVersion"
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Capability flags the server advertises (\"terminal\", \"git\", \"mcp\", ...). Clients degrade gracefully when a flag is missing and ignore flags they do not know."
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Server limits as scalars (maxSessions, replayEvents, replayWindowSec, dialogTimeoutSec, heartbeatSec, ...). Open map so a new limit lands without a breaking schema change."
+        }
+      },
+      "required": ["version", "piVersion", "protocol", "features", "limits"],
+      "description": "Body of GET /api/v1/server and of the server field inside the WS welcome frame."
+    }
+  }
+}
