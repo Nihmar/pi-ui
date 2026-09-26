@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -714,5 +715,80 @@ func TestInvalidScriptIsRejected(t *testing.T) {
 	}
 	if !strings.Contains(result.stderr, "record is not a JSON object") {
 		t.Errorf("stderr = %q, want the offending record", result.stderr)
+	}
+}
+
+var fixtureDate = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`)
+
+// TestFixturesAreWellFormed guards what the other workstreams read: every fixture starts
+// with exactly one `#` header naming the command, the pi version, the capture date and
+// whether it is a real capture, followed by LF-terminated JSON records only.
+func TestFixturesAreWellFormed(t *testing.T) {
+	paths, err := filepath.Glob(filepath.Join("..", "fixtures", "*.jsonl"))
+	if err != nil {
+		t.Fatalf("glob fixtures: %v", err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no fixtures found in ../fixtures")
+	}
+
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read %s: %v", path, err)
+			}
+			lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+			if len(lines) < 2 {
+				t.Fatalf("%s has no records below the header", path)
+			}
+
+			header := lines[0]
+			if !strings.HasPrefix(header, "# ") {
+				t.Fatalf("header = %q, want a single `# ` comment line", header)
+			}
+			if !strings.Contains(header, "| pi ") {
+				t.Errorf("header does not name the pi version: %q", header)
+			}
+			if !fixtureDate.MatchString(header) {
+				t.Errorf("header does not name the capture date: %q", header)
+			}
+			kind := false
+			for _, want := range []string{"real capture", "hand-authored", "derived"} {
+				if strings.Contains(header, want) {
+					kind = true
+				}
+			}
+			if !kind {
+				t.Errorf("header does not say whether the fixture is real or derived: %q", header)
+			}
+
+			for i, line := range lines[1:] {
+				var record map[string]json.RawMessage
+				if err := json.Unmarshal([]byte(line), &record); err != nil {
+					t.Fatalf("line %d is not a JSON record: %v\nline: %q", i+2, err, line)
+				}
+				if _, ok := record["type"]; !ok {
+					t.Errorf("line %d has no record type: %q", i+2, line)
+				}
+			}
+		})
+	}
+}
+
+// TestCaptureScriptIsExecutable keeps the regeneration script runnable and bash-clean:
+// fixtures are only trustworthy when the exact command that produced them is available.
+func TestCaptureScriptIsExecutable(t *testing.T) {
+	path := filepath.Join("..", "..", "scripts", "capture-fixtures.sh")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat %s: %v", path, err)
+	}
+	if info.Mode()&0o111 == 0 {
+		t.Errorf("%s is not executable", path)
+	}
+	syntax := exec.Command("bash", "-n", path)
+	if output, err := syntax.CombinedOutput(); err != nil {
+		t.Errorf("bash -n %s: %v\n%s", path, err, output)
 	}
 }
