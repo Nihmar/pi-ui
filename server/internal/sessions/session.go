@@ -390,8 +390,17 @@ func (s *session) nextCommandID() string {
 	return fmt.Sprintf("srv-%d", s.nextID)
 }
 
+// busyPhrase is pi 0.87.1's rejection of a prompt sent while a turn is already running
+// ("Agent is already processing. Specify streamingBehavior ('steer' or 'followUp') to
+// queue the message."). pi reports the reason as free text with no machine-readable
+// code, so the mapping to busy_streaming has to match on it; it stays narrow on
+// purpose, and a pi version that rewords it degrades to pi_rejected — the client
+// still gets a terminal, coded failure either way.
+const busyPhrase = "already processing"
+
 // responseData validates one pi response and returns its data field. success:false becomes
-// pi_rejected carrying pi's own error string (§5.3, §11); an unreadable response is a
+// the code a client can act on: busy_streaming when pi refused because a turn is already
+// running, pi_rejected for every other rejection (§5.3, §11); an unreadable response is a
 // pi_error, so a broken child can never look like a success.
 func responseData(raw json.RawMessage) (json.RawMessage, error) {
 	var response struct {
@@ -407,7 +416,11 @@ func responseData(raw json.RawMessage) (json.RawMessage, error) {
 		if message == "" {
 			message = "the child rejected the command"
 		}
-		return nil, &CodedError{Code: CodePiRejected, Msg: message}
+		code := CodePiRejected
+		if strings.Contains(message, busyPhrase) {
+			code = CodeBusyStreaming
+		}
+		return nil, &CodedError{Code: code, Msg: message}
 	}
 	return response.Data, nil
 }

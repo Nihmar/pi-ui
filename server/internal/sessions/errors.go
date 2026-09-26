@@ -26,6 +26,7 @@ const (
 	CodeAlreadyAnswered     = "already_answered"
 	CodeSlowConsumer        = "slow_consumer"
 	CodeReplayCursorInvalid = "replay_cursor_invalid"
+	CodeTooLarge            = "too_large"
 	CodeInternal            = "internal"
 )
 

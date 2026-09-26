@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -50,11 +51,13 @@ type createSessionBody struct {
 }
 
 // createSession spawns one session (201) or explains why it could not: 400 for an unusable
-// cwd, 409 for the session limit, 502 for a child that never became ready.
+// cwd, 409 for the session limit, 413 for a body above the cap, 502 for a child that never
+// became ready.
 func (a *api) createSession(w http.ResponseWriter, r *http.Request) {
 	var body createSessionBody
 	if err := decodeBody(r, &body); err != nil {
-		writeError(w, http.StatusBadRequest, sessions.CodeBadRequest, err.Error())
+		code := codeOr(err, sessions.CodeBadRequest)
+		writeError(w, statusFor(code), code, err.Error())
 		return
 	}
 	if strings.TrimSpace(body.CWD) == "" {
@@ -82,8 +85,11 @@ func (a *api) getSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, info)
 }
 
-// stopSession asks one session to shut down gracefully and answers 202: the child is still
-// exiting when the response is written, and the exit arrives as a server.exited event.
+// stopSession asks one session to shut down gracefully and answers 202 with the state the
+// session is in when the response is written: Stop waits for the terminal status, so the
+// body already reports exited or crashed, and a client that prefers the event still gets
+// it on the stream. 202 and not 200 on purpose: the session is a resource the client asked
+// to take down, not one this response created.
 func (a *api) stopSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if err := a.supervisor.Stop(r.Context(), id); err != nil {
@@ -91,8 +97,6 @@ func (a *api) stopSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, statusFor(code), code, err.Error())
 		return
 	}
-	// Report the state the session is in while the 202 is written; a client that wants the
-	// final one listens on the event stream.
 	if info, ok := a.supervisor.Get(id); ok {
 		writeJSON(w, http.StatusAccepted, info)
 		return
@@ -101,10 +105,16 @@ func (a *api) stopSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // decodeBody reads a JSON body, tolerating unknown members and rejecting anything that is
-// not an object this server can read.
+// not an object this server can read. A body above maxBodyBytes is reported as too_large,
+// which the router answers 413: the caller can retry with less data, while a shape error
+// is a permanent bad_request.
 func decodeBody(r *http.Request, target any) error {
 	body := http.MaxBytesReader(nil, r.Body, maxBodyBytes)
 	if err := json.NewDecoder(body).Decode(target); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return sessions.Codedf(sessions.CodeTooLarge, "the request body exceeds %d bytes", tooLarge.Limit)
+		}
 		return fmt.Errorf("the request body is not a JSON object: %v", err)
 	}
 	return nil

@@ -543,10 +543,10 @@ type Faults struct {
 
 `unauthorized`, `forbidden_scope`, `not_found`, `session_not_found`, `session_limit`,
 `bad_request`, `busy_streaming`, `pi_rejected`, `pi_error`, `timeout`, `already_answered`,
-`slow_consumer`, `replay_cursor_invalid`, `internal` (see `PLAN.md` §4.5 for HTTP mappings).
-REST errors are `{"error":{"code","message"}}`; WS errors travel in `response.error` or as
-`server.error` events. The spike implements the subset above and maps everything else to
-`internal`.
+`slow_consumer`, `replay_cursor_invalid`, `too_large`, `internal` (see `PLAN.md` §4.5 for
+HTTP mappings). REST errors are `{"error":{"code","message"}}`; WS errors travel in
+`response.error` or as `server.error` events. The spike implements the subset above and
+maps everything else to `internal`.
 
 ## 12. Measurement and acceptance matrix
 

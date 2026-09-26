@@ -93,10 +93,14 @@ func TestREST_CreateRejectsBadBodies(t *testing.T) {
 
 	t.Run("oversized body", func(t *testing.T) {
 		// The API caps a body at 1 MiB (maxBodyBytes). A bigger one must be
-		// rejected, not buffered: the spike reports 400 bad_request for it.
+		// rejected, not buffered: the size failure is too_large / 413, so the
+		// client knows to retry with less data instead of fixing its JSON.
 		body := `{"cwd":"` + cwd + `","name":"` + strings.Repeat("x", 2<<20) + `"}`
 		resp, data := stack.postJSON("/api/v1/sessions", body)
-		wantStatus(t, resp, data, http.StatusBadRequest)
+		wantStatus(t, resp, data, http.StatusRequestEntityTooLarge)
+		if code, _ := apiError(t, data); code != "too_large" {
+			t.Fatalf("oversized body code = %q, want too_large", code)
+		}
 	})
 }
 

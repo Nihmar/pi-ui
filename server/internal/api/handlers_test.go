@@ -151,3 +151,23 @@ func requireJSON(t *testing.T, recorder *httptest.ResponseRecorder) {
 		t.Errorf("Content-Type = %q, want application/json", got)
 	}
 }
+
+// TestCreateSessionOversizedBodyIsTooLarge pins the 413 mapping: the body cap is a size
+// failure, not a shape failure, so the client gets the code that tells it to retry with
+// less data instead of one that claims its JSON is wrong.
+func TestCreateSessionOversizedBodyIsTooLarge(t *testing.T) {
+	supervisor := &fakeSupervisor{}
+	handler := newTestRouter(t, supervisor, "")
+
+	body := `{"cwd":"/work","name":"` + strings.Repeat("x", maxBodyBytes+1) + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", strings.NewReader(body))
+	recorder := do(t, handler, req, "127.0.0.1:1234")
+
+	requireJSON(t, recorder)
+	if recorder.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413 (body %s)", recorder.Code, recorder.Body.String())
+	}
+	if code, _ := decodeError(t, recorder); code != sessions.CodeTooLarge {
+		t.Fatalf("code = %q, want %s", code, sessions.CodeTooLarge)
+	}
+}

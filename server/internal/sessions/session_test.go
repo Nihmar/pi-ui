@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"bytes"
+	"encoding/json"
 	"log/slog"
 	"strings"
 	"testing"
@@ -42,5 +43,30 @@ func TestSessionIDIsUsedAsTheSessionDirectoryDocument(t *testing.T) {
 	}
 	if !strings.HasSuffix(path, codegenSessionID+".json") {
 		t.Errorf("path = %q, want <runtime>/%s.json", path, codegenSessionID)
+	}
+}
+
+// TestResponseDataMapsPiRejections pins the §11 mapping at the child boundary: a prompt
+// pi refused because a turn is already running becomes busy_streaming (the client can
+// offer steer or a queue), every other rejection stays pi_rejected, an unreadable
+// response is a pi_error rather than a success, and success data passes through.
+func TestResponseDataMapsPiRejections(t *testing.T) {
+	busy := json.RawMessage(`{"type":"response","success":false,"error":"Agent is already processing. Specify streamingBehavior ('steer' or 'followUp') to queue the message."}`)
+	if _, err := responseData(busy); CodeOf(err) != CodeBusyStreaming {
+		t.Fatalf("busy rejection code = %q, want %s", CodeOf(err), CodeBusyStreaming)
+	}
+
+	rejected := json.RawMessage(`{"type":"response","success":false,"error":"unknown command"}`)
+	if _, err := responseData(rejected); CodeOf(err) != CodePiRejected {
+		t.Fatalf("plain rejection code = %q, want %s", CodeOf(err), CodePiRejected)
+	}
+
+	if _, err := responseData(json.RawMessage(`not json`)); CodeOf(err) != CodePiError {
+		t.Fatalf("unreadable response code = %q, want %s", CodeOf(err), CodePiError)
+	}
+
+	data, err := responseData(json.RawMessage(`{"type":"response","success":true,"data":{"ok":1}}`))
+	if err != nil || string(data) != `{"ok":1}` {
+		t.Fatalf("success data = %s, err = %v", data, err)
 	}
 }
