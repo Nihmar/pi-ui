@@ -31,6 +31,9 @@ func TestWS_UnknownOpAndMalformedPayloads(t *testing.T) {
 		{name: "unknown op", op: "session.explode", body: `{}`, want: "bad_request"},
 		{name: "command.raw without an object", op: "session.command.raw", body: `"hi"`, want: "bad_request"},
 		{name: "command.raw without a type", op: "session.command.raw", body: `{"message":"hi"}`, want: "bad_request"},
+		// A JSON literal null decodes into a nil map: every op that copies the payload
+		// through and then adds its `type` used to panic the whole server on this body.
+		{name: "command.raw with a null payload", op: "session.command.raw", body: `null`, want: "bad_request"},
 		{name: "rename without a name", op: "session.rename", body: `{}`, want: "bad_request"},
 		{name: "prompt with a scalar payload", op: "session.prompt", body: `"hi"`, want: "bad_request"},
 	}
