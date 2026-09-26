@@ -15,6 +15,33 @@ const (
 	ExitInterrupt = 130 // the command was interrupted (context.Canceled / SIGINT)
 )
 
+// UsageError marks a failure caused by the command line itself — an unknown flag, a
+// malformed number, an unexpected argument. Run maps it to ExitUsage, so a script can tell
+// a wrong invocation from a run that failed, and a command can report the distinction by
+// wrapping with Usagef.
+type UsageError struct{ Err error }
+
+// Error implements error.
+func (e *UsageError) Error() string { return e.Err.Error() }
+
+// Unwrap exposes the wrapped failure, so errors.Is keeps working through it (flag.ErrHelp
+// included).
+func (e *UsageError) Unwrap() error { return e.Err }
+
+// Usagef builds a UsageError with a formatted message.
+func Usagef(format string, args ...any) error {
+	return &UsageError{Err: fmt.Errorf(format, args...)}
+}
+
+// Usage wraps an existing failure as a UsageError without breaking its chain, so a caller
+// can still match the original error (flag.ErrHelp, for example) with errors.Is.
+func Usage(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &UsageError{Err: err}
+}
+
 const usage = "pi-ui is the server companion for the pi coding agent.\n" +
 	"\n" +
 	"usage:\n" +
@@ -50,6 +77,10 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			return ExitInterrupt
 		}
 		fmt.Fprintf(stderr, "pi-ui %s: %v\n", name, err)
+		var usageErr *UsageError
+		if errors.As(err, &usageErr) {
+			return ExitUsage
+		}
 		return ExitError
 	}
 	return ExitOK

@@ -22,7 +22,9 @@ type Command struct {
 
 	// Run executes the command. Normal output goes to stdout, diagnostics and
 	// usage errors to stderr. Returning a non-nil error makes Run print
-	// "pi-ui <name>: <error>" on stderr and exit with code 1.
+	// "pi-ui <name>: <error>" on stderr and exit with code 1, or with ExitUsage
+	// (2) when the error is (or wraps) a *UsageError: a malformed command line is
+	// not the same failure as a run that started and failed.
 	//
 	// Run must honour ctx cancellation (the process context is cancelled on
 	// SIGINT/SIGTERM) and must not write to the real os.Stdout/os.Stderr:

@@ -48,7 +48,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	logger, err := newLogger(stderr, cfg.logLevel)
 	if err != nil {
-		return err
+		return Usagef("%v", err)
 	}
 	specs, err := cfg.startSpecs()
 	if err != nil {

@@ -59,7 +59,7 @@ contract (`docs/spike-interfaces.md`, `docs/ws-protocol.md`, `AGENTS.md`) and th
 | S5 | should-fix | `busy_streaming` is defined, mapped and advertised, but `responseData` maps every `success:false` to `pi_rejected`, so the code is unreachable. | Fixed `86cba37`, pinned by `TestResponseDataMapsPiRejections`: pi's 0.87.1 mid-turn rejection text maps to `busy_streaming`, every other rejection stays `pi_rejected` |
 | S6 | nit | `stop` ignores its `context.Context`. | Open |
 | S7 | nit | `stopSession`'s 202 comment still says the child is exiting when the response is written, while `Stop` now blocks until the terminal status is written. | Fixed `86cba37` (the comment now states that the 202 carries the state the session is in when Stop returns) |
-| S8 | nit | CLI usage errors exit 1 while `doc.go` documents `ExitUsage = 2` for a wrong command line. | Open |
+| S8 | nit | CLI usage errors exit 1 while `doc.go` documents `ExitUsage = 2` for a wrong command line. | Fixed in this commit: `UsageError`/`Usage`/`Usagef` mark command-line failures and `Run` maps them to `ExitUsage`, pinned by the `Run` and `Serve` usage-error tests |
 | S9 | nit | The dialog fallback branches publish `Payload: raw` directly instead of going through `recordPayload`. | Fixed `4eff62d`: every dialog payload goes through `recordPayload` |
 | S10 | nit | `Stop` in the window between the registry insert and `s.attach(bridge)` is discarded and the session ends up ready. | Open |
 | S11 | nit | `Info.ExitCode` hands out the session's own pointer. | Fixed `6135465`, pinned by `TestInfoDoesNotAliasTheExitCode` |

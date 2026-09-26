@@ -105,12 +105,13 @@ func TestMeasureUsageQuotesSpikeDefaults(t *testing.T) {
 }
 
 // TestMeasureUsageErrorWithoutTarget is the acceptance behaviour: no target is a
-// usage error on stderr with exit code 1, not a panic.
+// usage error on stderr with the usage exit code, not a panic and not the failure code of
+// a run that started.
 func TestMeasureUsageErrorWithoutTarget(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := Run(context.Background(), []string{"measure"}, &stdout, &stderr)
-	if code != ExitError {
-		t.Fatalf("Run = %d, want %d (stderr %q)", code, ExitError, stderr.String())
+	if code != ExitUsage {
+		t.Fatalf("Run = %d, want %d (stderr %q)", code, ExitUsage, stderr.String())
 	}
 	if stdout.Len() != 0 {
 		t.Errorf("stdout = %q, want it empty", stdout.String())

@@ -116,6 +116,13 @@ func TestRun(t *testing.T) {
 			wantStderr:   []string{"pi-ui test_cancel: interrupted"},
 			wantEmptyOut: true,
 		},
+		{
+			name:         "malformed command line is a usage error",
+			args:         []string{"measure"},
+			wantCode:     ExitUsage,
+			wantStderr:   []string{"pi-ui measure:", "one of --pi or --fake-pi is required"},
+			wantEmptyOut: true,
+		},
 	}
 
 	for _, tt := range tests {

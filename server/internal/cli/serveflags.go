@@ -91,10 +91,10 @@ func resolveInt(fs *flag.FlagSet, name, env string, fallback int) (int, error) {
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, fmt.Errorf("--%s: %q is not an integer", name, raw)
+		return 0, Usagef("--%s: %q is not an integer", name, raw)
 	}
 	if value < 0 {
-		return 0, fmt.Errorf("--%s: %d must not be negative", name, value)
+		return 0, Usagef("--%s: %d must not be negative", name, value)
 	}
 	return value, nil
 }
@@ -107,10 +107,10 @@ func resolveDuration(fs *flag.FlagSet, name, env string, fallback time.Duration)
 	}
 	value, err := time.ParseDuration(raw)
 	if err != nil {
-		return 0, fmt.Errorf("--%s: %q is not a duration (try 15m or 60s)", name, raw)
+		return 0, Usagef("--%s: %q is not a duration (try 15m or 60s)", name, raw)
 	}
 	if value <= 0 {
-		return 0, fmt.Errorf("--%s: %s must be positive", name, value)
+		return 0, Usagef("--%s: %s must be positive", name, value)
 	}
 	return value, nil
 }
@@ -165,10 +165,10 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.Var(&sessionArgs, "session", "session to start at boot: <cwd>[:<name>] (repeatable)")
 
 	if err := fs.Parse(args); err != nil {
-		return serveConfig{}, err
+		return serveConfig{}, Usage(err)
 	}
 	if fs.NArg() > 0 {
-		return serveConfig{}, fmt.Errorf("unexpected argument %q", fs.Arg(0))
+		return serveConfig{}, Usagef("unexpected argument %q", fs.Arg(0))
 	}
 
 	cfg := serveConfig{
@@ -207,7 +207,7 @@ func (c serveConfig) startSpecs() ([]sessions.Spec, error) {
 	for _, value := range c.sessionFlags {
 		cwd, name := splitSessionFlag(value)
 		if cwd == "" {
-			return nil, fmt.Errorf("--session %q: the working directory is empty", value)
+			return nil, Usagef("--session %q: the working directory is empty", value)
 		}
 		specs = append(specs, sessions.Spec{CWD: cwd, Name: name})
 	}

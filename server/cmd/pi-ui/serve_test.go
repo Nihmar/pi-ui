@@ -33,12 +33,13 @@ func TestBuildStampsReachTheCLI(t *testing.T) {
 }
 
 // TestServeRejectsAnUnknownFlag drives the command through the real entry point: the flag
-// error reaches the caller as an error, and cli.Run turns it into a failure exit code.
+// error reaches the caller as a usage error, and cli.Run turns it into ExitUsage (2), not
+// into the failure exit code of a run that started.
 func TestServeRejectsAnUnknownFlag(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := cli.Run(context.Background(), []string{"serve", "--definitely-not-a-flag"}, &stdout, &stderr)
-	if code != cli.ExitError {
-		t.Fatalf("serve --definitely-not-a-flag = %d, want %d", code, cli.ExitError)
+	if code != cli.ExitUsage {
+		t.Fatalf("serve --definitely-not-a-flag = %d, want %d", code, cli.ExitUsage)
 	}
 	if !strings.Contains(stderr.String(), "pi-ui serve") {
 		t.Errorf("stderr = %q, want the command error", stderr.String())

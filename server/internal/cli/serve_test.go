@@ -467,3 +467,17 @@ func readFrame(t *testing.T, ctx context.Context, conn *websocket.Conn, want fun
 		}
 	}
 }
+
+// TestServeBadFlagIsAUsageError pins the exit-code contract at the command boundary: a
+// malformed flag is a UsageError, which Run turns into ExitUsage (2) instead of the 1 of a
+// run that failed.
+func TestServeBadFlagIsAUsageError(t *testing.T) {
+	err := Serve(context.Background(), []string{"--replay-window", "soon"}, io.Discard, io.Discard)
+	var usage *UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("Serve with a bad flag = %v, want a UsageError", err)
+	}
+	if !strings.Contains(err.Error(), "is not a duration") {
+		t.Fatalf("error = %v, want it to name the flag problem", err)
+	}
+}

@@ -132,10 +132,10 @@ func parseMeasureConfig(args []string, stderr io.Writer) (measureConfig, error) 
 	out := fs.String("out", "", "write the summaries here and the raw JSON samples next to it")
 
 	if err := fs.Parse(args); err != nil {
-		return measureConfig{}, err
+		return measureConfig{}, Usage(err)
 	}
 	if fs.NArg() > 0 {
-		return measureConfig{}, fmt.Errorf("unexpected argument %q", fs.Arg(0))
+		return measureConfig{}, Usagef("unexpected argument %q", fs.Arg(0))
 	}
 
 	cfg := measureConfig{
@@ -151,16 +151,16 @@ func parseMeasureConfig(args []string, stderr io.Writer) (measureConfig, error) 
 	switch {
 	case cfg.pi == "" && cfg.fakePi == "":
 		writeMeasureUsage(stderr)
-		return measureConfig{}, errors.New("one of --pi or --fake-pi is required")
+		return measureConfig{}, Usagef("one of --pi or --fake-pi is required")
 	case cfg.pi != "" && cfg.fakePi != "":
 		writeMeasureUsage(stderr)
-		return measureConfig{}, errors.New("--pi and --fake-pi are mutually exclusive")
+		return measureConfig{}, Usagef("--pi and --fake-pi are mutually exclusive")
 	}
 	if cfg.sessions < 0 || cfg.events < 0 || cfg.clients < 0 {
-		return measureConfig{}, errors.New("--sessions, --events and --clients must not be negative")
+		return measureConfig{}, Usagef("--sessions, --events and --clients must not be negative")
 	}
 	if cfg.rate < 0 || math.IsNaN(cfg.rate) || math.IsInf(cfg.rate, 0) {
-		return measureConfig{}, fmt.Errorf("--rate: %v is not a finite rate in events/s", cfg.rate)
+		return measureConfig{}, Usagef("--rate: %v is not a finite rate in events/s", cfg.rate)
 	}
 	return cfg, nil
 }
