@@ -426,3 +426,93 @@ func TestReplayBufferOverflowClosesTheSubscriber(t *testing.T) {
 	}
 	client.expectClose(websocket.StatusPolicyViolation)
 }
+
+// TestEntryReplayKeepsALiveEventPublishedDuringTheReplay pins the durable dedup:
+// the replay stamps its events as it emits them, so a live event published while
+// the replay runs can carry a lower seq than the last replayed one. The flush must
+// not drop it — only the live copies of entries the replay already wrote are
+// dropped, and by entry id. With the seq dedup this test loses both e-4 and the
+// message update, because the replay of e-3 stamped a higher seq after they were
+// published.
+func TestEntryReplayKeepsALiveEventPublishedDuringTheReplay(t *testing.T) {
+	const session = "s_eeeeeeeeeeeeeee1"
+	ts := newTestHub(t, nil)
+
+	replayer := &stubReplayer{fn: func(_ context.Context, _, _ string, emit func(Event)) (bool, error) {
+		emit(Event{Type: EventEntryAppended, EntryID: "e-2", Payload: json.RawMessage(`{"entry":{"id":"e-2"}}`)})
+		// Published while the replay is in flight: e-2 is the live copy of an entry
+		// the replay just emitted (dropped by identity), e-4 and the message update
+		// were never replayed (delivered even though their seq is lower than e-3's).
+		ts.hub.Publish(Event{Type: EventEntryAppended, SessionID: session, Payload: json.RawMessage(`{"entry":{"id":"e-2"}}`)})
+		ts.hub.Publish(Event{Type: EventEntryAppended, SessionID: session, Payload: json.RawMessage(`{"entry":{"id":"e-4"}}`)})
+		ts.hub.Publish(Event{Type: "pi.message_update", SessionID: session, Payload: json.RawMessage(`{"i":1}`)})
+		emit(Event{Type: EventEntryAppended, EntryID: "e-3", Payload: json.RawMessage(`{"entry":{"id":"e-3"}}`)})
+		return true, nil
+	}}
+	ts.hub.SetReplayer(replayer)
+
+	client := ts.dial(nil)
+	defer client.close()
+	client.hello()
+	client.sendRaw(`{"type":"subscribe","sessionId":"` + session + `","since":{"entryId":"e-1"}}`)
+
+	client.waitFor(EventReplayBegin)
+	for _, wantEntry := range []string{"e-2", "e-3"} {
+		event := client.waitFor(EventEntryAppended)
+		if event["entryId"] != wantEntry {
+			t.Fatalf("entryId = %v, want %s", event["entryId"], wantEntry)
+		}
+	}
+	client.waitFor(EventReplayEnd)
+
+	// The two live events the replay did not cover arrive in arrival order.
+	first := client.next()
+	if first["type"] != EventEntryAppended || first["entryId"] != "e-4" {
+		t.Fatalf("first flushed frame = %v, want the live entry e-4", first)
+	}
+	second := client.next()
+	if second["type"] != "pi.message_update" {
+		t.Fatalf("second flushed frame = %v, want the live message update", second)
+	}
+	// Nothing else is buffered: the duplicate e-2 never reaches the client.
+	client.sendRaw(`{"type":"ping"}`)
+	for {
+		frame := client.next()
+		if frame["type"] == framePong {
+			break
+		}
+		t.Fatalf("unexpected frame after the flush: %v", frame)
+	}
+}
+
+// TestEntryReplayForAnUnknownSessionIsEmptyNotAnError pins the subscribe race on
+// the durable path: the client may pass a cursor before the REST call that creates
+// the session has been processed, so an unknown session answers like an unknown
+// ring — begin, an empty end, no error. The client learns about a really missing
+// session from REST, which is the only surface that can answer the question.
+func TestEntryReplayForAnUnknownSessionIsEmptyNotAnError(t *testing.T) {
+	const session = "s_ddddddddddddddd1"
+	ts := newTestHub(t, nil)
+	ts.hub.SetReplayer(&stubReplayer{fn: func(context.Context, string, string, func(Event)) (bool, error) {
+		return false, &codedStubError{code: codeSessionNotFound, message: "no such session"}
+	}})
+
+	client := ts.dial(nil)
+	defer client.close()
+	client.hello()
+	client.sendRaw(`{"type":"subscribe","sessionId":"` + session + `","since":{"entryId":"e-1"}}`)
+
+	client.waitFor(EventReplayBegin)
+	end := client.waitFor(EventReplayEnd)
+	if payload := payloadOf(t, end); payload["count"] != float64(0) || payload["complete"] != true {
+		t.Fatalf("replay.end = %v, want count 0 and complete true", payload)
+	}
+	client.sendRaw(`{"type":"ping"}`)
+	for {
+		frame := client.next()
+		if frame["type"] == framePong {
+			break
+		}
+		t.Fatalf("an unknown session produced %v, want nothing but the empty replay", frame)
+	}
+}

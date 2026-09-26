@@ -161,8 +161,9 @@ Subscribing to a session the server does not know is **not** an error: the serve
 cannot tell a race (a client that subscribes before the REST call that creates the
 session has been processed) from a bug, so the subscription is accepted, its replay is
 empty (`count:0`), and it starts receiving events as soon as the session publishes any.
-The client learns about a session that really does not exist from the REST surface,
-which is the only place that can answer the question.
+This holds for both cursor paths: an unknown session answers `since.entryId` with the
+same empty replay, never a failure. The client learns about a session that really does
+not exist from the REST surface, which is the only place that can answer the question.
 
 ### Without a cursor
 
@@ -228,11 +229,27 @@ server.replay.begin {direction:"entry"} → <events from the Replayer> → serve
 4. live events
 
 Live events published for that session **while its replay runs** are buffered per
-subscriber and flushed after `replay.end`, sorted by `seq` and deduplicated against what
-the subscriber already received. A durable replay assigns its seqs as it emits them, so
-an event published just before the first emitted one can have a lower seq: the sort and
-the dedup cursor are what keep a subscriber's stream monotonic and duplicate-free. A
-subscriber that re-subscribes to the same session restarts its replay.
+subscriber and flushed after `replay.end`. How the flush orders and dedups them depends
+on the cursor, because the two replay paths do not produce seqs the same way:
+
+- **`since.seq`** — the replayed events come from the ring and already carry their seq,
+  all of them lower than anything published during the replay. The flush sorts by `seq`
+  and drops what the subscriber already received (`seq <= lastSent`), so the stream stays
+  monotonic and duplicate-free.
+- **`since.entryId`** — the hub stamps the replayed events as it emits them, so a live
+  event published while the replay ran can carry a *lower* seq than the last replayed one
+  even though the replay never covered it. A seq cursor would silently drop it, so the
+  flush deduplicates by **entry id** instead: a buffered `pi.entry_appended` whose id the
+  replay already wrote is dropped, every other buffered event is delivered in arrival
+  order. The replay therefore does not promise a monotonic `seq` across the boundary —
+  `seq` resumes the ring, `entryId` is the durable cursor — but it does promise that no
+  event is lost.
+
+The entry ids compared are the last `SendBuffer` the replay wrote, which is where an
+overlap with the buffer can live: the buffer is capped by `SendBuffer` and the replay is
+chronological, so a duplicate can only be one of its last entries.
+
+A subscriber that re-subscribes to the same session restarts its replay.
 
 Buffered events are capped by `SendBuffer`: a client that cannot even consume its own
 catch-up is disconnected like any other slow consumer.

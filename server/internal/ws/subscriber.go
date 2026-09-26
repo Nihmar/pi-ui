@@ -36,6 +36,18 @@ type subscription struct {
 	pending  []Event
 	lastSent uint64
 	overflow bool
+
+	// durable marks a replay served from a durable cursor (since.entryId). Its
+	// events are stamped as they are emitted, so a live event published while the
+	// replay runs can carry a lower seq than the last replayed one and the seq
+	// cursor cannot dedup the flush. The entry id takes its place.
+	durable bool
+	// replayed holds the entry ids the durable replay already wrote; replayIDs is
+	// the FIFO that evicts the oldest one. Only the most recent SendBuffer ids are
+	// kept: the pending buffer is capped by SendBuffer, so any live event that
+	// duplicates a replayed entry duplicates one of the replay's last entries.
+	replayed  map[string]struct{}
+	replayIDs []string
 }
 
 // newSubscription creates a subscription that is holding from the start.
@@ -77,19 +89,32 @@ func (s *subscription) sendLocked(h *hub, ev Event, advance bool) {
 	if advance && ev.Seq != 0 && ev.Seq <= s.lastSent {
 		return
 	}
-	frame, err := marshalEvent(ev)
-	if err != nil {
-		// The publisher handed us a payload we cannot encode; report it instead of
-		// losing the event silently. The error event carries its own seq, so it
-		// cannot be confused with the event it replaces.
-		s.conn.enqueue(mustMarshalEvent(h.errorEvent(codeInternal, "event payload could not be encoded")))
-		return
-	}
-	if !s.conn.enqueue(frame) {
+	if !s.writeLocked(h, ev) {
 		return
 	}
 	if advance {
-		s.lastSent = ev.Seq
+		s.advanceLocked(ev.Seq)
+	}
+}
+
+// writeLocked marshals one event and enqueues it. A payload the publisher handed
+// us cannot encode is reported instead of being lost silently; the error event
+// carries its own seq, so it cannot be confused with the event it replaces.
+func (s *subscription) writeLocked(h *hub, ev Event) bool {
+	frame, err := marshalEvent(ev)
+	if err != nil {
+		s.conn.enqueue(mustMarshalEvent(h.errorEvent(codeInternal, "event payload could not be encoded")))
+		return false
+	}
+	return s.conn.enqueue(frame)
+}
+
+// advanceLocked moves the dedup cursor, never backwards: a durable replay stamps
+// its events as it emits them, so a flushed live event may legitimately carry a
+// lower seq than the replayed ones without being older.
+func (s *subscription) advanceLocked(seq uint64) {
+	if seq > s.lastSent {
+		s.lastSent = seq
 	}
 }
 
@@ -107,16 +132,42 @@ func (s *subscription) beginReplay(h *hub, direction string) {
 	defer s.mu.Unlock()
 
 	s.holding = true
+	s.durable = direction == "entry"
 	s.sendLocked(h, h.localEvent(EventReplayBegin, s.sessionID, replayBeginPayload(direction)), false)
 }
 
 // replayEvent writes one replayed event. seq and ts are filled in by the caller
-// for the durable path, which produces events the ring has never seen.
+// for the durable path, which produces events the ring has never seen. A durable
+// replay also remembers the entry ids it wrote, so the flush can drop the live
+// copies of those same entries by identity.
 func (s *subscription) replayEvent(h *hub, ev Event) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.durable && ev.EntryID != "" {
+		s.rememberEntryLocked(ev.EntryID)
+	}
 	s.sendLocked(h, ev, true)
+}
+
+// rememberEntryLocked records one entry id the durable replay already wrote,
+// keeping only the most recent SendBuffer ids: the replay is chronological and the
+// pending buffer is capped by SendBuffer, so a live duplicate can only be one of
+// the replay's last entries.
+func (s *subscription) rememberEntryLocked(entryID string) {
+	if s.replayed == nil {
+		s.replayed = map[string]struct{}{}
+	}
+	if _, ok := s.replayed[entryID]; ok {
+		return
+	}
+	limit := max(1, s.conn.hub.opts.SendBuffer)
+	for len(s.replayIDs) >= limit {
+		delete(s.replayed, s.replayIDs[0])
+		s.replayIDs = s.replayIDs[1:]
+	}
+	s.replayed[entryID] = struct{}{}
+	s.replayIDs = append(s.replayIDs, entryID)
 }
 
 // replayError reports a replay failure that belongs to this subscriber only: a
@@ -165,15 +216,42 @@ func (s *subscription) release(h *hub) {
 	s.flushLocked(h)
 }
 
-// flushLocked stops holding and writes the buffered events in seq order. Callers
-// must hold the lock.
+// flushLocked stops holding and writes the buffered events. Callers must hold the
+// lock.
+//
+// The ring path flushes in seq order and dedups by seq: its live events are newer
+// than every replayed one, so arrival order and seq order agree and the sort is
+// what makes the stream monotonic anyway. The durable path cannot: the replay
+// stamps its events as it emits them, so a live event published while it ran can
+// carry a lower seq without having been replayed. There it keeps arrival order and
+// drops only the live copies of entries the replay already wrote — dedup by
+// identity, never by seq, so an un-replayed event is never lost.
 func (s *subscription) flushLocked(h *hub) {
 	s.holding = false
 	if len(s.pending) == 0 {
+		s.durable = false
+		s.replayed = nil
+		s.replayIDs = nil
 		return
 	}
 	pending := s.pending
 	s.pending = nil
+	if s.durable {
+		for _, ev := range pending {
+			if ev.EntryID != "" {
+				if _, replayed := s.replayed[ev.EntryID]; replayed {
+					continue
+				}
+			}
+			if s.writeLocked(h, ev) {
+				s.advanceLocked(ev.Seq)
+			}
+		}
+		s.durable = false
+		s.replayed = nil
+		s.replayIDs = nil
+		return
+	}
 	sort.SliceStable(pending, func(i, j int) bool { return pending[i].Seq < pending[j].Seq })
 	for _, ev := range pending {
 		s.sendLocked(h, ev, true)

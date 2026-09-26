@@ -91,11 +91,28 @@ func (h *hub) replayFromEntry(sub *subscription, entryID string) {
 	})
 
 	if err != nil {
+		if sessionNotFound(err) {
+			// Subscribing to a session the server does not know is not an error
+			// (the client may be racing the REST call that creates it), so the
+			// durable path answers exactly like the in-memory one: an empty
+			// replay, no failure. The client learns a really missing session
+			// from the REST surface.
+			sub.endReplay(h, 0, true, false)
+			return
+		}
 		sub.replayError(h, cursorCode(err), err.Error())
 		sub.endReplay(h, count, false, false)
 		return
 	}
 	sub.endReplay(h, count, complete, false)
+}
+
+// sessionNotFound reports whether a durable-replay failure means "the server has
+// no such session". It is the one replayer failure the hub turns into an empty
+// replay instead of an error, so both cursor paths agree on the subscribe race.
+func sessionNotFound(err error) bool {
+	var coded codedError
+	return errors.As(err, &coded) && coded.ErrorCode() == codeSessionNotFound
 }
 
 // cursorCode maps a durable-replay failure onto a wire code.

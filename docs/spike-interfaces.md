@@ -267,8 +267,11 @@ Rules:
   (both carry `exitCode`); the session stays listed with its final status.
 - Durable replay: `ReplayFromEntry` calls `get_entries{since}` and emits one
   `pi.entry_appended` event per entry (`payload = {"entry": {...}}`, `entryId` set), then
-  reports `complete=true`. Unknown cursor → `complete=false` plus a `server.error` event
-  with `code:"replay_cursor_invalid"`.
+  reports `complete=true`. An unknown cursor is a coded `replay_cursor_invalid` failure
+  (`complete=false`), never a session event: the hub reports it to the replaying
+  connection only, before `replay.end`. An unknown session is not a failure at all — both
+  cursor paths answer it with an empty replay — because the subscribe may be racing the
+  REST call that creates it.
 - `Send` maps pi errors: `success:false` → `pi_rejected` with pi's `error` string;
   transport/timeout → `pi_error`/`timeout`. `bash_execution_update` events keep flowing as
   `pi.bash_execution_update` while the `bash` command is still pending.
@@ -409,12 +412,15 @@ entries instead of branches.
   otherwise omitted; clients fall back to `seq`.
 - Subscriber replay order: `server.replay.begin` → replayed events → `server.replay.end` →
   live events. Live events published during a replay are buffered per subscriber and
-  flushed after `replay.end`, deduplicated by `seq`.
+  flushed after `replay.end`: the ring path deduplicates by `seq`, the durable path by
+  entry id (`since.entryId` stamps its events as it emits them, so a live event can carry
+  a lower seq without having been replayed).
 - `since.seq` replay uses the ring (2000 events / 15 min defaults): events for the session
   with `Seq > since.seq`. Out of window → `truncated:true` in `server.replay.end` and the
   client is expected to reload through REST.
 - `since.entryId` replay delegates to `sessions.ReplayFromEntry`; failure to match the
-  cursor produces `server.error{code:"replay_cursor_invalid"}` and `complete:false`.
+  cursor produces `server.error{code:"replay_cursor_invalid"}` and `complete:false` on the
+  replaying connection; an unknown session produces an empty replay instead.
 - Heartbeat events are published by the server every 30 s; `ping`/`pong` frames are the
   connection-level keepalive.
 
