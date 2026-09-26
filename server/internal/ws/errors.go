@@ -19,6 +19,7 @@ const (
 	codeUnsupported         = string(gen.WsErrorCodeUnsupported)
 	codeReplayCursorInvalid = string(gen.WsErrorCodeReplayCursorInvalid)
 	codeSessionNotFound     = string(gen.WsErrorCodeSessionNotFound)
+	codeForbiddenScope      = string(gen.WsErrorCodeForbiddenScope)
 )
 
 // knownCodes is the closed set of wire codes, built from the generated constants.

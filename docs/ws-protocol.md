@@ -75,6 +75,40 @@ and a second protocol version — and are deliberately not reserved here.
 A refusal always carries the reason in the body, so an operator can diagnose it without
 weakening the check: the same status and code go out for every failure mode.
 
+### Device tokens and scopes
+
+When the server runs with device identity (its default; `serve --token` selects the
+static-token compatibility mode) the handshake is decided by the injected
+`Options.Authorizer`, and it is the **same decision REST makes for the same
+request** — one credential, one scope, one loopback rule:
+
+| Credential | Result |
+|---|---|
+| a device token in `Authorization: Bearer …` | the scope stored with that device (viewer, operator or admin) |
+| no token, loopback peer, server still unconfigured (no device, no password) | operator: the bootstrap state of `PLAN.md` §4.2 |
+| no token, loopback peer, an identity exists | viewer |
+| no token, any other peer | refused with 401 before the upgrade |
+
+The scope is fixed for the life of the connection: a new scope means a new token and a
+new handshake. It gates the frames:
+
+| Frame | Minimum scope |
+|---|---|
+| `hello`, `ping`, `subscribe`, `unsubscribe` | viewer |
+| `command`, `ui_response` | operator |
+
+A frame above the connection's scope is answered with
+`response{ok:false,error:{code:"forbidden_scope"}}` correlated by its id (the
+connection stays up; the frame never reaches a handler). Admin scope is accepted and
+stored but no frame needs it yet.
+
+### Revocation
+
+`DELETE /api/v1/auth/devices/{id}` (or any other revocation) calls the hub's
+`CloseDevice`, which closes every connection authenticated as that device with close
+status **4401** and reason `device revoked`: the client must re-handshake, and that
+handshake fails because the token is gone. Other devices' connections are untouched.
+
 ## Client frames
 
 Every frame is a JSON object with a `type` field. Unknown fields are **preserved and

@@ -67,10 +67,20 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	defer stateDB.Close()
 
+	// One authenticator for both transports: REST and the WebSocket handshake answer
+	// the same question about the same request, whether that is a device token or the
+	// static-token compatibility mode.
+	var authenticator api.Authenticator
+	if cfg.token != "" {
+		authenticator = api.NewLoopbackOrToken(cfg.token)
+	} else {
+		authenticator = api.DeviceAuthenticator{Service: authService}
+	}
+
 	// One hub, one supervisor, one router: the supervisor is wired into the hub as command
 	// handler, dialog handler and replay source, which is the whole cross-package seam.
 	hub := ws.New(ws.Options{
-		Token:         cfg.token,
+		Authorizer:    restToWS{auth: authenticator},
 		AllowHosts:    cfg.allowHosts,
 		AllowOrigins:  cfg.allowOrigins,
 		ReplayEvents:  cfg.replayEvents,
@@ -81,6 +91,14 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		Features:      cfg.features(),
 		Limits:        cfg.limits(),
 	})
+	if cfg.token == "" {
+		// Revoking a device closes its sockets at once, from wherever the revoke came.
+		authService.SetRevokeHook(func(deviceID string) {
+			if closer, ok := hub.(ws.DeviceCloser); ok {
+				closer.CloseDevice(deviceID)
+			}
+		})
+	}
 	supervisor := sessions.New(sessions.Config{
 		PiCommand:     []string{cfg.pi, "--mode", "rpc"},
 		BridgeExt:     cfg.bridge,
@@ -105,11 +123,10 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			Limits:    cfg.limits(),
 		},
 	}
-	if cfg.token != "" {
-		// Compatibility mode: one static token, no device surface. Scripts and the
-		// Phase 1 harness keep working with --token; pairing is the default otherwise.
-		options.Auth = api.NewLoopbackOrToken(cfg.token)
-	} else {
+	options.Auth = authenticator
+	if cfg.token == "" {
+		// Pairing endpoints only exist in device mode; --token keeps the static-token
+		// compatibility mode of the spike.
 		options.AuthService = authService
 	}
 	router := api.NewRouter(options)

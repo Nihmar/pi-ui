@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/Nihmar/pi-ui/server/internal/protocol/gen"
@@ -392,6 +393,30 @@ func (h *hub) addConn(c *connection) bool {
 	}
 	h.conns[c] = struct{}{}
 	return true
+}
+
+// CloseDevice closes every connection authenticated as deviceID and reports how many
+// it closed. The auth service's revoke hook calls it, so a revocation from any client
+// ends the device's sockets at once instead of waiting for the next authenticated use.
+func (h *hub) CloseDevice(deviceID string) int {
+	if deviceID == "" {
+		return 0
+	}
+	h.mu.Lock()
+	targets := make([]*connection, 0, 1)
+	for c := range h.conns {
+		if c.who.deviceID == deviceID {
+			targets = append(targets, c)
+		}
+	}
+	h.mu.Unlock()
+
+	for _, c := range targets {
+		// 4401 is the "re-handshake, the credential is gone" status of the protocol:
+		// the client must not retry with the same token.
+		c.shutdownWith(websocket.StatusCode(closeCodeUnauthorized), "device revoked")
+	}
+	return len(targets)
 }
 
 // removeConn forgets a connection and every subscription it had.

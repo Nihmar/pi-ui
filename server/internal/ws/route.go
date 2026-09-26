@@ -12,11 +12,11 @@ import (
 // serveConn runs the hello handshake and then the read loop of one accepted
 // socket. It returns when the connection is done, having drained the writer and
 // released every subscription.
-func (h *hub) serveConn(wsConn *websocket.Conn) {
+func (h *hub) serveConn(wsConn *websocket.Conn, who principal) {
 	// The request context dies with the hijacked request, so the connection gets
 	// its own, cancelled once the socket is done.
 	ctx, cancel := context.WithCancel(context.Background())
-	conn := newConnection(h, wsConn, ctx, cancel)
+	conn := newConnection(h, wsConn, ctx, cancel, who)
 
 	if err := h.handshake(conn); err != nil {
 		// The socket is already upgraded, so the refusal travels as the 4401 close
@@ -175,6 +175,12 @@ func (h *hub) handleSubscribe(c *connection, frame inbound) {
 // must not stop the connection from processing an abort, which is exactly the
 // command a user sends while one is running.
 func (h *hub) handleCommand(c *connection, frame inbound) {
+	if !c.who.scope.allows(ScopeOperator) {
+		// A read-only connection still gets the terminal answer the protocol promises
+		// for its id: it learns why, and nothing is dispatched.
+		c.enqueue(marshalErrorResponse(frame.ID, codeForbiddenScope, "this connection is read-only"))
+		return
+	}
 	handler, _ := h.handlers()
 	if handler == nil {
 		c.enqueue(marshalErrorResponse(frame.ID, codeUnsupported, "no command handler is configured"))
@@ -200,6 +206,12 @@ func (h *hub) handleCommand(c *connection, frame inbound) {
 // endpoint would use, and the request id arrives as its own argument. The response
 // frame echoes the dialog id, not a client command id.
 func (h *hub) handleUIResponse(c *connection, frame inbound) {
+	if !c.who.scope.allows(ScopeOperator) {
+		// Answering a dialog drives the run, so a viewer cannot do it; the dialog id
+		// correlates the refusal, and the dialog itself stays open for a real operator.
+		c.enqueue(marshalErrorResponse(frame.ID, codeForbiddenScope, "this connection is read-only"))
+		return
+	}
 	_, handler := h.handlers()
 	if handler == nil {
 		c.enqueue(marshalErrorResponse(frame.ID, codeUnsupported, "no dialog handler is configured"))

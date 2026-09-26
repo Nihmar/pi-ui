@@ -135,8 +135,13 @@ func (p *serverProcess) waitErrOf() error {
 func startServer(t *testing.T, extra ...string) *serverProcess {
 	t.Helper()
 	binary := buildServer(t)
-	// Every run gets its own state directory: the server must never touch the real one.
-	args := append([]string{"serve", "--addr", "127.0.0.1:0", "--log-level", "error", "--state-dir", t.TempDir()}, extra...)
+	args := []string{"serve", "--addr", "127.0.0.1:0", "--log-level", "error"}
+	if !hasFlag(extra, "--state-dir") {
+		// Every run gets its own state directory: the server must never touch the real
+		// one. A test that needs to share it (the identity flow) passes its own.
+		args = append(args, "--state-dir", t.TempDir())
+	}
+	args = append(args, extra...)
 	cmd := exec.Command(binary, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -300,10 +305,21 @@ type sessionList struct {
 // newWSClient dials /ws/v1, sends hello and waits for welcome.
 func newWSClient(t *testing.T, addr string) *wsConn {
 	t.Helper()
+	return newWSClientWithToken(t, addr, "")
+}
+
+// newWSClientWithToken dials /ws/v1 with a bearer credential in the Authorization
+// header, the way the real client authenticates a device.
+func newWSClientWithToken(t *testing.T, addr, token string) *wsConn {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	url := "ws://" + addr + "/ws/v1"
-	conn, _, err := websocket.Dial(ctx, url, nil)
+	var opts *websocket.DialOptions
+	if token != "" {
+		opts = &websocket.DialOptions{HTTPHeader: http.Header{"Authorization": {"Bearer " + token}}}
+	}
+	conn, _, err := websocket.Dial(ctx, url, opts)
 	if err != nil {
 		t.Fatalf("dial %s: %v", url, err)
 	}
@@ -313,6 +329,17 @@ func newWSClient(t *testing.T, addr string) *wsConn {
 	client.readUntil(t, 10*time.Second, "welcome")
 	t.Cleanup(func() { _ = conn.CloseNow() })
 	return client
+}
+
+// hasFlag reports whether args already carries the named flag, so a default is not
+// appended twice.
+func hasFlag(args []string, name string) bool {
+	for _, arg := range args {
+		if arg == name || strings.HasPrefix(arg, name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 // wsConn is a minimal frame-level WebSocket client for the assertions.

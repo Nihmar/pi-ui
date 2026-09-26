@@ -52,6 +52,7 @@ const (
 // mutating them afterwards does not affect a running hub.
 type Options struct {
 	Token         string        // bearer token; empty => loopback-only handshake
+	Authorizer    Authorizer    // device-aware handshake; nil => the Token rules apply
 	AllowHosts    []string      // extra Host values accepted
 	AllowOrigins  []string      // extra Origin values accepted
 	ReplayEvents  int           // ring size (default 2000)

@@ -152,6 +152,20 @@ type Hub interface {
     Close() error
 }
 
+// Authorizer decides the handshake when Options.Authorizer is set (device tokens and
+// scopes, the Phase 3 identity); when it is nil the Options.Token rules apply.
+type Authorizer interface {
+    Authorize(r *http.Request) (scope Scope, deviceID string, err error)
+}
+
+// DeviceCloser is the optional hub extension a revocation uses; the concrete hub
+// implements it and the auth service's revoke hook calls it.
+type DeviceCloser interface {
+    CloseDevice(deviceID string) int
+}
+
+type Scope string // "viewer" | "operator" | "admin"; operator implies viewer
+
 // Replayer serves durable replay for `since.entryId` (implemented by sessions).
 type Replayer interface {
     ReplayFromEntry(ctx context.Context, sessionID, entryID string, emit func(Event)) (complete bool, err error)
@@ -188,6 +202,11 @@ Rules:
   missed `pong`s.
 - `Replay(sessionID, since)` returns buffered events with `Seq > since` for the session
   plus `truncated=true` when `since` fell out of the ring window.
+- The connection's scope gates the frames: viewer may subscribe, replay and ping;
+  operator may also send `command` and `ui_response`. A frame above the scope is a
+  `response{ok:false,error:{code:"forbidden_scope"}}` correlated by its id, never a
+  dropped connection. A revocation closes the device's connections with close status
+  4401 (see `docs/ws-protocol.md`).
 ### 5.3 `internal/sessions` — supervisor and event layer
 
 ```go

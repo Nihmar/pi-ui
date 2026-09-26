@@ -29,6 +29,10 @@ type connection struct {
 	cancelRead context.CancelFunc
 	clientName string // from hello, diagnostics only
 
+	// who is the identity the handshake accepted this socket with. It never changes:
+	// a scope change means a new token and a new connection.
+	who principal
+
 	sendMu      sync.Mutex
 	send        chan []byte
 	failed      bool // no further frames are accepted
@@ -43,7 +47,7 @@ type connection struct {
 
 // newConnection prepares the connection state. start must be called before any
 // frame is enqueued, so the writer is already draining the queue.
-func newConnection(h *hub, ws *websocket.Conn, ctx context.Context, cancel context.CancelFunc) *connection {
+func newConnection(h *hub, ws *websocket.Conn, ctx context.Context, cancel context.CancelFunc, who principal) *connection {
 	readCtx, cancelRead := context.WithCancel(ctx)
 	return &connection{
 		hub:        h,
@@ -52,6 +56,7 @@ func newConnection(h *hub, ws *websocket.Conn, ctx context.Context, cancel conte
 		cancel:     cancel,
 		readCtx:    readCtx,
 		cancelRead: cancelRead,
+		who:        who,
 		send:       make(chan []byte, max(1, h.opts.SendBuffer)),
 		subs:       map[string]*subscription{},
 	}

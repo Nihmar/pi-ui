@@ -29,7 +29,8 @@ func (h *hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	if err := h.authorize(r); err != nil {
+	who, err := h.authorize(r)
+	if err != nil {
 		denyUnauthorized(w, err)
 		return
 	}
@@ -42,18 +43,40 @@ func (h *hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return // Accept already wrote the refusal
 	}
 	wsConn.SetReadLimit(maxInboundFrameBytes)
-	h.serveConn(wsConn)
+	h.serveConn(wsConn, who)
 }
 
-// authorize applies the handshake rules of docs/spike-interfaces.md §5.2.
-func (h *hub) authorize(r *http.Request) error {
+// authorize applies the handshake rules of docs/spike-interfaces.md §5.2 and returns
+// the identity the connection is accepted with.
+//
+// Host and Origin are checked first and always: they are transport-level rules about
+// where the request arrived. What follows depends on the configuration: an injected
+// Authorizer (device tokens and scopes) or the static-token rules of Options.Token.
+func (h *hub) authorize(r *http.Request) (principal, error) {
 	if err := h.authorizeHost(r); err != nil {
-		return err
+		return principal{}, err
 	}
 	if err := h.authorizeOrigin(r); err != nil {
-		return err
+		return principal{}, err
 	}
-	return h.authorizeToken(r)
+	if h.opts.Authorizer != nil {
+		scope, deviceID, err := h.opts.Authorizer.Authorize(r)
+		if err != nil {
+			return principal{}, err
+		}
+		if !scope.valid() {
+			// An Authorizer that returns a typo must not become an operator by
+			// accident; this is a wiring bug and it fails closed.
+			return principal{}, errors.New("ws: the authorizer returned an unknown scope")
+		}
+		return principal{scope: scope, deviceID: deviceID}, nil
+	}
+	if err := h.authorizeToken(r); err != nil {
+		return principal{}, err
+	}
+	// The static token is the operator credential of the spike, and a loopback peer
+	// without one is the local operator.
+	return principal{scope: ScopeOperator}, nil
 }
 
 // denyUnauthorized refuses a handshake before the upgrade.

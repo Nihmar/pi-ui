@@ -33,6 +33,8 @@ A token is minted by pairing, stored by the client in the OS keystore and
 **only its hash** is kept server-side (argon2id). A device token is
 `<deviceId>.<secret>`: the public device id makes verification O(1), the secret
 is what the hash protects. Tokens rotate on refresh and die on revocation.
+The WebSocket handshake uses the same header, the same tokens and the same
+scopes (`docs/ws-protocol.md`, "Device tokens and scopes").
 
 ### Scopes
 

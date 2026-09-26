@@ -19,8 +19,9 @@ import (
 const testReadLimit = 4 << 20
 
 // testTimeout bounds every read in the tests: long enough to survive a loaded CI
-// machine, short enough that a protocol bug fails the suite instead of hanging it.
-const testTimeout = 5 * time.Second
+// machine (the full suite runs this package next to the adversarial one), short enough
+// that a protocol bug fails the suite instead of hanging it.
+const testTimeout = 15 * time.Second
 
 // testServer is one hub behind a real HTTP listener on loopback, which is what the
 // handshake rules are written against (RemoteAddr, LocalAddrContextKey, Origin) —
