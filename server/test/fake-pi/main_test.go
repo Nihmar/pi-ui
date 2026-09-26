@@ -13,6 +13,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"github.com/Nihmar/pi-ui/server/internal/protocol/gen"
 )
 
 // binPath is the binary under test, built once for the whole package: the tests drive
@@ -281,6 +285,45 @@ func TestScriptDefaultEntry(t *testing.T) {
 	}
 	if !bytes.Contains(decoded[0]["data"], []byte(`{"ok":true}`)) {
 		t.Errorf("default data was not replayed verbatim: %s", decoded[0]["data"])
+	}
+}
+
+// TestScriptExitCodeEndsTheRunAfterTheAnswer pins the deterministic fault: the answer is on
+// stdout before the process exits, so a test can arm a crash after readiness by sending a
+// command instead of racing a wall-clock timer.
+func TestScriptExitCodeEndsTheRunAfterTheAnswer(t *testing.T) {
+	code := 9
+	script := Script{Commands: map[string]CommandScript{
+		"abort": {ExitCode: &code},
+	}}
+	result := runPipe(t, []string{"--script", writeScript(t, script)}, "{\"id\":\"a1\",\"type\":\"abort\"}\n")
+
+	decoded := records(t, result.stdout)
+	expectTypes(t, decoded, "response")
+	if got := decoded[0].str(t, "id"); got != "a1" {
+		t.Errorf("response id = %q, want a1", got)
+	}
+	if !decoded[0].boolean(t, "success") {
+		t.Error("the answer before the exit was a failure")
+	}
+	if result.code != code {
+		t.Fatalf("exit code %d, want %d", result.code, code)
+	}
+}
+
+// TestScriptRejectsAnImpossibleExitCode keeps a nonsense status out of a run: the script
+// fails to load instead of exiting with a value the OS truncates.
+func TestScriptRejectsAnImpossibleExitCode(t *testing.T) {
+	code := 300
+	script := Script{Commands: map[string]CommandScript{
+		"abort": {ExitCode: &code},
+	}}
+	result := runPipe(t, []string{"--script", writeScript(t, script)}, "")
+	if result.code != exitUsage {
+		t.Fatalf("exit code %d, want %d", result.code, exitUsage)
+	}
+	if !strings.Contains(result.stderr, "exitCode") {
+		t.Errorf("stderr = %q, want the offending field", result.stderr)
 	}
 }
 
@@ -804,6 +847,7 @@ func TestFixturesAreWellFormed(t *testing.T) {
 				t.Errorf("header does not say whether the fixture is real or derived: %q", header)
 			}
 
+			validate := fixtureSchemas(t)
 			for i, line := range lines[1:] {
 				var record map[string]json.RawMessage
 				if err := json.Unmarshal([]byte(line), &record); err != nil {
@@ -812,6 +856,7 @@ func TestFixturesAreWellFormed(t *testing.T) {
 				if _, ok := record["type"]; !ok {
 					t.Errorf("line %d has no record type: %q", i+2, line)
 				}
+				validate(t, []byte(line))
 			}
 		})
 	}
@@ -831,5 +876,89 @@ func TestCaptureScriptIsExecutable(t *testing.T) {
 	syntax := exec.Command("bash", "-n", path)
 	if output, err := syntax.CombinedOutput(); err != nil {
 		t.Errorf("bash -n %s: %v\n%s", path, err, output)
+	}
+}
+
+// fixtureSchemas compiles schemas/pi.json once and returns a validator for one fixture
+// record. Every record is checked against the contract the generated types come from, so a
+// fixture cannot drift from the wire shapes while still being valid JSON.
+func fixtureSchemas(t *testing.T) func(t *testing.T, line []byte) {
+	t.Helper()
+
+	data, ok := gen.SchemaJSON("pi")
+	if !ok {
+		t.Fatal("schemas/pi.json is not embedded; run server/scripts/gen.sh")
+	}
+	var meta struct {
+		ID string `json:"$id"`
+	}
+	if err := json.Unmarshal(data, &meta); err != nil || meta.ID == "" {
+		t.Fatalf("schemas/pi.json has no usable $id (%v)", err)
+	}
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("decode schemas/pi.json: %v", err)
+	}
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource(meta.ID, doc); err != nil {
+		t.Fatalf("register schemas/pi.json: %v", err)
+	}
+
+	compiled := map[string]*jsonschema.Schema{}
+	compile := func(def string) *jsonschema.Schema {
+		if schema, ok := compiled[def]; ok {
+			return schema
+		}
+		schema, err := compiler.Compile(meta.ID + def)
+		if err != nil {
+			t.Fatalf("compile %s%s: %v", meta.ID, def, err)
+		}
+		compiled[def] = schema
+		return schema
+	}
+
+	return func(t *testing.T, line []byte) {
+		t.Helper()
+		var envelope struct {
+			Type string `json:"type"`
+		}
+		_ = json.Unmarshal(line, &envelope)
+		def := "#/$defs/RpcEventEnvelope"
+		switch envelope.Type {
+		case "response":
+			def = "#/$defs/RpcResponseEnvelope"
+		case "extension_ui_request":
+			def = "#/$defs/ExtensionUiRequest"
+		}
+		instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(line))
+		if err != nil {
+			t.Fatalf("decode record: %v", err)
+		}
+		if err := compile(def).Validate(instance); err != nil {
+			t.Errorf("record does not match %s: %v\nline: %s", def, err, line)
+		}
+	}
+}
+
+// TestFixturesDoNotEmbedTheCaptureHost pins the sanitization the capture script promises:
+// the home directory of whoever ran the capture must not reach a fixture. The exact path
+// belongs to one machine; the record shape is what a fixture is for.
+func TestFixturesDoNotEmbedTheCaptureHost(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skipf("no home directory to check against: %v", err)
+	}
+	paths, err := filepath.Glob(filepath.Join("..", "fixtures", "*.jsonl"))
+	if err != nil {
+		t.Fatalf("glob fixtures: %v", err)
+	}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		if bytes.Contains(data, []byte(home)) {
+			t.Errorf("%s embeds the capture host's home directory %q", path, home)
+		}
 	}
 }

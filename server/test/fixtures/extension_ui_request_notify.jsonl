@@ -1,2 +1,2 @@
-# real capture | pi 0.87.1 | 2026-09-26 | stdin held open until the notify record | pi --mode rpc --no-session --offline --no-extensions -e bridge/pi-ui-bridge.ts
+# real capture | host paths sanitized (<home>, <port>) | pi 0.87.1 | 2026-09-26 | stdin held open until the notify record | pi --mode rpc --no-session --offline --no-extensions -e bridge/pi-ui-bridge.ts
 {"type":"extension_ui_request","id":"437178d0-ecb5-4201-a4c6-bbe4bd8f7279","method":"notify","message":"pi-ui-bridge ready","notifyType":"info"}

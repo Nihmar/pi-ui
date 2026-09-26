@@ -3,7 +3,9 @@
 #
 # Every fixture is a real capture of `pi --mode rpc` stdout: one LF-terminated JSON
 # record per line, preceded by a single `#` header naming the exact command, the pi
-# version, the capture date and whether the file is a real capture. pi runs offline
+# version, the capture date and whether the file is a real capture. Captured records are
+# sanitized before they are written: the home directory becomes <home> and a loopback
+# port becomes <port>, so a fixture never carries the capturing host's private paths. pi runs offline
 # (--offline --no-extensions, no model server, no network), and the script reads each
 # capture until the expected record appears instead of sleeping, so two captures of the
 # same fixture differ only in the header date and in pi's per-run ids (a session id, an
@@ -44,12 +46,20 @@ pi_cmd() {
 	printf '%s' "$out"
 }
 
-# write_fixture prepends the single `#` header line to a captured record log.
+# sanitize rewrites the private bits of a captured record stream: the home directory
+# becomes <home> and a loopback port becomes <port>. A fixture pins the record shape; the
+# exact paths and ports of the capturing host are noise a reader cannot use and that must
+# not end up in a commit.
+sanitize() {
+	sed -e "s|$HOME|<home>|g" -e 's|http://127\.0\.0\.1:[0-9][0-9]*|http://127.0.0.1:<port>|g'
+}
+
+# write_fixture prepends the single `#` header line to a sanitized captured record log.
 write_fixture() {
 	local out=$1 command=$2 records=$3
 	{
-		printf '# real capture | pi %s | %s | %s\n' "$pi_version" "$capture_date" "$command"
-		cat "$records"
+		printf '# real capture | host paths sanitized (<home>, <port>) | pi %s | %s | %s\n' "$pi_version" "$capture_date" "$command"
+		sanitize <"$records"
 	} >"$out"
 	echo "capture: wrote $out"
 }
