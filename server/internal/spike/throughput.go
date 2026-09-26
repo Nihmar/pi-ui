@@ -3,6 +3,7 @@ package spike
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -134,8 +135,8 @@ func MeasureThroughput(ctx context.Context, cfg Config) (ThroughputResult, error
 	}
 
 	if !settled {
-		return result, fmt.Errorf("spike: throughput did not settle within %s: %d of %d events arrived (timeout is Config.Timeout)",
-			cfg.Timeout, result.Events, expectedPerClient)
+		return result, fmt.Errorf("spike: throughput did not settle within %s: %d of %d events arrived (client errors: %s)",
+			cfg.Timeout, result.Events, expectedPerClient, clientErrors(clients))
 	}
 	if result.Loss > 0 {
 		return result, fmt.Errorf("spike: throughput lost %d of %d events (client counts %v)",
@@ -243,6 +244,21 @@ func (r ThroughputResult) raw() rawThroughput {
 		RSSFinalMiB:  r.rssFinal,
 		RSSGrowthPct: r.rssGrowthPct,
 	}
+}
+
+// clientErrors summarises the reader errors of every client for the failure
+// message of a run that did not settle.
+func clientErrors(clients []*client) string {
+	var messages []string
+	for _, c := range clients {
+		if err := c.readErr(); err != nil {
+			messages = append(messages, err.Error())
+		}
+	}
+	if len(messages) == 0 {
+		return "none"
+	}
+	return strings.Join(messages, "; ")
 }
 
 // rssSampler samples the measuring process's own RSS while a throughput run is in

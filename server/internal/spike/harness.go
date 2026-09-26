@@ -213,13 +213,16 @@ func (c *client) fail(err error) {
 	c.mu.Unlock()
 }
 
-// readLoop counts events until the connection or the context ends.
+// readLoop counts events until the connection or the context ends. A connection
+// that dies unfulfilled completes too, so the caller reports the loss instead of
+// waiting for the whole timeout.
 func (c *client) readLoop(ctx context.Context) {
 	defer close(c.finished)
 	for {
 		typ, data, err := c.conn.Read(ctx)
 		if err != nil {
 			c.fail(err)
+			c.once.Do(func() { close(c.complete) })
 			return
 		}
 		if typ != websocket.MessageText {
@@ -230,10 +233,22 @@ func (c *client) readLoop(ctx context.Context) {
 }
 
 // observe accounts for one frame: only pi.* records count as session events, and
-// only records carrying the fake-pi probe contribute an end-to-end sample.
+// only records carrying the fake-pi probe contribute an end-to-end sample. A
+// `server.error` disconnecting this client as a slow consumer completes it, so a
+// measurement reports the loss instead of hanging.
 func (c *client) observe(data []byte) {
 	var frame inboundFrame
 	if err := json.Unmarshal(data, &frame); err != nil {
+		return
+	}
+	if frame.Type == "server.error" {
+		var payload struct {
+			Code string `json:"code"`
+		}
+		if err := json.Unmarshal(frame.Payload, &payload); err == nil && payload.Code == "slow_consumer" {
+			c.fail(fmt.Errorf("spike: client %d was disconnected as a slow consumer", c.index))
+			c.once.Do(func() { close(c.complete) })
+		}
 		return
 	}
 	if !strings.HasPrefix(frame.Type, "pi.") {

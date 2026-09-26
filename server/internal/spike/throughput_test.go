@@ -2,6 +2,7 @@ package spike
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -124,5 +125,21 @@ func TestMeasureThroughputHonoursCancelledContext(t *testing.T) {
 	cfg := Config{FakePi: fakeharness.Build(t), Sessions: 1, Events: 10, Timeout: 5 * time.Second}
 	if _, err := MeasureThroughput(ctx, cfg); err == nil {
 		t.Fatal("MeasureThroughput with a cancelled context must fail")
+	}
+}
+
+// TestClientErrors pins the failure message of a run that did not settle: a
+// client whose reader died must be named, so the report says why the run was
+// short instead of only that it was.
+func TestClientErrors(t *testing.T) {
+	if got := clientErrors(nil); got != "none" {
+		t.Errorf("clientErrors(nil) = %q, want %q", got, "none")
+	}
+
+	var healthy, failed client
+	failed.index = 1
+	failed.fail(errors.New("spike: client 1 read: unexpected EOF"))
+	if got := clientErrors([]*client{&healthy, &failed}); !strings.Contains(got, "client 1 read: unexpected EOF") {
+		t.Errorf("clientErrors = %q, want it to name the reader error", got)
 	}
 }
