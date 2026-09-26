@@ -149,23 +149,40 @@ func startServer(t *testing.T, extra ...string) *serverProcess {
 	}
 	proc := &serverProcess{cmd: cmd, stderr: stderr, done: make(chan struct{})}
 
-	lines := make(chan string, 1)
+	lines := make(chan string, 16)
 	go func() {
 		scanner := bufio.NewScanner(stdout)
-		if scanner.Scan() {
+		for scanner.Scan() {
 			lines <- scanner.Text()
 		}
 		close(lines)
 	}()
-	select {
-	case line, ok := <-lines:
-		if !ok || !strings.HasPrefix(line, "listening ") {
-			t.Fatalf("server did not announce its address (got %q); stderr:\n%s", line, stderr.String())
+
+	// The listening line is the first line the server is documented to print, but it does
+	// not have to be the very first line a future build emits: scan for it and let anything
+	// before it be diagnostics.
+	deadline := time.After(20 * time.Second)
+scan:
+	for {
+		select {
+		case line, ok := <-lines:
+			if !ok {
+				t.Fatalf("server exited before announcing its address; stderr:\n%s", stderr.String())
+			}
+			if addr, found := strings.CutPrefix(line, "listening "); found {
+				proc.addr = strings.TrimSpace(addr)
+				break scan
+			}
+		case <-deadline:
+			t.Fatalf("server did not start within 20 s; stderr:\n%s", stderr.String())
 		}
-		proc.addr = strings.TrimSpace(strings.TrimPrefix(line, "listening "))
-	case <-time.After(20 * time.Second):
-		t.Fatalf("server did not start within 20 s; stderr:\n%s", stderr.String())
 	}
+	// Keep stdout drained: the server must never block on a pipe the test stopped
+	// reading, and whatever it prints after the address is diagnostics.
+	go func() {
+		for range lines {
+		}
+	}()
 
 	go func() {
 		err := cmd.Wait()
