@@ -121,6 +121,14 @@ func (s *session) isLive() bool {
 	return s.status.Live()
 }
 
+// stopRequested reports whether a Stop has marked the session stopping, which is the state
+// a spawn that raced the Stop has to honour.
+func (s *session) stopRequested() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.status == StatusStopping && !s.finished
+}
+
 // touch records that the child produced a record, which is what LastEventAt reports.
 func (s *session) touch() {
 	s.mu.Lock()
@@ -331,7 +339,7 @@ func (s *session) stop(ctx context.Context) error {
 	}
 	if s.status == StatusStopping {
 		s.mu.Unlock()
-		return s.awaitTerminal(bridge)
+		return s.awaitTerminal(ctx, bridge)
 	}
 	s.status = StatusStopping
 	s.mu.Unlock()
@@ -343,11 +351,24 @@ func (s *session) stop(ctx context.Context) error {
 		return nil
 	}
 	err := bridge.Close()
-	waitErr := s.awaitTerminal(bridge)
+	waitErr := s.awaitTerminal(ctx, bridge)
 	if err != nil {
 		return Codedf(CodePiError, "stopping session %s: %v", s.id, err)
 	}
 	return waitErr
+}
+
+// closeIfStopRequested honours a Stop that ran before the child existed: stop saw a nil
+// bridge, marked the session stopping and returned, so the spawn that Start is completing
+// would otherwise leave the session ready and its child running. It reports a coded
+// session_exited when it intervened, and nil when no stop raced the spawn.
+func (s *session) closeIfStopRequested(ctx context.Context, bridge rpc.Bridge) error {
+	if !s.stopRequested() {
+		return nil
+	}
+	_ = bridge.Close()
+	_ = s.awaitTerminal(ctx, bridge)
+	return Codedf(CodeSessionExited, "session %s was stopped while it was spawning", s.id)
 }
 
 // awaitTerminal waits for the pump to publish the session's terminal status, bounded by
@@ -357,8 +378,10 @@ func (s *session) stop(ctx context.Context) error {
 //
 // A budget that expires is reported as a timeout, not swallowed: the child was reaped, but
 // the status a client reads is still "stopping", so a caller that gets no error must be
-// able to trust that the session finished its bookkeeping.
-func (s *session) awaitTerminal(bridge rpc.Bridge) error {
+// able to trust that the session finished its bookkeeping. A cancelled ctx aborts the wait
+// the same way: the caller is gone (a closed connection), and the pump still writes the
+// terminal status for whoever asks next.
+func (s *session) awaitTerminal(ctx context.Context, bridge rpc.Bridge) error {
 	if bridge == nil {
 		return nil
 	}
@@ -367,6 +390,8 @@ func (s *session) awaitTerminal(bridge rpc.Bridge) error {
 	select {
 	case <-s.done:
 		return nil
+	case <-ctx.Done():
+		return Codedf(CodeTimeout, "session %s: waiting for its terminal status: %v", s.id, ctx.Err())
 	case <-timer.C:
 		s.logf("terminal status not written within %s", terminalBudget)
 		return Codedf(CodeTimeout, "session %s did not publish its terminal status within %s", s.id, terminalBudget)

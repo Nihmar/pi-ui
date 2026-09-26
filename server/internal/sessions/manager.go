@@ -93,6 +93,15 @@ func (m *Manager) Start(ctx context.Context, spec Spec) (Info, error) {
 	)
 	s.attach(bridge)
 
+	// A Stop may land before the child exists: it sees no bridge, marks the session
+	// stopping and returns. Honour it here instead of spawning a child only to kill it,
+	// and forget the session: no child was ever created, so there is no terminal status
+	// for a pump to write.
+	if s.stopRequested() {
+		m.forget(sessionID)
+		return Info{}, Codedf(CodeSessionExited, "session %s was stopped while it was spawning", sessionID)
+	}
+
 	if err := bridge.Start(ctx); err != nil {
 		m.forget(sessionID)
 		return Info{}, fmt.Errorf("%w: spawn: %v", ErrStart, err)
@@ -100,6 +109,12 @@ func (m *Manager) Start(ctx context.Context, spec Spec) (Info, error) {
 	s.setPID(bridge.PID())
 	m.publishJSON(EventServerSpawned, sessionID, s.info())
 	go s.pump()
+
+	// The Stop can also land while the child is spawning: the child exists now, so close
+	// it and let the pump publish the terminal status.
+	if err := s.closeIfStopRequested(ctx, bridge); err != nil {
+		return s.info(), err
+	}
 
 	state, err := s.callPi(ctx, commandTypeGetState, nil)
 	if err != nil {
@@ -257,12 +272,22 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 		}
 	}
 
+	// stopCtx detaches the wait from the caller's cancellation: on SIGTERM the caller's
+	// context is already cancelled, and that must not skip the terminal status. A deadline
+	// still applies, so a caller with a tighter budget keeps it.
+	stopCtx := context.WithoutCancel(ctx)
+	if deadline, ok := ctx.Deadline(); ok {
+		var cancel context.CancelFunc
+		stopCtx, cancel = context.WithDeadline(stopCtx, deadline)
+		defer cancel()
+	}
+
 	var wg sync.WaitGroup
 	for _, s := range m.all() {
 		wg.Add(1)
 		go func(s *session) {
 			defer wg.Done()
-			_ = s.stop(ctx)
+			_ = s.stop(stopCtx)
 		}(s)
 	}
 

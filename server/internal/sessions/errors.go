@@ -18,6 +18,7 @@ const (
 	CodeNotFound            = "not_found"
 	CodeSessionNotFound     = "session_not_found"
 	CodeSessionLimit        = "session_limit"
+	CodeSessionExited       = "session_exited"
 	CodeBadRequest          = "bad_request"
 	CodeBusyStreaming       = "busy_streaming"
 	CodePiRejected          = "pi_rejected"

@@ -262,3 +262,74 @@ func TestStopReportsAStalledTerminalStatus(t *testing.T) {
 	// Let the pump finish so the next test starts from a quiet tree.
 	bridge.end()
 }
+
+// TestStopHonoursItsContext pins finding S6: a stop whose caller went away returns with the
+// context's error instead of waiting out the terminal budget, while the close it started is
+// not abandoned halfway.
+func TestStopHonoursItsContext(t *testing.T) {
+	mgr, _ := newTestManager(t, nil)
+	s := newSession(mgr, codegenSessionID, Spec{CWD: "/work"})
+	bridge := newStalledBridge()
+	s.attach(bridge)
+	go s.pump()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	started := time.Now()
+	err := s.stop(ctx)
+	if code := CodeOf(err); code != CodeTimeout {
+		t.Fatalf("stop with a cancelled context = %v (code %q), want %s", err, code, CodeTimeout)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("stop waited %s after its context was cancelled", elapsed)
+	}
+
+	// The record stream still ends: the pump publishes the terminal status for whoever
+	// reads the session next.
+	bridge.end()
+	waitFor(t, "the terminal status of the stopped session", func() bool {
+		return !s.info().Status.Live()
+	})
+}
+
+// TestSpawnGuardsAgainstAStopItRaced pins finding S10: a Stop that saw no bridge leaves the
+// session stopping; the spawn that completes afterwards must close the child and report
+// session_exited instead of leaving a running child behind a ready session.
+func TestSpawnGuardsAgainstAStopItRaced(t *testing.T) {
+	mgr, _ := newTestManager(t, nil)
+	s := newSession(mgr, codegenSessionID, Spec{CWD: "/work"})
+
+	// The Stop lands before the bridge is attached, so it can close nothing.
+	if err := s.stop(context.Background()); err != nil {
+		t.Fatalf("stop before attach: %v", err)
+	}
+	if !s.stopRequested() {
+		t.Fatal("the stop before attach was not remembered")
+	}
+
+	bridge := newStalledBridge()
+	s.attach(bridge)
+	go s.pump()
+
+	closed := make(chan error, 1)
+	go func() { closed <- s.closeIfStopRequested(context.Background(), bridge) }()
+	select {
+	case err := <-closed:
+		t.Fatalf("the guard returned (%v) before the terminal status was written", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	bridge.end()
+	select {
+	case err := <-closed:
+		if code := CodeOf(err); code != CodeSessionExited {
+			t.Fatalf("guard error = %v (code %q), want %s", err, code, CodeSessionExited)
+		}
+	case <-time.After(waitTimeout):
+		t.Fatal("the guard did not return after the terminal status")
+	}
+	if status := s.info().Status; status != StatusExited {
+		t.Fatalf("status = %q, want %q", status, StatusExited)
+	}
+}
