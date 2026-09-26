@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.ts"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "0.87.1",
