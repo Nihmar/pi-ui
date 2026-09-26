@@ -157,6 +157,7 @@ see.
 | `feature_disabled` | 403 | an administrative setting turned the capability off (`git.write`) |
 | `path_escape` | 403 | a path or directory outside every workspace |
 | `unavailable` | 503 | the server is draining (or shutting down): it takes no new session |
+| `managed_mode` | 409 | this deployment manages that itself (`POST /updates/apply` without `--update-command`) |
 | `bad_request` | 400 | body not readable or missing a required field |
 | `too_large` | 413 | body above the 1 MiB cap |
 
@@ -415,3 +416,28 @@ not stored is a `bad_request` rather than a silent blank.
 The file lives at `--mcp-config`, or `<state-dir>/mcp.json` when the server has a state
 directory. Without either, these endpoints answer `501 unsupported`: MCP is a capability
 a deployment opts into.
+
+## Updates
+
+The panel reports what this deployment runs and what is published. Checking is a read; it
+is admin-only because the versions of a host are not a viewer's business. A failed lookup
+is a row with an `error`, not a failed request: an offline server still lists what it
+runs, which is the part an operator can act on.
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/api/v1/updates` | admin | `{components:[{name,current,source?,latest?,updateAvailable,error?,checkedAt}], managed}` |
+| POST | `/api/v1/updates/apply` | admin | `{components?:[…]}` → the [task](#tasks) running the operator's script (202) |
+
+Components are `server` (the build stamp), `pi` and `bridge` (the vendored extension); a
+lookup asks the npm registry's `dist-tags.latest`, with a 5 s budget per component. A
+version that is not comparable (a tag, a pre-release) is never reported as outdated: this
+server refuses to offer an update on a guess.
+
+**Applying is running the operator's script, not replacing the server.** `--update-command`
+names a script the server starts as a background task inside the first workspace, with the
+requested components as arguments, and the client watches it exactly like a build: with the
+task's output. Without that flag the server answers `409 managed_mode` — a deployment that
+manages its own updates (a container image, a package manager, systemd) is the normal case,
+and guessing how to replace the running binary is not a server's decision. Every attempt is
+audited as `updates.apply`, denied ones included.

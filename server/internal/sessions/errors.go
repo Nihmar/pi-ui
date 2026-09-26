@@ -36,6 +36,9 @@ const (
 	// CodeUnavailable is a server that refuses for an operational reason: it is
 	// draining, or it is shutting down.
 	CodeUnavailable = "unavailable"
+	// CodeManagedMode is a deployment that manages something itself: applying updates
+	// is the operator's job there, not the server's.
+	CodeManagedMode = "managed_mode"
 	CodeInternal    = "internal"
 )
 

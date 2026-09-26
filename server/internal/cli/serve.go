@@ -22,6 +22,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/settings"
 	"github.com/Nihmar/pi-ui/server/internal/tasks"
 	"github.com/Nihmar/pi-ui/server/internal/terminal"
+	"github.com/Nihmar/pi-ui/server/internal/updates"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
 
@@ -33,6 +34,9 @@ const (
 	// httpShutdownTimeout bounds the drain of in-flight REST requests. Websockets are
 	// closed by hub.Close() before this runs, so the drain is short by construction.
 	httpShutdownTimeout = 3 * time.Second
+	// bridgeVersion is the version of the vendored bridge extension: it ships with the
+	// server, so the update panel reports it as a component rather than looking it up.
+	bridgeVersion = "0.1.0"
 )
 
 // Serve runs the pi-ui server (docs/spike-interfaces.md §5.7): one HTTP listener serving
@@ -204,6 +208,21 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		// which is why the sessions carry the path and not the configuration.
 		options.MCP = mcp.New(path)
 	}
+
+	// The update panel reports what this deployment runs and, when the operator gave a
+	// command, runs it as a task. Without a command the server answers managed_mode:
+	// replacing its own binary is not a server's decision.
+	options.Updates = updates.New(updates.Config{
+		Components: []updates.Component{
+			{Name: updates.ComponentServer, Current: Version, Source: "build stamp"},
+			{Name: updates.ComponentPi, Current: cfg.piVersion},
+			{Name: updates.ComponentBridge, Current: bridgeVersion, Source: "vendored"},
+		},
+		Checker: &updates.HTTPChecker{Packages: map[string]string{
+			updates.ComponentPi: "@earendil-works/pi-coding-agent",
+		}},
+	})
+	options.UpdateCommand = cfg.updateCommand
 
 	options.Auth = authenticator
 	options.Audit = auditLog

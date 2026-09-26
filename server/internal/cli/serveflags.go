@@ -87,6 +87,8 @@ type serveConfig struct {
 	roots         []string
 	sessionDirs   []string
 	mcpConfig     string
+	updateCommand string
+	piVersion     string
 	terminals     int
 }
 
@@ -218,6 +220,8 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("terminals", "", "PTY terminals a client may hold open at once (default 4)")
 	fs.String("session-dirs", "", "comma-separated directories holding pi session JSONL, for the message search")
 	fs.String("mcp-config", "", "MCP server configuration file (default <state-dir>/mcp.json when a state directory exists)")
+	fs.String("update-command", "", "script the server runs to apply updates (empty = managed elsewhere)")
+	fs.String("pi-version", "", "version of the pi binary this server runs, for the update panel (PIUI_PI_VERSION)")
 	fs.String("idle-timeout", "", "wrap up a session after this much silence, 0 = off (default 1h)")
 	fs.String("wrap-up-budget", "", "time the handoff turn gets before the session stops (default 1m)")
 	fs.String("wrap-up-prompt", "", "what an idle session is asked before it stops (PIUI_WRAP_UP_PROMPT)")
@@ -234,18 +238,20 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	}
 
 	cfg := serveConfig{
-		addr:         resolve(fs, "addr", envAddr, defaultAddr),
-		pi:           resolve(fs, "pi", envPi, defaultPi),
-		bridge:       resolve(fs, "bridge", envBridge, ""),
-		token:        resolve(fs, "token", envToken, ""),
-		logLevel:     resolve(fs, "log-level", envLogLevel, defaultLogLevel),
-		allowHosts:   splitList(resolve(fs, "allow-hosts", envAllowHosts, "")),
-		allowOrigins: splitList(resolve(fs, "allow-origins", envAllowOrigins, "")),
-		stateDir:     resolve(fs, "state-dir", envStateDir, ""),
-		sessionFlags: sessionArgs,
-		roots:        rootArgs,
-		sessionDirs:  splitList(resolve(fs, "session-dirs", "", "")),
-		mcpConfig:    resolve(fs, "mcp-config", "PIUI_MCP_CONFIG", ""),
+		addr:          resolve(fs, "addr", envAddr, defaultAddr),
+		pi:            resolve(fs, "pi", envPi, defaultPi),
+		bridge:        resolve(fs, "bridge", envBridge, ""),
+		token:         resolve(fs, "token", envToken, ""),
+		logLevel:      resolve(fs, "log-level", envLogLevel, defaultLogLevel),
+		allowHosts:    splitList(resolve(fs, "allow-hosts", envAllowHosts, "")),
+		allowOrigins:  splitList(resolve(fs, "allow-origins", envAllowOrigins, "")),
+		stateDir:      resolve(fs, "state-dir", envStateDir, ""),
+		sessionFlags:  sessionArgs,
+		roots:         rootArgs,
+		sessionDirs:   splitList(resolve(fs, "session-dirs", "", "")),
+		mcpConfig:     resolve(fs, "mcp-config", "PIUI_MCP_CONFIG", ""),
+		updateCommand: resolve(fs, "update-command", "PIUI_UPDATE_COMMAND", ""),
+		piVersion:     resolve(fs, "pi-version", "PIUI_PI_VERSION", ""),
 	}
 
 	var err error
@@ -337,6 +343,7 @@ func writeServeUsage(w io.Writer) {
 		"  --root <path>              workspace a client may browse, repeatable\n"+
 		"  --terminals N              PTY terminals a client may hold open (default 4)\n"+
 		"  --mcp-config PATH          MCP servers the bridge connects to (default <state-dir>/mcp.json)\n"+
+		"  --update-command PATH      script that applies updates (empty = managed elsewhere)\n"+
 		"  --session-dirs LIST        directories of pi session JSONL for the message search\n"+
 		"  --bridge <path>            pi-ui-bridge extension loaded by every child (PIUI_BRIDGE)\n"+
 		"  --token <token>            bearer token clients must send (PIUI_TOKEN)\n"+
