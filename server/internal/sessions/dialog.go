@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Nihmar/pi-ui/server/internal/rpc"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
 
@@ -55,14 +56,14 @@ func (s *session) handleExtensionUIRequest(raw json.RawMessage) {
 	var request uiRequest
 	if err := json.Unmarshal(raw, &request); err != nil {
 		s.logf("extension_ui_request is not readable: %v", err)
-		s.mgr.publish(ws.Event{Type: EventPiUnknown, SessionID: s.id, Payload: raw})
+		s.mgr.publish(ws.Event{Type: EventPiUnknown, SessionID: s.id, Payload: recordPayload(rpc.Record{Raw: raw})})
 		return
 	}
 	if request.ID == "" {
 		// A dialog is resolved by its id; without one nothing could ever answer it, so it
 		// is forwarded verbatim instead of vanishing into a pending map.
 		s.logf("extension_ui_request without id (method %s): forwarded as an event", request.Method)
-		s.mgr.publish(ws.Event{Type: piEventType(recordExtensionUIRequest), SessionID: s.id, Payload: raw})
+		s.mgr.publish(ws.Event{Type: piEventType(recordExtensionUIRequest), SessionID: s.id, Payload: recordPayload(rpc.Record{Raw: raw})})
 		return
 	}
 
@@ -70,9 +71,9 @@ func (s *session) handleExtensionUIRequest(raw json.RawMessage) {
 	case methodSelect, methodConfirm, methodInput, methodEditor:
 		s.openDialog(request, raw)
 	case methodNotify, methodSetStatus, methodSetWidget, methodSetTitle, methodSetEditorText:
-		s.mgr.publish(ws.Event{Type: extEventType(request.Method), SessionID: s.id, Payload: raw})
+		s.mgr.publish(ws.Event{Type: extEventType(request.Method), SessionID: s.id, Payload: recordPayload(rpc.Record{Raw: raw})})
 	default:
-		s.mgr.publish(ws.Event{Type: piEventType(recordExtensionUIRequest), SessionID: s.id, Payload: raw})
+		s.mgr.publish(ws.Event{Type: piEventType(recordExtensionUIRequest), SessionID: s.id, Payload: recordPayload(rpc.Record{Raw: raw})})
 	}
 }
 
