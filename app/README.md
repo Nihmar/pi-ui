@@ -44,5 +44,5 @@ Windows build.
 | `lib/core/theme/` | `AppTokens`, the two `ThemeData`s, breakpoints, markdown style. |
 | `lib/core/api/` | REST + WebSocket client, DTOs, reconnection and replay. |
 | `lib/core/models/` | The UI models the screens render (`SessionModel`, `ChatEntry`). |
-| `lib/features/` | One directory per screen/feature. The chat header's model chip opens the picker, which asks pi itself (`get_available_models`, `set_model`) through the generic command passthrough. |
+| `lib/features/` | One directory per screen/feature. The chat header's model chip opens the picker, which asks pi itself (`get_available_models`, `set_model`) through the generic command passthrough. The Files branch browses the server's workspaces (`/workspaces`, `/fs/list`, `/files/read`) and renders markdown through `packages/piui-markdown`. |
 | `lib/widgets/` | Widgets shared by more than one feature. |

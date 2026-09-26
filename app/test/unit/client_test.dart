@@ -85,6 +85,27 @@ void main() {
     expect(await client.sessions(), isEmpty);
   });
 
+  test('the workspaces and a listing come back typed', () async {
+    final client = PiUiClient(
+      profile: ServerProfile(baseUrl: server.baseUrl, deviceName: 'test'),
+    );
+
+    final roots = await client.workspaces();
+    expect(roots.single.id, 'app');
+    expect(roots.single.path, '/srv/app');
+    expect(roots.single.label, 'app');
+
+    final entries = await client.listDirectory('/srv/app');
+    expect(entries.single.name, 'README.md');
+    expect(entries.single.isDir, isFalse);
+    expect(entries.single.sha256, 'abc');
+
+    final content = await client.readFile('/srv/app/README.md');
+    expect(content.text, 'hello');
+    expect(content.isBinary, isFalse);
+    expect(content.entry.path, '/srv/app/README.md');
+  });
+
   test('refresh hands the rotated token to the callback', () async {
     PairResult? rotated;
     final client = PiUiClient(

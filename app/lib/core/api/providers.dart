@@ -11,6 +11,7 @@ import 'client.dart';
 import 'errors.dart';
 import 'dto.dart';
 import 'frames.dart';
+import 'files.dart';
 import 'models.dart';
 import 'profile.dart';
 import 'session_actions.dart';
@@ -380,6 +381,45 @@ final streamingProvider = Provider.family<bool, String>(
   (ref, sessionId) =>
       ref.watch(chatStateProvider(sessionId)).value?.streaming ?? false,
 );
+
+/// The workspaces this device may browse.
+///
+/// A server without `--root` answers `501`, which surfaces here as an error the file
+/// browser shows as "no workspace is configured" instead of an empty tree.
+final workspacesProvider = FutureProvider<List<WorkspaceRoot>>((ref) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    return const <WorkspaceRoot>[];
+  }
+  return client.workspaces();
+});
+
+/// One directory listing, keyed by the absolute path.
+final directoryProvider = FutureProvider.family<List<FsEntry>, String>((
+  ref,
+  path,
+) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    return const <FsEntry>[];
+  }
+  return client.listDirectory(path);
+});
+
+/// The content of one file, keyed by the absolute path.
+final fileContentProvider = FutureProvider.family<FileContent, String>((
+  ref,
+  path,
+) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    throw const PiuiException(
+      ErrorCodes.offline,
+      'Not connected to the server.',
+    );
+  }
+  return client.readFile(path);
+});
 
 /// The models pi can switch the session onto, loaded when a picker opens.
 ///

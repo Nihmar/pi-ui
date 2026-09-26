@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/files/file_browser_screen.dart';
 import '../features/onboarding/connect_screen.dart';
 import '../features/onboarding/pair_screen.dart';
 import '../features/search/search_screen.dart';
@@ -26,14 +27,25 @@ abstract final class Routes {
   /// The session list (shell branch 0).
   static const sessions = '/sessions';
 
-  /// Global search (shell branch 1).
+  /// The file browser (shell branch 1).
+  static const files = '/files';
+
+  /// Global search (shell branch 2).
   static const search = '/search';
 
-  /// Settings (shell branch 2).
+  /// Settings (shell branch 3).
   static const settings = '/settings';
 
   /// The conversation of one session.
   static String chat(String sessionId) => '$sessions/$sessionId';
+
+  /// One directory of a workspace.
+  static String filesPath(String path) =>
+      '$files?path=${Uri.encodeComponent(path)}';
+
+  /// One file, opened in its own route (the phone layout).
+  static String filePath(String path) =>
+      '$files/view?path=${Uri.encodeComponent(path)}';
 
   /// The pairing form for one server.
   static String pairWith(String baseUrl) =>
@@ -100,6 +112,24 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: ':id',
                     builder: (context, state) => SessionDetailScreen(
                       sessionId: state.pathParameters['id'] ?? '',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.files,
+                builder: (context, state) => FileBrowserScreen(
+                  initialPath: state.uri.queryParameters['path'],
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'view',
+                    builder: (context, state) => FileDetailScreen(
+                      path: state.uri.queryParameters['path'] ?? '',
                     ),
                   ),
                 ],

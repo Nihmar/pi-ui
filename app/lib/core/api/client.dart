@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../models/session.dart';
 import 'dto.dart';
 import 'errors.dart';
+import 'files.dart';
 import 'http.dart';
 import 'json.dart';
 import 'profile.dart';
@@ -98,6 +99,43 @@ class PiUiClient {
     onTokenRotated?.call(result);
     return result;
   });
+
+  /// GET /workspaces — the roots this device may browse.
+  Future<List<WorkspaceRoot>> workspaces() => guarded(() async {
+    final response = await _dio.get<dynamic>('/workspaces');
+    return decoded(response, WorkspaceRoot.listFrom);
+  });
+
+  /// GET /fs/list — one directory inside a workspace.
+  Future<List<FsEntry>> listDirectory(String path) => guarded(() async {
+    final response = await _dio.get<dynamic>(
+      '/fs/list',
+      queryParameters: {'path': path},
+    );
+    return decoded(response, FsEntry.listFrom);
+  });
+
+  /// GET /fs/stat — one path's metadata.
+  Future<FsEntry> statFile(String path) => guarded(() async {
+    final response = await _dio.get<dynamic>(
+      '/fs/stat',
+      queryParameters: {'path': path},
+    );
+    return decoded(response, FsEntry.fromJson);
+  });
+
+  /// GET /files/read — the content of one file.
+  Future<FileContent> readFile(String path, {int? maxBytes}) =>
+      guarded(() async {
+        final response = await _dio.get<dynamic>(
+          '/files/read',
+          queryParameters: {
+            'path': path,
+            if (maxBytes != null) 'maxBytes': '$maxBytes',
+          },
+        );
+        return decoded(response, FileContent.fromJson);
+      });
 
   /// GET /settings — the server's own policy, as the effective values.
   ///

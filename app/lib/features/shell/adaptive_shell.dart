@@ -22,6 +22,11 @@ class AdaptiveShell extends StatelessWidget {
       selectedIcon: Icons.forum,
     ),
     _Destination(
+      label: 'Files',
+      icon: Icons.folder_outlined,
+      selectedIcon: Icons.folder,
+    ),
+    _Destination(
       label: 'Search',
       icon: Icons.search_outlined,
       selectedIcon: Icons.search,

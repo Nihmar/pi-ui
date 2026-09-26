@@ -29,6 +29,44 @@ class FakeServer {
       await _json(request, 200, {'status': 'ok'});
       return;
     }
+    if (path == '/api/v1/workspaces') {
+      await _json(request, 200, {
+        'roots': [
+          {'id': 'app', 'path': '/srv/app'},
+        ],
+      });
+      return;
+    }
+    if (path == '/api/v1/fs/list') {
+      await _json(request, 200, {
+        'entries': [
+          {
+            'name': 'README.md',
+            'path': '/srv/app/README.md',
+            'rel': 'README.md',
+            'rootId': 'app',
+            'isDir': false,
+            'size': 5,
+            'mode': '0644',
+            'sha256': 'abc',
+          },
+        ],
+      });
+      return;
+    }
+    if (path == '/api/v1/files/read') {
+      await _json(request, 200, {
+        'entry': {
+          'name': 'README.md',
+          'path': '/srv/app/README.md',
+          'isDir': false,
+          'size': 5,
+          'sha256': 'abc',
+        },
+        'text': 'hello',
+      });
+      return;
+    }
     if (path == '/api/v1/sessions') {
       await _json(request, 200, {'sessions': <Object>[]});
       return;
