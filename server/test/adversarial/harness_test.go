@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -271,6 +272,23 @@ func apiError(t *testing.T, data []byte) (code, message string) {
 		t.Fatalf("body %s carries no error.code", truncate(string(data), 300))
 	}
 	return body.Error.Code, body.Error.Message
+}
+
+// itoa is strconv.Itoa for the tests that build JSON by hand.
+func itoa(n int) string { return strconv.Itoa(n) }
+
+// responseBody reads and closes an HTTP response body.
+func responseBody(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	if resp == nil || resp.Body == nil {
+		return ""
+	}
+	data, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatalf("read response body: %v", err)
+	}
+	return string(data)
 }
 
 // wantStatus fails the test when the response status is not the expected one.
