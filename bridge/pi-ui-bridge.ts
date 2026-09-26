@@ -13,6 +13,16 @@ import { readFileSync } from "node:fs";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 import { readMcpDocument, registerMcpServers, type McpConnection } from "./mcp.ts";
+import {
+  GOAL_HELP,
+  nextRound,
+  parseGoalCommand,
+  roundPrompt,
+  startGoal,
+  statusLine,
+  stopGoal,
+  type GoalState,
+} from "./goal.ts";
 
 /** Exact strings relied on by the fixtures and the WS `ext.notify` tests. */
 const READY_NOTIFY = "pi-ui-bridge ready";
@@ -40,6 +50,13 @@ interface BridgeConfig {
    * takes effect at the next spawn.
    */
   readonly mcpConfig?: string;
+  /**
+   * Goal mode: a long-running objective the session keeps working on, round by round.
+   *
+   * Off unless the configuration turns it on (PLAN.md E14: a feature flag, because a
+   * loop that drives itself is not what every deployment wants).
+   */
+  readonly goal?: { readonly maxRounds?: number };
 }
 
 const OFF: Approvals = { mode: "off", patterns: DEFAULT_PATTERNS };
@@ -135,11 +152,52 @@ function readConfig(): BridgeConfig {
   if (mcpConfig !== undefined && typeof mcpConfig !== "string") {
     return offConfig(`config ${path}: "mcpConfig" must be a string`);
   }
+  const goal = readGoal(parsed.goal, path);
   return {
     approvals,
     ...(sessionId === undefined ? {} : { sessionId }),
     ...(mcpConfig === undefined || mcpConfig.trim() === "" ? {} : { mcpConfig }),
+    ...(goal === undefined ? {} : { goal }),
   };
+}
+
+/**
+ * Read the `goal` block: present means enabled.
+ *
+ * A wrong shape is not a reason to degrade the whole bridge — approvals and MCP still
+ * work — so it is reported and the block is dropped (goal mode off).
+ */
+function readGoal(value: unknown, source: string): { maxRounds?: number } | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    diagnostic(`config ${source}: "goal" is not an object; goal mode is off`);
+    return undefined;
+  }
+  const maxRounds = value.maxRounds;
+  if (maxRounds !== undefined && typeof maxRounds !== "number") {
+    diagnostic(`config ${source}: "goal.maxRounds" must be a number; goal mode is off`);
+    return undefined;
+  }
+  return maxRounds === undefined ? {} : { maxRounds };
+}
+
+/** The text of the last assistant message of a turn, for the goal driver. */
+function lastAssistantText(messages: readonly unknown[]): string {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!isRecord(message) || message.role !== "assistant") continue;
+    const content = message.content;
+    if (typeof content === "string") return content;
+    if (!Array.isArray(content)) continue;
+    const texts: string[] = [];
+    for (const block of content as readonly unknown[]) {
+      if (isRecord(block) && block.type === "text" && typeof block.text === "string") {
+        texts.push(block.text);
+      }
+    }
+    if (texts.length > 0) return texts.join("\n");
+  }
+  return "";
 }
 
 function describe(error: unknown): string {
@@ -187,6 +245,72 @@ export default function (pi: ExtensionAPI): void {
       },
       (error: unknown) => diagnostic(`MCP setup failed: ${describe(error)}`),
     );
+  });
+
+  // Goal mode: one objective at a time, driven by the pure state machine in goal.ts.
+  let goal: GoalState | undefined;
+  let lastTurnText = "";
+
+  const publishGoal = (ctx: ExtensionContext): void => {
+    if (goal === undefined) {
+      ctx.ui.setStatus("goal", undefined);
+      return;
+    }
+    const line = statusLine(goal);
+    ctx.ui.setStatus("goal", line);
+    // The entry is what the app renders on the timeline: a status line with the goal's
+    // state, appended once per transition rather than per round.
+    pi.appendEntry("goal", goal);
+    diagnostic(`goal: ${line}`);
+  };
+
+  if (config.goal !== undefined) {
+    pi.registerCommand("goal", {
+      description: "Work on an objective round by round (start, status, stop)",
+      handler: async (args: string, ctx) => {
+        const command = parseGoalCommand(`/goal ${args}`.trim());
+        if (command === undefined || command.action === "help") {
+          ctx.ui.notify(GOAL_HELP, "info");
+          return;
+        }
+        if (command.action === "status") {
+          ctx.ui.notify(goal === undefined ? "no goal is running" : statusLine(goal), "info");
+          return;
+        }
+        if (command.action === "stop") {
+          if (goal === undefined || !goal.active) {
+            ctx.ui.notify("no goal is running", "info");
+            return;
+          }
+          goal = stopGoal(goal);
+          publishGoal(ctx);
+          ctx.ui.notify(statusLine(goal), "info");
+          return;
+        }
+
+        goal = startGoal(command.objective, config.goal?.maxRounds);
+        publishGoal(ctx);
+        ctx.ui.notify(statusLine(goal), "info");
+        pi.sendUserMessage(roundPrompt(goal));
+      },
+    });
+  }
+
+  // The turn's text is kept so the driver can see the goal marker: `agent_settled`
+  // carries no messages, `agent_end` does.
+  pi.on("agent_end", (event) => {
+    lastTurnText = lastAssistantText(event.messages);
+  });
+
+  pi.on("agent_settled", (_event, ctx: ExtensionContext) => {
+    if (goal === undefined || !goal.active) return;
+    const decision = nextRound(goal, lastTurnText);
+    goal = decision.state;
+    publishGoal(ctx);
+    if (decision.prompt !== undefined) {
+      // A user message, not a custom one: a round must reach the model as a request.
+      pi.sendUserMessage(decision.prompt);
+    }
   });
 
   pi.on("session_shutdown", async () => {

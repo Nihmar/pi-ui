@@ -17,5 +17,5 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["pi-ui-bridge.ts", "mcp.ts", "test/**/*.ts"]
+  "include": ["pi-ui-bridge.ts", "mcp.ts", "goal.ts", "test/**/*.ts"]
 }

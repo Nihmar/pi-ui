@@ -16,6 +16,8 @@ Contract: `docs/spike-interfaces.md` §10 (behaviour) and §5.7 (`PI_UI_BRIDGE_C
 | everything else | no UI, returns `undefined` (the tool call proceeds) |
 | `session_start`, when `mcpConfig` is set | connects every enabled **stdio** MCP server, lists its tools and registers each as a pi tool named `mcp_<server>_<tool>` |
 | `session_shutdown` | closes those connections (SIGTERM, then SIGKILL) — idempotent, like every cleanup path |
+| `/goal start <objective>` | starts a goal: after every settled turn the driver sends the next round, until the model writes `GOAL_DONE` or the round budget is spent |
+| `/goal status` · `/goal stop` | what the current goal is doing, and ending it |
 
 Patterns match as **case-insensitive substrings**, not regular expressions: the patterns
 come from configuration, and a substring can neither fail to compile nor backtrack.
@@ -51,9 +53,31 @@ in the child environment.
 | Field | Required | Default | Notes |
 |---|---|---|---|
 | `sessionId` | no | — | Echoed in the bridge's stderr line, so server logs name the session |
+| `goal` | no | — | Present turns goal mode on: `{}` or `{"maxRounds": 10}` (clamped to 50). Absent leaves `/goal` unregistered |
 | `mcpConfig` | no | — | Path of the MCP configuration the bridge should connect to (`GET/PUT /api/v1/mcp`). The server writes it when MCP is configured; **it names a file, it does not carry the configuration**, because one document serves every session and a change takes effect at the next spawn |
 | `approvals.mode` | no | `"confirm"` | `"confirm"` asks the client; `"off"` never confirms |
 | `approvals.patterns` | no | `["rm -rf", "git push --force", "sudo"]` | Case-insensitive substrings; empty entries are ignored |
+
+## Goal mode
+
+A long-running objective the session keeps working on, **off unless the configuration
+turns it on** (`goal: {}` in the bridge config; `maxRounds` defaults to 10 and is clamped
+to 50). It is a round driver, not a second agent:
+
+- `/goal start <objective>` sends the first round as a user message; every round opens
+  with a review of what is done and what is next, so the model works from state instead
+  of re-reading the objective;
+- after each settled turn the driver decides: the model's `GOAL_DONE` marker ends the
+  goal, otherwise the next round is sent until the budget is spent — a goal can never
+  loop forever, because the budget is the server's and not the model's;
+- the state is published with `setStatus` (a UI bar) and as a `goal` custom entry, which
+  the app renders as a status line on the timeline: no new endpoint, no new frame, and
+  the generic command passthrough is enough to drive it from a client (a prompt
+  `/goal start …`).
+
+The state machine lives in `goal.ts` and is pure — no pi, no clock, no I/O — because the
+loop's decisions are the part worth testing; `test/goal.test.ts` covers the commands, the
+budget, the marker, the status line and the round prompt without a model.
 
 ## MCP
 
