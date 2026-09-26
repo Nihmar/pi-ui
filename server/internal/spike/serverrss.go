@@ -39,6 +39,9 @@ func MeasureServerRSS(ctx context.Context, cfg Config) (ServerRSSResult, error) 
 	if cfg.Sessions < 1 {
 		return ServerRSSResult{}, fmt.Errorf("spike: sessions = %d, want >= 1", cfg.Sessions)
 	}
+	if cfg.Clients < 1 {
+		return ServerRSSResult{}, fmt.Errorf("spike: clients = %d, want >= 1", cfg.Clients)
+	}
 	ctx, cancel := context.WithTimeout(ctx, cfg.Timeout)
 	defer cancel()
 

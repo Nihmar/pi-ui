@@ -91,17 +91,20 @@ type Config struct {
 	Logger *slog.Logger
 }
 
-// withDefaults returns a copy of c with every zero field resolved. Durations that
-// legitimately want zero (Settle) must be set explicitly; a negative value is
-// preserved so validation can reject it instead of silently defaulting.
+// withDefaults returns a copy of c with every zero field resolved. For the counts a
+// negative value is a programming error and is deliberately left alone, so the
+// measurement's own guard rejects it instead of silently running a different size than
+// the caller asked for; the durations treat zero-or-negative as unset, because a
+// non-positive duration can only mean "not configured" (Settle, the one duration that
+// legitimately wants zero, is documented as needing an explicit value).
 func (c Config) withDefaults() Config {
-	if c.Sessions <= 0 {
+	if c.Sessions == 0 {
 		c.Sessions = DefaultSessions
 	}
-	if c.Events <= 0 {
+	if c.Events == 0 {
 		c.Events = DefaultEvents
 	}
-	if c.Clients <= 0 {
+	if c.Clients == 0 {
 		c.Clients = DefaultClients
 	}
 	if c.Settle <= 0 {

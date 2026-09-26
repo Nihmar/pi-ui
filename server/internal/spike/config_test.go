@@ -1,6 +1,7 @@
 package spike
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -32,6 +33,24 @@ func TestWithDefaultsKeepsExplicitValues(t *testing.T) {
 	}
 	if got.Settle != time.Millisecond || got.Timeout != time.Second {
 		t.Fatalf("explicit durations were overwritten: %+v", got)
+	}
+}
+
+// TestNegativeCountsAreRejected pins the seam's contract: only zero means "use the
+// default", because a negative count is a caller error the measurement must report
+// rather than quietly run a different size than the caller asked for.
+func TestNegativeCountsAreRejected(t *testing.T) {
+	got := Config{Sessions: -1, Events: -1, Clients: -1}.withDefaults()
+	if got.Sessions != -1 || got.Events != -1 || got.Clients != -1 {
+		t.Fatalf("negative counts = %d/%d/%d, want them preserved for the measurement's own guard",
+			got.Sessions, got.Events, got.Clients)
+	}
+
+	if _, err := MeasureThroughput(context.Background(), Config{FakePi: "/nonexistent/fake-pi", Clients: -1}); err == nil {
+		t.Error("MeasureThroughput with a negative client count must fail before it dials anything")
+	}
+	if _, err := MeasureServerRSS(context.Background(), Config{FakePi: "/nonexistent/fake-pi", Clients: -1}); err == nil {
+		t.Error("MeasureServerRSS with a negative client count must fail before it dials anything")
 	}
 }
 

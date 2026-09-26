@@ -92,6 +92,12 @@ func MeasureThroughput(ctx context.Context, cfg Config) (ThroughputResult, error
 	if cfg.Sessions < 1 {
 		return ThroughputResult{}, fmt.Errorf("spike: sessions = %d, want >= 1", cfg.Sessions)
 	}
+	if cfg.Events < 1 {
+		return ThroughputResult{}, fmt.Errorf("spike: events = %d, want >= 1", cfg.Events)
+	}
+	if cfg.Clients < 1 {
+		return ThroughputResult{}, fmt.Errorf("spike: clients = %d, want >= 1", cfg.Clients)
+	}
 	ctx, cancel := context.WithTimeout(ctx, cfg.Timeout)
 	defer cancel()
 
