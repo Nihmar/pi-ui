@@ -2,6 +2,7 @@ package spike
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math/rand"
 	"os"
@@ -211,4 +212,29 @@ func equalFloats(a, b []float64) bool {
 		}
 	}
 	return true
+}
+
+// TestThroughputSummaryReportsUnmeasuredGrowth pins the difference between "no growth" and
+// "not measured": a run whose sampler produced no samples prints n/a, and the raw view
+// omits the field instead of recording a zero no reader can distinguish.
+func TestThroughputSummaryReportsUnmeasuredGrowth(t *testing.T) {
+	var unmeasured ThroughputResult
+	if summary := unmeasured.Summary(); !strings.Contains(summary, "rssGrowthPct=n/a") {
+		t.Errorf("Summary() without samples = %q, want rssGrowthPct=n/a", summary)
+	}
+	raw, err := json.Marshal(unmeasured.raw())
+	if err != nil {
+		t.Fatalf("raw(): %v", err)
+	}
+	if strings.Contains(string(raw), "rssGrowthPct") {
+		t.Errorf("raw() without samples = %s, want no rssGrowthPct field", raw)
+	}
+	if !strings.Contains(string(raw), `"smoke":false`) {
+		t.Errorf("raw() = %s, want the smoke marker", raw)
+	}
+
+	measured := ThroughputResult{rssSeries: []RSSSample{{MiB: 1}}, rssGrowthPct: 5}
+	if summary := measured.Summary(); !strings.Contains(summary, "rssGrowthPct=5.00") {
+		t.Errorf("Summary() with samples = %q, want the growth number", summary)
+	}
 }

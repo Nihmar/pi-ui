@@ -29,6 +29,7 @@ type ThroughputResult struct {
 
 	sessions     int
 	clients      int
+	smoke        bool
 	samplesMs    []float64
 	samplesTaken int
 	clientCounts []int
@@ -64,8 +65,14 @@ func (r ThroughputResult) RSSSeries() []RSSSample {
 }
 
 // RSSGrowthPercent is the growth from the first post-warm-up sample to the last
-// (acceptance criterion C9).
+// (acceptance criterion C9). It is 0 when the sampler produced no samples; Smoke and
+// Summary make that case visible instead of reporting a growth of zero.
 func (r ThroughputResult) RSSGrowthPercent() float64 { return r.rssGrowthPct }
+
+// Smoke reports whether the run was the single-event, unpaced pass the idle-RSS
+// measurement uses to start the pipeline: it is a smoke check that the fan-out works, not
+// a measurement of C5/C6, and its throughput line is not printed as one.
+func (r ThroughputResult) Smoke() bool { return r.smoke }
 
 // RSSWarmupMiB is the baseline of the growth calculation.
 func (r ThroughputResult) RSSWarmupMiB() float64 { return r.rssWarmup }
@@ -75,9 +82,13 @@ func (r ThroughputResult) RSSFinalMiB() float64 { return r.rssFinal }
 
 // Summary renders the one-line report cmd/pi-ui measure prints.
 func (r ThroughputResult) Summary() string {
-	return fmt.Sprintf("throughput: sessions=%d clients=%d events=%d durationSec=%.2f eventsPerSec=%.1f loss=%d p50Ms=%.2f p95Ms=%.2f rssWarmupMiB=%.1f rssFinalMiB=%.1f rssGrowthPct=%.2f",
+	growth := "n/a"
+	if len(r.rssSeries) > 0 {
+		growth = fmt.Sprintf("%.2f", r.rssGrowthPct)
+	}
+	return fmt.Sprintf("throughput: sessions=%d clients=%d events=%d durationSec=%.2f eventsPerSec=%.1f loss=%d p50Ms=%.2f p95Ms=%.2f rssWarmupMiB=%.1f rssFinalMiB=%.1f rssGrowthPct=%s",
 		r.sessions, r.clients, r.Events, r.DurationSec, r.EventsPerSec, r.Loss, r.P50Ms, r.P95Ms,
-		r.rssWarmup, r.rssFinal, r.rssGrowthPct)
+		r.rssWarmup, r.rssFinal, growth)
 }
 
 // MeasureThroughput drives cfg.Sessions fake-pi children with `--emit cfg.Events
@@ -192,8 +203,10 @@ func waitForClients(ctx context.Context, clients []*client) bool {
 func buildThroughputResult(cfg Config, clients []*client, expected int, duration time.Duration,
 	series []RSSSample, warmup, final float64) ThroughputResult {
 	result := ThroughputResult{
-		sessions:  cfg.Sessions,
-		clients:   cfg.Clients,
+		sessions: cfg.Sessions,
+		clients:  cfg.Clients,
+		// One unpaced event is the shape of the idle-RSS smoke pass, not a C5/C6 run.
+		smoke:     cfg.Events == 1 && cfg.Rate <= 0,
 		rssSeries: series,
 		rssWarmup: warmup,
 		rssFinal:  final,
@@ -230,28 +243,37 @@ func buildThroughputResult(cfg Config, clients []*client, expected int, duration
 }
 
 // rawThroughput is the flat, JSON-friendly view of a throughput result; the
-// latency samples and the RSS series travel as their own arrays.
+// latency samples and the RSS series travel as their own arrays. RSSGrowthPct is
+// omitted when the sampler produced no samples: a zero would read as "no growth"
+// where the honest answer is "not measured".
 type rawThroughput struct {
-	Sessions        int     `json:"sessions"`
-	Clients         int     `json:"clients"`
-	Events          int     `json:"events"`
-	DurationSec     float64 `json:"durationSec"`
-	EventsPerSec    float64 `json:"eventsPerSec"`
-	Loss            int     `json:"loss"`
-	P50Ms           float64 `json:"p50Ms"`
-	P95Ms           float64 `json:"p95Ms"`
-	LatencyRetained int     `json:"latencyRetained"`
-	LatencyTaken    int     `json:"latencyTaken"`
-	RSSWarmupMiB    float64 `json:"rssWarmupMiB"`
-	RSSFinalMiB     float64 `json:"rssFinalMiB"`
-	RSSGrowthPct    float64 `json:"rssGrowthPct"`
+	Sessions        int      `json:"sessions"`
+	Clients         int      `json:"clients"`
+	Smoke           bool     `json:"smoke"`
+	Events          int      `json:"events"`
+	DurationSec     float64  `json:"durationSec"`
+	EventsPerSec    float64  `json:"eventsPerSec"`
+	Loss            int      `json:"loss"`
+	P50Ms           float64  `json:"p50Ms"`
+	P95Ms           float64  `json:"p95Ms"`
+	LatencyRetained int      `json:"latencyRetained"`
+	LatencyTaken    int      `json:"latencyTaken"`
+	RSSWarmupMiB    float64  `json:"rssWarmupMiB"`
+	RSSFinalMiB     float64  `json:"rssFinalMiB"`
+	RSSGrowthPct    *float64 `json:"rssGrowthPct,omitempty"`
 }
 
 // raw returns the flat view for raw output.
 func (r ThroughputResult) raw() rawThroughput {
+	var growth *float64
+	if len(r.rssSeries) > 0 {
+		value := r.rssGrowthPct
+		growth = &value
+	}
 	return rawThroughput{
 		Sessions:        r.sessions,
 		Clients:         r.clients,
+		Smoke:           r.smoke,
 		Events:          r.Events,
 		DurationSec:     r.DurationSec,
 		EventsPerSec:    r.EventsPerSec,
@@ -262,7 +284,7 @@ func (r ThroughputResult) raw() rawThroughput {
 		LatencyTaken:    r.samplesTaken,
 		RSSWarmupMiB:    r.rssWarmup,
 		RSSFinalMiB:     r.rssFinal,
-		RSSGrowthPct:    r.rssGrowthPct,
+		RSSGrowthPct:    growth,
 	}
 }
 

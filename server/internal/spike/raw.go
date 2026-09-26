@@ -30,20 +30,11 @@ func (c Config) snapshot() configSnapshot {
 	}
 }
 
-// machineSnapshot returns the host description, or an error string when /proc is
-// unreadable, so a raw file always says where it came from.
-func machineSnapshot() any {
-	machine, err := CurrentMachine()
-	if err != nil {
-		return map[string]string{"error": err.Error()}
-	}
-	return machine
-}
-
 // writeRaw stores one measurement's raw samples as JSON under dir. An empty dir is a
-// no-op, so a caller that only wants the summary pays nothing. The file is written
-// whole and the directory is created when missing: the measurement script points
-// RawDir at a gitignored output directory, and raw samples must never half-land.
+// no-op, so a caller that only wants the summary pays nothing. The file lands whole: it is
+// written to a temporary file in the same directory and renamed over the target, so a
+// reader never sees a half-written sample even if the process dies mid-write. The
+// measurement script points RawDir at a gitignored output directory.
 func writeRaw(dir, name string, value any) error {
 	if dir == "" {
 		return nil
@@ -55,9 +46,28 @@ func writeRaw(dir, name string, value any) error {
 	if err != nil {
 		return fmt.Errorf("spike: encode %s: %w", name, err)
 	}
+
+	tmp, err := os.CreateTemp(dir, name+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("spike: create temp for %s: %w", name, err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // no-op once the rename succeeded
+
+	if _, err := tmp.Write(append(data, '\n')); err != nil {
+		tmp.Close()
+		return fmt.Errorf("spike: write %s: %w", tmpName, err)
+	}
+	if err := tmp.Chmod(0o644); err != nil {
+		tmp.Close()
+		return fmt.Errorf("spike: chmod %s: %w", tmpName, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("spike: close %s: %w", tmpName, err)
+	}
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		return fmt.Errorf("spike: write %s: %w", path, err)
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("spike: rename %s: %w", path, err)
 	}
 	return nil
 }
