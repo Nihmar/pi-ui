@@ -16,8 +16,10 @@ import (
 
 // Windows and graces of the child lifecycle.
 const (
-	// termGrace is the time between SIGTERM and SIGKILL on the process group.
-	termGrace = time.Second
+	// TermGrace is the time between SIGTERM and SIGKILL on the process group. It is
+	// exported because a caller that bounds a whole graceful shutdown (sessions.Shutdown)
+	// has to size its budget against the real worst case instead of guessing the value.
+	TermGrace = time.Second
 	// stderrGrace bounds the wait for the child's last diagnostics before Wait closes the
 	// pipes it created. The child has exited by then, so this only covers a grandchild
 	// that inherited stderr.
@@ -149,7 +151,7 @@ func (b *bridge) shutdown() error {
 
 	b.logf("rpc: child %d is still running after stdin EOF; terminating its process group", b.PID())
 	b.terminate(proc)
-	if b.waitForExit(termGrace) {
+	if b.waitForExit(TermGrace) {
 		return nil
 	}
 	b.logf("rpc: child %d ignored SIGTERM; killing its process group", b.PID())
@@ -157,7 +159,7 @@ func (b *bridge) shutdown() error {
 	// The reader goroutine is the usual reaper, but it is parked whenever the consumer
 	// stopped draining Records: wait for the kill to land and reap here, so a child we
 	// just killed can never stay a zombie until the server exits.
-	if b.waitForExit(termGrace) {
+	if b.waitForExit(TermGrace) {
 		return nil
 	}
 	b.logf("rpc: child %d was killed but has not exited yet; the reader goroutine owns its reap", b.PID())

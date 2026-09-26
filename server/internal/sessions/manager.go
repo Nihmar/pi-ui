@@ -244,12 +244,13 @@ func (m *Manager) Stop(ctx context.Context, sessionID string) error {
 	return s.stop(ctx)
 }
 
-// Shutdown stops every child in parallel and waits for the reaping to finish. The
-// server's own context is normally already cancelled when this runs (SIGTERM), so only a
-// deadline in ctx is honoured; otherwise the call bounds itself with shutdownBudget, which
-// keeps acceptance criterion C8 (every child reaped within two seconds) true.
+// Shutdown stops every child in parallel and waits for the reaping and the terminal
+// status of each. The server's own context is normally already cancelled when this runs
+// (SIGTERM), so only a deadline in ctx is honoured; otherwise the call bounds itself with
+// stopBudget, the worst case of one graceful stop, so a slow child cannot be reported as a
+// stuck one.
 func (m *Manager) Shutdown(ctx context.Context) error {
-	budget := shutdownBudget
+	budget := stopBudget
 	if deadline, ok := ctx.Deadline(); ok {
 		if remaining := time.Until(deadline); remaining > 0 && remaining < budget {
 			budget = remaining

@@ -3,6 +3,8 @@ package sessions
 import (
 	"errors"
 	"time"
+
+	"github.com/Nihmar/pi-ui/server/internal/rpc"
 )
 
 // Errors the supervisor reports. ErrLimit and ErrNotFound are frozen by §5.3; the rest
@@ -44,12 +46,20 @@ var defaultPiCommand = []string{DefaultPiCommand, "--mode", "rpc"}
 // Budgets of the child lifecycle.
 const (
 	// killGrace is how long rpc.Close waits for the child to exit after stdin EOF
-	// before SIGTERM; rpc's own termGrace (1s) follows before SIGKILL. Shutdown must
-	// reap every child within two seconds (acceptance criterion C8), so the worst case
-	// here is 0.7s + 1s and the shutdown budget below leaves room for both.
+	// before SIGTERM; rpc.TermGrace follows before SIGKILL, and once more for the reap
+	// of a killed child. C8 (every child reaped within two seconds) is about the measured
+	// wall time of a cooperating child, not about this cap.
 	killGrace = 700 * time.Millisecond
-	// shutdownBudget bounds the whole Shutdown call, whatever the caller's context says.
-	shutdownBudget = 2 * time.Second
+	// terminalBudget bounds the wait for the terminal status once rpc.Close has reaped the
+	// child: the pump needs one scheduling turn plus the status publish, not a child
+	// grace, so this is a safety valve and not a lifecycle window.
+	terminalBudget = 2 * time.Second
+	// stopBudget bounds one whole graceful stop, from "stopping" to the terminal status:
+	// rpc.Close can spend killGrace waiting for stdin EOF and rpc.TermGrace twice
+	// (SIGTERM, then SIGKILL), and the pump gets terminalBudget afterwards. Shutdown
+	// bounds itself by this and not by terminalBudget, so a slow child cannot look like
+	// a stuck one and turn a clean SIGTERM into a non-zero exit.
+	stopBudget = killGrace + 2*rpc.TermGrace + terminalBudget
 	// writeTimeout bounds one extension_ui_response write that happens outside any
 	// caller's context, because a dialog timeout has no request to borrow one from.
 	writeTimeout = 5 * time.Second

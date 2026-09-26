@@ -306,8 +306,9 @@ func exitCodeOf(err error) int {
 // stop shuts the child down and is idempotent: stdin close, then SIGTERM, then SIGKILL,
 // all inside rpc's graces. server.stopping is published before the child is asked to
 // leave, so a client sees the intent even when the child dies slowly. It waits for the
-// pump to publish the terminal status before returning, so a caller can never read
-// "stopping" for a session whose child is already reaped.
+// pump to publish the terminal status before returning — a caller can never read
+// "stopping" for a session whose child is already reaped — and reports a timeout instead
+// of a false success when that status never arrives.
 func (s *session) stop(ctx context.Context) error {
 	s.mu.Lock()
 	bridge := s.bridge
@@ -317,8 +318,7 @@ func (s *session) stop(ctx context.Context) error {
 	}
 	if s.status == StatusStopping {
 		s.mu.Unlock()
-		s.awaitTerminal(bridge)
-		return nil
+		return s.awaitTerminal(bridge)
 	}
 	s.status = StatusStopping
 	s.mu.Unlock()
@@ -330,27 +330,33 @@ func (s *session) stop(ctx context.Context) error {
 		return nil
 	}
 	err := bridge.Close()
-	s.awaitTerminal(bridge)
+	waitErr := s.awaitTerminal(bridge)
 	if err != nil {
 		return Codedf(CodePiError, "stopping session %s: %v", s.id, err)
 	}
-	return nil
+	return waitErr
 }
 
 // awaitTerminal waits for the pump to publish the session's terminal status, bounded by
-// shutdownBudget so a wedged child can never hold Stop or Shutdown forever. bridge is the
+// terminalBudget so a wedged child can never hold Stop or Shutdown forever. bridge is the
 // reference stop read under the lock: a bridge that was never attached means no pump was
 // launched and there is nothing to wait for.
-func (s *session) awaitTerminal(bridge rpc.Bridge) {
+//
+// A budget that expires is reported as a timeout, not swallowed: the child was reaped, but
+// the status a client reads is still "stopping", so a caller that gets no error must be
+// able to trust that the session finished its bookkeeping.
+func (s *session) awaitTerminal(bridge rpc.Bridge) error {
 	if bridge == nil {
-		return
+		return nil
 	}
-	timer := time.NewTimer(shutdownBudget)
+	timer := time.NewTimer(terminalBudget)
 	defer timer.Stop()
 	select {
 	case <-s.done:
+		return nil
 	case <-timer.C:
-		s.logf("terminal status not written within %s; returning without it", shutdownBudget)
+		s.logf("terminal status not written within %s", terminalBudget)
+		return Codedf(CodeTimeout, "session %s did not publish its terminal status within %s", s.id, terminalBudget)
 	}
 }
 

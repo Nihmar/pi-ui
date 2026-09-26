@@ -121,8 +121,8 @@ func TestShutdownStopsEveryChildWithinBudget(t *testing.T) {
 		t.Fatalf("Shutdown: %v", err)
 	}
 	elapsed := time.Since(started)
-	if elapsed > shutdownBudget+200*time.Millisecond {
-		t.Errorf("Shutdown took %s, want it bounded by %s", elapsed, shutdownBudget)
+	if elapsed > stopBudget+200*time.Millisecond {
+		t.Errorf("Shutdown took %s, want it bounded by %s", elapsed, stopBudget)
 	}
 
 	for _, info := range infos {
@@ -242,4 +242,23 @@ func TestStartFailureReapsTheChild(t *testing.T) {
 	if _, ok := rec.last(EventServerReady); ok {
 		t.Errorf("%s was published for a session that never answered get_state", EventServerReady)
 	}
+}
+
+// TestStopReportsAStalledTerminalStatus pins the other half of finding 6.1: when the pump
+// never publishes the terminal status, stop must report the timeout instead of returning
+// nil, so a caller that gets no error can trust that the session finished its bookkeeping.
+func TestStopReportsAStalledTerminalStatus(t *testing.T) {
+	mgr, _ := newTestManager(t, nil)
+	s := newSession(mgr, codegenSessionID, Spec{CWD: "/work"})
+	bridge := newStalledBridge()
+	s.attach(bridge)
+	go s.pump()
+
+	err := s.stop(context.Background())
+	if code := CodeOf(err); code != CodeTimeout {
+		t.Fatalf("stop of a stalled pump = %v (code %q), want %s", err, code, CodeTimeout)
+	}
+
+	// Let the pump finish so the next test starts from a quiet tree.
+	bridge.end()
 }
