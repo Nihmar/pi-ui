@@ -16,7 +16,10 @@
 #   SPIKE_RSS_2            sessions of the 2-session idle RSS run (C2, default 2)
 #   SPIKE_RSS_8            sessions of the 8-session idle RSS run (C3, default 8)
 #   SPIKE_RAPID_*          sessions/clients/events/rate of the C5/C6 run
-#                          (default 1/1/150000/5000)
+#                          (default 1/1/210000/7000: 30 s paced 40% above the
+#                          5 000 events/s threshold, so the pipeline — not the
+#                          source — is what the run measures; see the comment on
+#                          the run itself and docs/spike-report.md)
 #   SPIKE_SOAK_*           sessions/clients/events/rate of the C9 soak
 #                          (default 1/1/360000/2000)
 #   SPIKE_SKIP_SOAK=1      skip the three minute soak
@@ -36,8 +39,8 @@ rss_2="${SPIKE_RSS_2:-2}"
 rss_8="${SPIKE_RSS_8:-8}"
 rapid_sessions="${SPIKE_RAPID_SESSIONS:-1}"
 rapid_clients="${SPIKE_RAPID_CLIENTS:-1}"
-rapid_events="${SPIKE_RAPID_EVENTS:-150000}"
-rapid_rate="${SPIKE_RAPID_RATE:-5000}"
+rapid_events="${SPIKE_RAPID_EVENTS:-210000}"
+rapid_rate="${SPIKE_RAPID_RATE:-7000}"
 soak_sessions="${SPIKE_SOAK_SESSIONS:-1}"
 soak_clients="${SPIKE_SOAK_CLIENTS:-1}"
 soak_events="${SPIKE_SOAK_EVENTS:-360000}"
@@ -100,7 +103,11 @@ fi
 run server-rss-2 --fake-pi "$out_dir/fake-pi" --sessions "$rss_2" --clients 1 --events 1 --rate 0
 run server-rss-8 --fake-pi "$out_dir/fake-pi" --sessions "$rss_8" --clients 1 --events 1 --rate 0
 
-# C5/C6: sustained rapid stream, one client.
+# C5/C6: sustained rapid stream, one client. The source is paced *above* the 5 000
+# events/s threshold on purpose: a source paced at exactly 5 000/s can only measure
+# at or below 5 000/s, so it could never show the pipeline meeting the criterion.
+# 7 000/s for 30 s leaves the source out of the measurement and still leaves the
+# subscriber queue ~70 ms of slack, which keeps the run stable on a busy host.
 run throughput-rapid --fake-pi "$out_dir/fake-pi" \
 	--sessions "$rapid_sessions" --clients "$rapid_clients" \
 	--events "$rapid_events" --rate "$rapid_rate"
