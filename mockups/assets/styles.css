@@ -152,8 +152,8 @@ code, pre, .mono { font-family: var(--mono); font-size: 12.5px; }
   box-shadow: var(--shadow);
   padding: 10px;
 }
-body[data-device="mobile"] .device { width: 412px; }
-body[data-device="desktop"] .device { width: min(1280px, calc(100vw - 64px)); border-radius: var(--r-lg); }
+html[data-device="mobile"] .device { width: 412px; }
+html[data-device="desktop"] .device { width: min(1280px, calc(100vw - 64px)); border-radius: var(--r-lg); }
 
 .device::after {
   content: "";
@@ -166,7 +166,7 @@ body[data-device="desktop"] .device { width: min(1280px, calc(100vw - 64px)); bo
   border-radius: var(--r-full);
   background: var(--border);
 }
-body[data-device="desktop"] .device::after { display: none; }
+html[data-device="desktop"] .device::after { display: none; }
 
 .screen {
   display: flex;
@@ -176,8 +176,8 @@ body[data-device="desktop"] .device::after { display: none; }
   background: var(--bg);
   height: 820px;
 }
-body[data-device="mobile"] .screen { height: 812px; }
-body[data-device="desktop"] .screen { border-radius: var(--r-md); height: 760px; }
+html[data-device="mobile"] .screen { height: 812px; }
+html[data-device="desktop"] .screen { border-radius: var(--r-md); height: 760px; }
 
 .notes {
   flex: 1 1 320px;
@@ -270,8 +270,31 @@ body[data-device="desktop"] .screen { border-radius: var(--r-md); height: 760px;
 .split .half { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
 .split .half + .half { border-left: 1px solid var(--border); }
 
-body[data-device="mobile"] .only-desktop { display: none !important; }
-body[data-device="desktop"] .only-mobile { display: none !important; }
+html[data-device="mobile"] .only-desktop { display: none !important; }
+html[data-device="desktop"] .only-mobile { display: none !important; }
+
+/* A desktop-first screen at phone width: the rail turns into a bottom bar and
+   the panes stack, so the device toggle always shows a usable layout. */
+html[data-device="mobile"] .layout { flex-direction: column; }
+html[data-device="mobile"] .rail {
+  order: 2;
+  flex-direction: row;
+  width: 100%;
+  justify-content: space-around;
+  border-right: 0;
+  border-top: 1px solid var(--border);
+  padding: var(--sp-2);
+}
+html[data-device="mobile"] .rail .mark { display: none; }
+html[data-device="mobile"] .rail a { flex: 1; }
+html[data-device="mobile"] .pane,
+html[data-device="mobile"] .pane.wide {
+  width: 100%;
+  border-right: 0;
+  border-bottom: 1px solid var(--border);
+}
+html[data-device="mobile"] .split { flex-direction: column; }
+html[data-device="mobile"] .split .half + .half { border-left: 0; border-top: 1px solid var(--border); }
 
 /* ---------------------------------------------------------------- content */
 
@@ -567,7 +590,7 @@ label.field-label { display: block; font-size: 12px; color: var(--muted); margin
 
 @media (max-width: 900px) {
   .stage { padding: var(--sp-4) var(--sp-2); }
-  body[data-device="mobile"] .device { width: 100%; max-width: 412px; }
+  html[data-device="mobile"] .device { width: 100%; max-width: 412px; }
   .screen { height: 700px; }
   .notes { max-width: none; }
 }
