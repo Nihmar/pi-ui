@@ -105,7 +105,7 @@ handler directly with a forged `RemoteAddr` for the non-loopback cases.
 | Write from a loopback peer with a token configured (viewer scope) | Pass — 403 `forbidden_scope` |
 | Read/write from a non-loopback peer without a valid token | Pass — 401 `unauthorized`, query-string token ignored |
 | Body that is not JSON / scalar JSON / missing or blank `cwd` | Pass — 400 `bad_request` |
-| Body above the 1 MiB cap | Pass — 400 `bad_request` (see observation 7.3) |
+| Body above the 1 MiB cap | Pass — 400 `bad_request` (observation 6.4, superseded: now 413 `too_large`) |
 | Second session with `maxSessions=1` | Pass — 409 `session_limit` |
 | Slot released after the child exits, session stays listed | Pass — the next create is 201 |
 | Unknown session id (read and stop) | Pass — 404 `session_not_found` |
@@ -178,10 +178,12 @@ either way, and the failure never enters the session event stream. Pinned by
 `TestWS_ReplayUnknownEntryIdIsCursorInvalid`, which asserts the strict order and
 that a second subscriber of the same session never sees the failure.
 
-**6.4 [OBSERVATION] oversized REST body answers 400, not 413.** `maxBodyBytes`
-is 1 MiB; a larger body comes back as `bad_request` (400). The taxonomy has
+**6.4 [OBSERVATION — SUPERSEDED]** oversized REST body answers 400, not 413. `maxBodyBytes`
+is 1 MiB; a larger body came back as `bad_request` (400). The taxonomy has
 `too_large` mapped to 413. The brief asked to report the limit, not to impose
-one; no change requested.
+one; no change requested at the time. Review finding S4 made the mapping reach the
+wire (`86cba37`, *api: reach the declared too_large and busy_streaming codes*),
+and the adversarial oversized-body case now pins 413 `too_large`.
 
 **6.5 [OBSERVATION] `/ws/v1` method/path errors are not JSON.** `POST /ws/v1`
 returns 405 `text/plain`, `GET /ws/v1` without an upgrade returns 426
