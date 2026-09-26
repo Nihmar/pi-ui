@@ -1,2 +1,12 @@
-# Piano di progetto tenuto volutamente solo in locale (non versionato).
+# Project plan: intentionally local-only, never versioned.
 PLAN.md
+
+# Go build outputs
+server/bin/
+server/pi-ui
+
+# Node/TypeScript dependencies (bridge devDependencies only)
+bridge/node_modules/
+
+# Local runtime state (session runtimes, spike outputs)
+.piui/
