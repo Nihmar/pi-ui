@@ -3,6 +3,7 @@ package spike
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -142,4 +143,72 @@ func TestClientErrors(t *testing.T) {
 	if got := clientErrors([]*client{&healthy, &failed}); !strings.Contains(got, "client 1 read: unexpected EOF") {
 		t.Errorf("clientErrors = %q, want it to name the reader error", got)
 	}
+}
+
+// TestClientLatencyReservoir pins the bounded sample window: a short run keeps
+// every sample, a long run keeps exactly latencyLimit of them while still
+// counting all of them, and the window is deterministic for a given seed — the
+// percentiles must not depend on what the replacement policy happened to keep.
+func TestClientLatencyReservoir(t *testing.T) {
+	var short client
+	short.rng = rand.New(rand.NewSource(1))
+	for i := 0; i < 5; i++ {
+		short.addLatency(float64(i))
+	}
+	if _, samples, taken := short.counts(); len(samples) != 5 || taken != 5 {
+		t.Fatalf("short run retained/taken = %d/%d, want 5/5", len(samples), taken)
+	}
+
+	feed := func(c *client, total int) []float64 {
+		for i := 0; i < total; i++ {
+			c.addLatency(float64(i))
+		}
+		_, samples, taken := c.counts()
+		if taken != total {
+			t.Fatalf("samples taken = %d, want %d", taken, total)
+		}
+		if len(samples) != latencyLimit {
+			t.Fatalf("retained %d samples, want the window of %d", len(samples), latencyLimit)
+		}
+		return samples
+	}
+
+	total := latencyLimit + 1000
+	var first, second client
+	first.rng = rand.New(rand.NewSource(1))
+	second.rng = rand.New(rand.NewSource(1))
+	samples := feed(&first, total)
+	for i := range samples {
+		if samples[i] < 0 || samples[i] >= float64(total) {
+			t.Fatalf("sample %d = %v, not drawn from the stream", i, samples[i])
+		}
+	}
+	if other := feed(&second, total); !equalFloats(samples, other) {
+		t.Error("the same seed and stream produced two different windows")
+	}
+	// With 1000 replacements offered, the window cannot still be only the first
+	// latencyLimit samples: replacement must have happened.
+	replaced := false
+	for _, sample := range samples {
+		if sample >= float64(latencyLimit) {
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		t.Error("the window kept only the first latencyLimit samples: no replacement happened")
+	}
+}
+
+// equalFloats reports whether two sample slices are identical.
+func equalFloats(a, b []float64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

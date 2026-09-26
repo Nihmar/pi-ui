@@ -30,6 +30,7 @@ type ThroughputResult struct {
 	sessions     int
 	clients      int
 	samplesMs    []float64
+	samplesTaken int
 	clientCounts []int
 	rssSeries    []RSSSample
 	rssWarmup    float64
@@ -37,10 +38,18 @@ type ThroughputResult struct {
 	rssGrowthPct float64
 }
 
-// RawLatencyMs returns a copy of every end-to-end sample taken on the first
-// client, in arrival order.
+// RawLatencyMs returns a copy of the retained end-to-end samples of the first client,
+// in arrival order. A long run retains a bounded reservoir window rather than every
+// sample: the percentiles are computed from that window, and LatencySamplesTaken reports
+// how many samples it stands for.
 func (r ThroughputResult) RawLatencyMs() []float64 {
 	return append([]float64(nil), r.samplesMs...)
+}
+
+// LatencySamplesTaken is the number of end-to-end samples the run actually took, which
+// exceeds len(RawLatencyMs()) once the reservoir window is full.
+func (r ThroughputResult) LatencySamplesTaken() int {
+	return r.samplesTaken
 }
 
 // ClientEvents returns the pi.* event count each client received, in connection
@@ -185,7 +194,7 @@ func buildThroughputResult(cfg Config, clients []*client, expected int, duration
 	}
 	minCount := -1
 	for _, c := range clients {
-		count, latencies := c.counts()
+		count, latencies, observed := c.counts()
 		result.clientCounts = append(result.clientCounts, count)
 		if minCount < 0 || count < minCount {
 			minCount = count
@@ -193,6 +202,7 @@ func buildThroughputResult(cfg Config, clients []*client, expected int, duration
 		if c.index == 0 {
 			result.Events = count
 			result.samplesMs = latencies
+			result.samplesTaken = observed
 		}
 	}
 	if minCount < 0 {
@@ -216,33 +226,37 @@ func buildThroughputResult(cfg Config, clients []*client, expected int, duration
 // rawThroughput is the flat, JSON-friendly view of a throughput result; the
 // latency samples and the RSS series travel as their own arrays.
 type rawThroughput struct {
-	Sessions     int     `json:"sessions"`
-	Clients      int     `json:"clients"`
-	Events       int     `json:"events"`
-	DurationSec  float64 `json:"durationSec"`
-	EventsPerSec float64 `json:"eventsPerSec"`
-	Loss         int     `json:"loss"`
-	P50Ms        float64 `json:"p50Ms"`
-	P95Ms        float64 `json:"p95Ms"`
-	RSSWarmupMiB float64 `json:"rssWarmupMiB"`
-	RSSFinalMiB  float64 `json:"rssFinalMiB"`
-	RSSGrowthPct float64 `json:"rssGrowthPct"`
+	Sessions        int     `json:"sessions"`
+	Clients         int     `json:"clients"`
+	Events          int     `json:"events"`
+	DurationSec     float64 `json:"durationSec"`
+	EventsPerSec    float64 `json:"eventsPerSec"`
+	Loss            int     `json:"loss"`
+	P50Ms           float64 `json:"p50Ms"`
+	P95Ms           float64 `json:"p95Ms"`
+	LatencyRetained int     `json:"latencyRetained"`
+	LatencyTaken    int     `json:"latencyTaken"`
+	RSSWarmupMiB    float64 `json:"rssWarmupMiB"`
+	RSSFinalMiB     float64 `json:"rssFinalMiB"`
+	RSSGrowthPct    float64 `json:"rssGrowthPct"`
 }
 
 // raw returns the flat view for raw output.
 func (r ThroughputResult) raw() rawThroughput {
 	return rawThroughput{
-		Sessions:     r.sessions,
-		Clients:      r.clients,
-		Events:       r.Events,
-		DurationSec:  r.DurationSec,
-		EventsPerSec: r.EventsPerSec,
-		Loss:         r.Loss,
-		P50Ms:        r.P50Ms,
-		P95Ms:        r.P95Ms,
-		RSSWarmupMiB: r.rssWarmup,
-		RSSFinalMiB:  r.rssFinal,
-		RSSGrowthPct: r.rssGrowthPct,
+		Sessions:        r.sessions,
+		Clients:         r.clients,
+		Events:          r.Events,
+		DurationSec:     r.DurationSec,
+		EventsPerSec:    r.EventsPerSec,
+		Loss:            r.Loss,
+		P50Ms:           r.P50Ms,
+		P95Ms:           r.P95Ms,
+		LatencyRetained: len(r.samplesMs),
+		LatencyTaken:    r.samplesTaken,
+		RSSWarmupMiB:    r.rssWarmup,
+		RSSFinalMiB:     r.rssFinal,
+		RSSGrowthPct:    r.rssGrowthPct,
 	}
 }
 

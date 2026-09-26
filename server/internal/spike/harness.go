@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http/httptest"
 	"strconv"
 	"strings"
@@ -24,6 +25,13 @@ const clientReadLimit = 4 << 20
 
 // clientSetupTimeout bounds dial, hello/welcome and the subscribe barrier.
 const clientSetupTimeout = 15 * time.Second
+
+// latencyLimit bounds the end-to-end samples one client retains. A soak streams
+// hundreds of thousands of events, and one float64 per event would be several MiB of
+// RSS inside the very process whose RSS criterion C9 measures — the harness would be
+// measuring itself. The window is reservoir-sampled (see client.addLatency), so the
+// percentiles stay unbiased while the retained memory stays under a megabyte.
+const latencyLimit = 1 << 16
 
 // shutdownBudget bounds the child reaping of a harness teardown: it matches the
 // two second shutdown budget of acceptance criterion C8 with a little slack.
@@ -171,7 +179,9 @@ type client struct {
 
 	mu        sync.Mutex
 	events    int       // pi.* events received
-	latencies []float64 // end-to-end samples of spike-marked records
+	latencies []float64 // end-to-end samples of spike-marked records, capped at latencyLimit
+	marked    int       // samples taken, including the ones the window did not keep
+	rng       *rand.Rand
 	err       error
 
 	expected int
@@ -191,11 +201,28 @@ func (c *client) write(ctx context.Context, frame string) error {
 	return nil
 }
 
-// counts returns the event count and the latency samples taken so far.
-func (c *client) counts() (int, []float64) {
+// addLatency records one end-to-end sample. The first latencyLimit samples are kept as
+// they arrive; after that the window is updated by reservoir sampling (Vitter's
+// algorithm R), so every sample of the run is equally likely to be in it and the
+// percentiles are unbiased without the memory growing with the event count. The caller
+// holds c.mu.
+func (c *client) addLatency(sample float64) {
+	c.marked++
+	if len(c.latencies) < latencyLimit {
+		c.latencies = append(c.latencies, sample)
+		return
+	}
+	if j := c.rng.Intn(c.marked); j < latencyLimit {
+		c.latencies[j] = sample
+	}
+}
+
+// counts returns the event count, a copy of the retained latency samples and how many
+// samples were actually taken (which exceeds the window once a run is long enough).
+func (c *client) counts() (int, []float64, int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.events, append([]float64(nil), c.latencies...)
+	return c.events, append([]float64(nil), c.latencies...), c.marked
 }
 
 // readErr returns the first reader error, if any.
@@ -265,7 +292,7 @@ func (c *client) observe(data []byte) {
 	c.mu.Lock()
 	c.events++
 	if marked {
-		c.latencies = append(c.latencies, latency)
+		c.addLatency(latency)
 	}
 	done := c.events >= c.expected
 	c.mu.Unlock()
@@ -315,6 +342,8 @@ func connectClient(ctx context.Context, url string, ids []string, index, expecte
 		expected: expected,
 		complete: make(chan struct{}),
 		finished: make(chan struct{}),
+		// A fixed seed per client keeps the reservoir window reproducible.
+		rng: rand.New(rand.NewSource(int64(index) + 1)),
 	}
 
 	hello := `{"type":"hello","v":1,"client":{"name":"pi-ui-spike","version":"0.1.0"}}`
