@@ -92,6 +92,11 @@ func (a *api) refresh(w http.ResponseWriter, r *http.Request) {
 			"a device token is required to refresh it")
 		return
 	}
+	deviceID := deviceFrom(r.Context())
+	if ok, retry := a.refreshRateLimit.Allow(rateKey(deviceID, r)); !ok {
+		a.writeRateLimited(w, r, scopeFrom(r.Context()), deviceID, retry, "refresh")
+		return
+	}
 	result, err := service.Refresh(token)
 	if err != nil {
 		writeAuthError(w, err)

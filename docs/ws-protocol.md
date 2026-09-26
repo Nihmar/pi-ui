@@ -52,6 +52,7 @@ status code. The hub therefore splits it by phase:
 | Phase | Failure | Result |
 |---|---|---|
 | before the upgrade | missing/wrong token, non-loopback peer with no token configured, Host or Origin not allowed | `401 Unauthorized`, body `{"error":{"code":"unauthorized","message":"…"}}` (the §11 shape) |
+| before the upgrade | the connect budget is spent | `429 Too Many Requests` with `Retry-After`, body `{"error":{"code":"rate_limited","message":"…"}}` |
 | after the upgrade | first frame is not `hello`, `hello` does not match the schema, or `v != 1` | WebSocket close status **4401** (private-use range, 4000–4999) with a reason |
 
 Both carry the same meaning and the same code (`unauthorized` / 4401) to the client; a

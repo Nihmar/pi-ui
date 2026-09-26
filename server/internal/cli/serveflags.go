@@ -27,6 +27,10 @@ const (
 	envAllowHosts    = "PIUI_ALLOW_HOSTS"
 	envAllowOrigins  = "PIUI_ALLOW_ORIGINS"
 	envBridge        = "PIUI_BRIDGE"
+	envRateRest      = "PIUI_RATE_REST"
+	envRateRefresh   = "PIUI_RATE_REFRESH"
+	envRateWS        = "PIUI_RATE_WS"
+	envRatePrompt    = "PIUI_RATE_PROMPT"
 )
 
 // Defaults of the serve command.
@@ -37,6 +41,12 @@ const (
 	defaultReplayEvents = 2000
 	defaultReplayWindow = 15 * time.Minute
 	defaultHeartbeat    = 30 * time.Second
+
+	// Rate limits of PLAN.md §4.6: per token per minute. 0 disables one.
+	defaultRateRest    = 120
+	defaultRateRefresh = 10
+	defaultRateWS      = 10
+	defaultRatePrompt  = 30
 )
 
 // serveConfig is the resolved configuration of one `pi-ui serve`.
@@ -54,6 +64,10 @@ type serveConfig struct {
 	allowHosts    []string
 	allowOrigins  []string
 	stateDir      string
+	rateRest      int
+	rateRefresh   int
+	rateWS        int
+	ratePrompt    int
 	sessionFlags  []string
 }
 
@@ -163,6 +177,10 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("allow-hosts", "", "comma-separated extra Host values accepted by /ws/v1")
 	fs.String("allow-origins", "", "comma-separated extra Origin values accepted by /ws/v1")
 	fs.String("state-dir", "", "state directory holding the SQLite database (PIUI_STATE_DIR)")
+	fs.String("rate-rest", "", "REST requests per device per minute, 0 = off (default 120)")
+	fs.String("rate-refresh", "", "token rotations per device per minute, 0 = off (default 10)")
+	fs.String("rate-ws", "", "WebSocket connects per token per minute, 0 = off (default 10)")
+	fs.String("rate-prompt", "", "prompts per session per minute, 0 = off (default 30)")
 	var sessionArgs sessionFlag
 	fs.Var(&sessionArgs, "session", "session to start at boot: <cwd>[:<name>] (repeatable)")
 
@@ -199,6 +217,18 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 		return serveConfig{}, err
 	}
 	if cfg.heartbeat, err = resolveDuration(fs, "heartbeat", envHeartbeat, defaultHeartbeat); err != nil {
+		return serveConfig{}, err
+	}
+	if cfg.rateRest, err = resolveInt(fs, "rate-rest", envRateRest, defaultRateRest); err != nil {
+		return serveConfig{}, err
+	}
+	if cfg.rateRefresh, err = resolveInt(fs, "rate-refresh", envRateRefresh, defaultRateRefresh); err != nil {
+		return serveConfig{}, err
+	}
+	if cfg.rateWS, err = resolveInt(fs, "rate-ws", envRateWS, defaultRateWS); err != nil {
+		return serveConfig{}, err
+	}
+	if cfg.ratePrompt, err = resolveInt(fs, "rate-prompt", envRatePrompt, defaultRatePrompt); err != nil {
 		return serveConfig{}, err
 	}
 	return cfg, nil
@@ -250,6 +280,10 @@ func writeServeUsage(w io.Writer) {
 		"  --allow-hosts a,b          extra Host values accepted by /ws/v1 (PIUI_ALLOW_HOSTS)\n"+
 		"  --allow-origins a,b        extra Origin values accepted by /ws/v1 (PIUI_ALLOW_ORIGINS)\n"+
 		"  --state-dir <path>         SQLite state database (PIUI_STATE_DIR)\n"+
+		"  --rate-rest N              REST requests per device per minute (PIUI_RATE_REST)\n"+
+		"  --rate-refresh N           token rotations per device per minute (PIUI_RATE_REFRESH)\n"+
+		"  --rate-ws N                WebSocket connects per token per minute (PIUI_RATE_WS)\n"+
+		"  --rate-prompt N            prompts per session per minute (PIUI_RATE_PROMPT)\n"+
 		"\n"+
 		"environment only: PIUI_RUNTIME_DIR (per-session runtime files, default\n"+
 		"$XDG_RUNTIME_DIR/pi-ui or os.TempDir()/pi-ui-<uid>)\n\n"+

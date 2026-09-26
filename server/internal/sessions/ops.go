@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"sort"
 	"strings"
+	"time"
 )
 
 // pi command types the op table maps onto. Everything else reaches pi through
@@ -32,7 +33,7 @@ type opHandler func(ctx context.Context, s *session, payload json.RawMessage) (j
 //	session.abort        pi abort
 //	session.clear_queue  pi clear_queue
 var ops = map[string]opHandler{
-	"session.prompt":      forwardOp(commandTypePrompt),
+	"session.prompt":      promptOp,
 	"session.steer":       forwardOp(commandTypeSteer),
 	"session.follow_up":   forwardOp(commandTypeFollowUp),
 	"session.abort":       forwardOp(commandTypeAbort),
@@ -78,6 +79,19 @@ func commandFromPayload(commandType string, payload json.RawMessage) (json.RawMe
 	delete(fields, "id")
 	setField(fields, "type", commandType)
 	return json.Marshal(fields)
+}
+
+// promptForward is the plain pi prompt the rate-limited op delegates to.
+var promptForward = forwardOp(commandTypePrompt)
+
+// promptOp bounds prompts per session (PLAN.md §4.6). A client that hammers a session
+// gets a coded rate_limited answer carrying the wait; steer and follow-up stay the way
+// to talk to a running turn, and they are not what this budget exists to stop.
+func promptOp(ctx context.Context, s *session, payload json.RawMessage) (json.RawMessage, error) {
+	if ok, retry := s.mgr.promptLimit.Allow(s.id); !ok {
+		return nil, Codedf(CodeRateLimited, "prompt rate limit reached; retry in %s", retry.Round(time.Second))
+	}
+	return promptForward(ctx, s, payload)
 }
 
 // forwardOp maps one client op onto the same-named pi command.

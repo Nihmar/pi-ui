@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/rpc"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -23,6 +24,9 @@ type Manager struct {
 	mu       sync.Mutex
 	sessions map[string]*session
 	order    []string // creation order, so List is stable
+
+	// promptLimit bounds prompts per session per minute; nil when disabled.
+	promptLimit *ratelimit.Limiter
 }
 
 var (
@@ -48,13 +52,17 @@ func New(cfg Config) *Manager {
 	if cfg.SendTimeout <= 0 {
 		cfg.SendTimeout = DefaultSendTimeout
 	}
+	if cfg.PromptLimit < 0 {
+		cfg.PromptLimit = 0
+	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.DiscardHandler)
 	}
 	return &Manager{
-		cfg:      cfg,
-		logger:   cfg.Logger,
-		sessions: map[string]*session{},
+		cfg:         cfg,
+		logger:      cfg.Logger,
+		sessions:    map[string]*session{},
+		promptLimit: ratelimit.New(cfg.PromptLimit),
 	}
 }
 

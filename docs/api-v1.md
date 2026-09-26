@@ -155,11 +155,23 @@ see.
 A failed pairing never says which part was wrong (code vs secret vs expiry):
 the failure is one `unauthorized`, and the attempt is audited.
 
-### Rate limits and audit
+### Rate limits
 
-- Pairing: 5 attempts/min/IP, then a lockout. Refresh: 10/min/token.
-- REST commands: 120/min/token (burst 30); `prompt` 30/min/session.
-- Audit events: `auth.pair`, `auth.denied`, `device.revoke`.
+Token buckets: a burst the client may spend at once, then the sustained rate. A
+refused request is `429 rate_limited` with `Retry-After` (seconds) and one
+`rate.limited` entry in the audit trail.
+
+| Budget | Default | Key | Flag |
+|---|---|---|---|
+| REST requests | 120/min | device, or peer host without a token | `--rate-rest` |
+| Token refresh | 10/min | device | `--rate-refresh` |
+| WebSocket connects | 10/min | token (hashed), or peer host | `--rate-ws` |
+| Prompts | 30/min | session | `--rate-prompt` |
+
+Pairing keeps its own budget in the auth service (5 attempts/min/IP with a
+lockout) and answers `401 unauthorized`, never leaking which part failed. A
+budget of `0` disables it. The burst is a quarter of the rate (at least one), so
+`120/min` allows 30 requests back to back on a cold bucket.
 
 ## Audit
 

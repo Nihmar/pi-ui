@@ -6,6 +6,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/Nihmar/pi-ui/server/internal/audit"
+	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -32,6 +33,11 @@ type Options struct {
 	// Audit records what happened and serves GET /audit. Nil means no trail and a
 	// 501 on the endpoint: auditing is a capability, not a precondition.
 	Audit AuditService
+	// RateLimit bounds the REST surface per device (or per peer when there is no
+	// token); RefreshRateLimit bounds token rotations separately. Nil disables the
+	// corresponding budget.
+	RateLimit        *ratelimit.Limiter
+	RefreshRateLimit *ratelimit.Limiter
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -87,13 +93,15 @@ type ServerInfo struct {
 // parse a text/plain body from net/http.
 func NewRouter(o Options) http.Handler {
 	a := &api{
-		supervisor:  o.Supervisor,
-		hub:         o.Hub,
-		info:        o.Info,
-		auth:        o.Auth,
-		authService: o.AuthService,
-		audit:       o.Audit,
-		pairSchema:  compilePairSchema(),
+		supervisor:       o.Supervisor,
+		hub:              o.Hub,
+		info:             o.Info,
+		auth:             o.Auth,
+		authService:      o.AuthService,
+		audit:            o.Audit,
+		rateLimit:        o.RateLimit,
+		refreshRateLimit: o.RefreshRateLimit,
+		pairSchema:       compilePairSchema(),
 	}
 	switch {
 	case a.auth != nil:
@@ -156,13 +164,15 @@ func NewRouter(o Options) http.Handler {
 // api holds the wired dependencies; every handler is a method on it, so adding an endpoint
 // is one method plus one registration above.
 type api struct {
-	supervisor  sessions.Supervisor
-	hub         ws.Hub
-	info        ServerInfo
-	auth        Authenticator
-	authService AuthService
-	audit       AuditService
-	pairSchema  *jsonschema.Schema
+	supervisor       sessions.Supervisor
+	hub              ws.Hub
+	info             ServerInfo
+	auth             Authenticator
+	authService      AuthService
+	audit            AuditService
+	rateLimit        *ratelimit.Limiter
+	refreshRateLimit *ratelimit.Limiter
+	pairSchema       *jsonschema.Schema
 }
 
 // authorized authenticates the request and enforces the required scope. The resolved scope
@@ -170,6 +180,15 @@ type api struct {
 func (a *api) authorized(required Scope, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		scope, deviceID, err := authenticate(a.auth, r)
+		if err == nil {
+			// The budget is spent after authentication, so it is per device rather than
+			// per socket, and before the scope check, so a read-only client is bounded
+			// too.
+			if ok, retry := a.rateLimit.Allow(rateKey(deviceID, r)); !ok {
+				a.writeRateLimited(w, r, scope, deviceID, retry, "rest")
+				return
+			}
+		}
 		if err != nil {
 			// A refused credential is exactly what a review looks for first.
 			ev := a.auditEvent(r, audit.ActionAuthDenied, audit.OutcomeDenied)

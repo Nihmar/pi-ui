@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/Nihmar/pi-ui/server/internal/ws"
@@ -141,5 +142,30 @@ func TestCommandFromPayloadNullIsAnEmptyPayload(t *testing.T) {
 	}
 	if string(decoded["type"]) != `"prompt"` {
 		t.Errorf("command = %s, want a prompt type", command)
+	}
+}
+
+// TestPromptRateLimitIsCodedAndPerSession pins PLAN.md §4.6: a session that exhausts its
+// prompt budget answers rate_limited with the wait in the message, while another session
+// keeps its own bucket.
+func TestPromptRateLimitIsCodedAndPerSession(t *testing.T) {
+	mgr, _ := newTestManager(t, func(cfg *Config) { cfg.PromptLimit = 1 })
+	first := startSession(t, mgr, Spec{CWD: t.TempDir(), Command: fakeChild(t, fakeharness.Script{})})
+	second := startSession(t, mgr, Spec{CWD: t.TempDir(), Command: fakeChild(t, fakeharness.Script{})})
+
+	if _, err := mgr.Send(context.Background(), first.ID, "session.prompt", json.RawMessage(`{"message":"one"}`)); err != nil {
+		t.Fatalf("first prompt: %v", err)
+	}
+	_, err := mgr.Send(context.Background(), first.ID, "session.prompt", json.RawMessage(`{"message":"two"}`))
+	if code := CodeOf(err); code != CodeRateLimited {
+		t.Fatalf("second prompt = %v (code %q), want %q", err, code, CodeRateLimited)
+	}
+	if !strings.Contains(err.Error(), "retry in") {
+		t.Fatalf("message = %q, want the wait", err)
+	}
+
+	// Another session has its own bucket.
+	if _, err := mgr.Send(context.Background(), second.ID, "session.prompt", json.RawMessage(`{"message":"one"}`)); err != nil {
+		t.Fatalf("prompt on the other session: %v", err)
 	}
 }

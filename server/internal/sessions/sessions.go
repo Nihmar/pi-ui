@@ -75,6 +75,7 @@ type Config struct {
 	MaxSessions   int           // default 8
 	DialogTimeout time.Duration // default 60s
 	SendTimeout   time.Duration // default 15s
+	PromptLimit   int           // prompts per session per minute (default 30, 0 = off)
 	Logger        *slog.Logger
 	Hub           Publisher // injected
 }

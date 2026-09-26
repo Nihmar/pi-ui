@@ -13,6 +13,7 @@ import (
 
 	"github.com/Nihmar/pi-ui/server/internal/api"
 	"github.com/Nihmar/pi-ui/server/internal/audit"
+	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -110,6 +111,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		BridgeExt:     cfg.bridge,
 		MaxSessions:   cfg.maxSessions,
 		DialogTimeout: cfg.dialogTimeout,
+		PromptLimit:   cfg.ratePrompt,
 		Logger:        logger,
 		Hub:           hub,
 	})
@@ -131,6 +133,11 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	options.Auth = authenticator
 	options.Audit = auditLog
+	options.RateLimit = ratelimit.New(cfg.rateRest)
+	options.RefreshRateLimit = ratelimit.New(cfg.rateRefresh)
+	// The connect budget wraps the hub: the handshake still authenticates, but only
+	// after a token has been spent for this client.
+	options.Hub = connectLimitedHub{Hub: hub, limit: ratelimit.New(cfg.rateWS), audit: auditLog}
 	if cfg.token == "" {
 		// Pairing endpoints only exist in device mode; --token keeps the static-token
 		// compatibility mode of the spike.
@@ -159,6 +166,10 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		"bridge", cfg.bridge != "",
 		"tokenRequired", cfg.token != "",
 		"deviceAuth", cfg.token == "",
+		"rateRest", cfg.rateRest,
+		"rateRefresh", cfg.rateRefresh,
+		"rateWS", cfg.rateWS,
+		"ratePrompt", cfg.ratePrompt,
 	)
 	// The one line on stdout: a supervisor or a test needs the address it actually bound
 	// (with --addr 127.0.0.1:0 the port is the kernel's choice).

@@ -29,6 +29,7 @@ const (
 	CodeReplayCursorInvalid = "replay_cursor_invalid"
 	CodeTooLarge            = "too_large"
 	CodeUnsupported         = "unsupported"
+	CodeRateLimited         = "rate_limited"
 	CodeInternal            = "internal"
 )
 

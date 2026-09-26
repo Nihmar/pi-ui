@@ -38,6 +38,8 @@ const (
 	DefaultSendTimeout = 15 * time.Second
 	// DefaultPiCommand is the child argv when Config.PiCommand is empty.
 	DefaultPiCommand = "pi"
+	// DefaultPromptLimit bounds prompts per session per minute (PLAN.md §4.6).
+	DefaultPromptLimit = 30
 )
 
 // defaultPiCommand is DefaultPiCommand spelled as argv.
