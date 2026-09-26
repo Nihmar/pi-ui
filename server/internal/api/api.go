@@ -8,6 +8,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/fs"
 	"github.com/Nihmar/pi-ui/server/internal/git"
+	"github.com/Nihmar/pi-ui/server/internal/mcp"
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
@@ -56,6 +57,9 @@ type Options struct {
 	Settings *settings.Service
 	// Tasks runs background commands inside those workspaces. Nil answers 501.
 	Tasks *tasks.Service
+	// MCP is the MCP server configuration the bridge reads. Nil (or an empty path)
+	// answers 501: MCP is a capability a deployment opts into.
+	MCP *mcp.Service
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -124,6 +128,7 @@ func NewRouter(o Options) http.Handler {
 		search:           o.Search,
 		settings:         o.Settings,
 		tasks:            o.Tasks,
+		mcp:              o.MCP,
 		pairSchema:       compilePairSchema(),
 	}
 	switch {
@@ -194,6 +199,10 @@ func NewRouter(o Options) http.Handler {
 	mux.HandleFunc("POST /api/v1/drain/start", a.authorized(ScopeAdmin, a.startDrain))
 	mux.HandleFunc("POST /api/v1/drain/resume", a.authorized(ScopeAdmin, a.resumeDrain))
 
+	// The MCP configuration: admin, because it names programs and endpoints.
+	mux.HandleFunc("GET /api/v1/mcp", a.authorized(ScopeAdmin, a.getMcp))
+	mux.HandleFunc("PUT /api/v1/mcp", a.authorized(ScopeAdmin, a.putMcp))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -234,6 +243,7 @@ type api struct {
 	search           *search.Service
 	settings         *settings.Service
 	tasks            *tasks.Service
+	mcp              *mcp.Service
 	pairSchema       *jsonschema.Schema
 	drain            drainState
 }

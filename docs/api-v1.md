@@ -376,3 +376,42 @@ a `systemctl restart` (or a deploy) a staged operation instead of a killing spre
 client can explain a refused create instead of showing a bare error. Both operations are
 audited as `drain.start` / `drain.resume` with the number of sessions running at the
 time; a drain never stops or evicts a session.
+
+## MCP
+
+The configuration of the MCP servers the bridge extension connects to. **pi never sees
+this document**: the server stores and validates it, and the bridge inside each child
+reads it through the path the server puts in `PI_UI_BRIDGE_CONFIG` (`mcpConfig`). A
+change therefore takes effect at the **next spawn**, which is what the `GET` response's
+`path` is for: an operator can see exactly which file the next child will read.
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/api/v1/mcp` | admin | `{path, version?, servers:{name:{…}}, enabled:[names]}` |
+| PUT | `/api/v1/mcp` | admin | the same shape → the stored document (redacted) |
+
+```json
+{"servers":{
+  "files":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","/srv"],
+           "env":{"TOKEN":"***"}},
+  "remote":{"url":"https://mcp.example/sse","headers":{"Authorization":"***"}},
+  "legacy":{"command":"uvx","enabled":false}
+}}
+```
+
+A server entry needs exactly one of `command` (stdio, with `args` and `env`) or `url`
+(http/https, with `headers`); `enabled: false` keeps an entry in the file without
+starting it. Anything else is a `bad_request`, the catalogue is bounded, and unknown
+fields — a `timeoutSec` a newer bridge understands, a whole top-level key — are
+preserved verbatim through a read/write round trip, so this server can be older than the
+bridge without truncating its configuration.
+
+**Secrets**: `env` and `headers` values are stored in the file (0600, written through a
+temporary file and renamed) and are **never returned** — every value comes back as `***`,
+keys included. Sending that sentinel back means "keep the stored value", which is what
+lets a client edit an entry without ever holding its secret; sending it for a key that is
+not stored is a `bad_request` rather than a silent blank.
+
+The file lives at `--mcp-config`, or `<state-dir>/mcp.json` when the server has a state
+directory. Without either, these endpoints answer `501 unsupported`: MCP is a capability
+a deployment opts into.

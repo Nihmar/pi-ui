@@ -70,9 +70,12 @@ type Info struct {
 // Config tunes the supervisor. New replaces every zero field with its default, so a
 // caller only fills in what it cares about (docs/spike-interfaces.md §5.3).
 type Config struct {
-	PiCommand     []string      // e.g. ["pi","--mode","rpc"]; fake-pi in tests
-	SessionDir    string        // optional base --session-dir
-	BridgeExt     string        // optional -e path
+	PiCommand  []string // e.g. ["pi","--mode","rpc"]; fake-pi in tests
+	SessionDir string   // optional base --session-dir
+	BridgeExt  string   // optional -e path
+	// MCPConfig is the MCP configuration file the bridge reads, when MCP is
+	// configured. Empty means the bridge finds no servers to connect to.
+	MCPConfig     string
 	MaxSessions   int           // default 8
 	DialogTimeout time.Duration // default 60s
 	SendTimeout   time.Duration // default 15s

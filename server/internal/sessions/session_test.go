@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log/slog"
+	"os"
 	"strings"
 	"testing"
 )
@@ -37,12 +38,42 @@ func TestStderrLinesAreCappedAndNeverTakeTheRecordStream(t *testing.T) {
 func TestSessionIDIsUsedAsTheSessionDirectoryDocument(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(runtimeDirEnv, dir)
-	path, err := writeBridgeConfig(codegenSessionID)
+	path, err := writeBridgeConfig(codegenSessionID, "/srv/mcp.json")
 	if err != nil {
 		t.Fatalf("writeBridgeConfig: %v", err)
 	}
 	if !strings.HasSuffix(path, codegenSessionID+".json") {
 		t.Errorf("path = %q, want <runtime>/%s.json", path, codegenSessionID)
+	}
+
+	// The document names the MCP configuration for the bridge: a path, not the
+	// configuration, because one file serves every session.
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document struct {
+		SessionID string `json:"sessionId"`
+		MCPConfig string `json:"mcpConfig"`
+	}
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	if document.SessionID != codegenSessionID || document.MCPConfig != "/srv/mcp.json" {
+		t.Errorf("document = %+v", document)
+	}
+
+	// Without MCP configured, the field is absent rather than empty.
+	path, err = writeBridgeConfig(codegenSessionID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "mcpConfig") {
+		t.Errorf("an unconfigured bridge config should not mention MCP: %s", raw)
 	}
 }
 

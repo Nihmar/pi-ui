@@ -39,6 +39,10 @@ var approvalPatterns = []string{"rm -rf", "git push --force", "sudo"}
 type bridgeConfig struct {
 	SessionID string          `json:"sessionId"`
 	Approvals bridgeApprovals `json:"approvals"`
+	// MCPConfig is the file the bridge reads for the MCP servers it should connect
+	// to. It is a path, not the configuration: one document serves every session, and
+	// a change takes effect at the next spawn.
+	MCPConfig string `json:"mcpConfig,omitempty"`
 }
 
 // bridgeApprovals is the approval policy of one session.
@@ -97,7 +101,7 @@ func (m *Manager) childEnv(spec Spec, argv []string, sessionID string) ([]string
 	if !hasFlag(argv, flagExtension) {
 		return env, nil
 	}
-	path, err := writeBridgeConfig(sessionID)
+	path, err := writeBridgeConfig(sessionID, m.cfg.MCPConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +112,7 @@ func (m *Manager) childEnv(spec Spec, argv []string, sessionID string) ([]string
 // written through a temporary file and renamed, so a child that starts reading
 // immediately never sees a half-written JSON object; it is 0600 because it is
 // per-session state.
-func writeBridgeConfig(sessionID string) (string, error) {
+func writeBridgeConfig(sessionID, mcpConfig string) (string, error) {
 	dir := RuntimeDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("sessions: runtime dir %s: %w", dir, err)
@@ -116,6 +120,7 @@ func writeBridgeConfig(sessionID string) (string, error) {
 	document := bridgeConfig{
 		SessionID: sessionID,
 		Approvals: bridgeApprovals{Mode: approveModeConfirm, Patterns: approvalPatterns},
+		MCPConfig: mcpConfig,
 	}
 	data, err := json.Marshal(document)
 	if err != nil {

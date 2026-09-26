@@ -143,6 +143,9 @@ type task struct {
 	output    []byte
 	truncated bool
 	done      chan struct{}
+	// collected is closed once the output pipe reached EOF: the end of a task is
+	// reported after its last byte, never before.
+	collected chan struct{}
 }
 
 // New builds the runner.
@@ -218,13 +221,14 @@ func (s *Service) Start(ctx context.Context, spec Spec, owner string) (Task, err
 		return Task{}, sessions.Codedf(sessions.CodeBadRequest, "%s cannot be started: %v", spec.Command, err)
 	}
 	record := &task{
-		spec:    Spec{Name: name, Command: spec.Command, Args: append([]string(nil), spec.Args...), Dir: dir},
-		id:      id,
-		owner:   owner,
-		started: time.Now(),
-		cmd:     command,
-		status:  StatusRunning,
-		done:    make(chan struct{}),
+		spec:      Spec{Name: name, Command: spec.Command, Args: append([]string(nil), spec.Args...), Dir: dir},
+		id:        id,
+		owner:     owner,
+		started:   time.Now(),
+		cmd:       command,
+		status:    StatusRunning,
+		done:      make(chan struct{}),
+		collected: make(chan struct{}),
 	}
 	s.mu.Lock()
 	s.tasks[id] = record
@@ -317,6 +321,7 @@ func (s *Service) StopAll() {
 
 // collect reads the combined output into the ring until the command ends.
 func (s *Service) collect(record *task, stdout io.Reader) {
+	defer close(record.collected)
 	buffer := make([]byte, 32<<10)
 	limit := s.cfg.OutputBytes
 	for {
@@ -340,6 +345,15 @@ func (s *Service) collect(record *task, stdout io.Reader) {
 // wait reaps the process and records how it ended.
 func (s *Service) wait(record *task) {
 	err := record.cmd.Wait()
+
+	// The process is gone, so the output pipe is at EOF or one read away; waiting for
+	// the collector is what makes "not running any more" mean "the output is complete"
+	// for a client that polls the status and then reads what it printed.
+	select {
+	case <-record.collected:
+	case <-time.After(StopGrace):
+		// A reader that will not finish must not hold the ending hostage.
+	}
 
 	record.mu.Lock()
 	code := -1

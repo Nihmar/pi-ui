@@ -49,6 +49,7 @@ in the child environment.
 | Field | Required | Default | Notes |
 |---|---|---|---|
 | `sessionId` | no | — | Echoed in the bridge's stderr line, so server logs name the session |
+| `mcpConfig` | no | — | Path of the MCP configuration the bridge should connect to (`GET/PUT /api/v1/mcp`). The server writes it when MCP is configured; **it names a file, it does not carry the configuration**, because one document serves every session and a change takes effect at the next spawn |
 | `approvals.mode` | no | `"confirm"` | `"confirm"` asks the client; `"off"` never confirms |
 | `approvals.patterns` | no | `["rm -rf", "git push --force", "sudo"]` | Case-insensitive substrings; empty entries are ignored |
 

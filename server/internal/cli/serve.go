@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/Nihmar/pi-ui/server/internal/api"
 	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/fs"
+	"github.com/Nihmar/pi-ui/server/internal/mcp"
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
@@ -44,6 +46,19 @@ const (
 // A cancelled context (SIGINT/SIGTERM) is a clean stop, not a failure: Serve stops accepting
 // requests, closes the hub, shades the sessions down and returns nil once every child is
 // reaped, so a supervisor sees a successful exit.
+// mcpPath is where the MCP configuration lives: what the flag said, else the state
+// directory, because a deployment that has one has somewhere to keep it. A server with
+// neither has no MCP surface at all (a 501), which is the honest answer.
+func mcpPath(cfg serveConfig) string {
+	if cfg.mcpConfig != "" {
+		return cfg.mcpConfig
+	}
+	if cfg.stateDir == "" {
+		return ""
+	}
+	return filepath.Join(cfg.stateDir, "mcp.json")
+}
+
 func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	cfg, err := parseServeConfig(args, stderr)
 	if err != nil {
@@ -114,6 +129,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	supervisor := sessions.New(sessions.Config{
 		PiCommand:     []string{cfg.pi, "--mode", "rpc"},
 		BridgeExt:     cfg.bridge,
+		MCPConfig:     mcpPath(cfg),
 		MaxSessions:   cfg.maxSessions,
 		DialogTimeout: cfg.dialogTimeout,
 		PromptLimit:   cfg.ratePrompt,
@@ -182,6 +198,11 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		// The settings live in the state database, and a running server publishes a
 		// change so a client showing them notices another device's edit.
 		options.Settings = settings.New(stateDB.Settings(), hub)
+	}
+	if path := mcpPath(cfg); path != "" {
+		// One document serves every session; a change takes effect at the next spawn,
+		// which is why the sessions carry the path and not the configuration.
+		options.MCP = mcp.New(path)
 	}
 
 	options.Auth = authenticator
