@@ -1,0 +1,150 @@
+import 'package:dio/dio.dart';
+
+import '../models/session.dart';
+import 'dto.dart';
+import 'errors.dart';
+import 'http.dart';
+import 'json.dart';
+import 'profile.dart';
+
+/// The REST half of the server API (`/api/v1`, docs/api-v1.md).
+///
+/// One instance talks to one server with one device token; the token is attached
+/// by the Dio built in [createDio], so no call ever forgets it. Errors are always
+/// [PiuiException] with a code from `schemas/core.json`.
+class PiUiClient {
+  PiUiClient({required this.profile, Dio? dio, this.onTokenRotated})
+    : _dio =
+          dio ??
+          createDio(
+            baseUrl: profile.baseUrl,
+            token: profile.token,
+            fingerprint: profile.fingerprint,
+          );
+
+  /// The server this client talks to.
+  final ServerProfile profile;
+
+  final Dio _dio;
+
+  /// Called with a rotated token so the caller can persist it.
+  final void Function(PairResult result)? onTokenRotated;
+
+  /// GET /health — no credential, no state.
+  Future<bool> health() => guarded(() async {
+    final response = await _dio.get<dynamic>('/health');
+    return decoded(response, (body) => str(body['status']) == 'ok');
+  });
+
+  /// GET /server — the build and the capabilities of the server.
+  ///
+  /// Reachable with `viewer`, which is what lets a bootstrap server identify
+  /// itself before any device is paired.
+  Future<ServerIdentity> identity() => guarded(() async {
+    final response = await _dio.get<dynamic>('/server');
+    return decoded(response, ServerIdentity.fromJson);
+  });
+
+  /// GET /sessions — every session, live or finished, in creation order.
+  Future<List<SessionModel>> sessions() => guarded(() async {
+    final response = await _dio.get<dynamic>('/sessions');
+    return decoded(
+      response,
+      (body) => [for (final item in sessionsOf(body)) sessionFromJson(item)],
+    );
+  });
+
+  /// GET /sessions/{id} — one session.
+  Future<SessionModel> session(String id) => guarded(() async {
+    final response = await _dio.get<dynamic>('/sessions/$id');
+    return decoded(response, sessionFromJson);
+  });
+
+  /// POST /sessions — spawn one pi child in [cwd].
+  Future<SessionModel> createSession({required String cwd, String? name}) =>
+      guarded(() async {
+        final response = await _dio.post<dynamic>(
+          '/sessions',
+          data: {
+            'cwd': cwd,
+            if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+          },
+        );
+        return decoded(response, sessionFromJson);
+      });
+
+  /// POST /sessions/{id}/stop — stop one session gracefully.
+  Future<SessionModel> stopSession(String id) => guarded(() async {
+    final response = await _dio.post<dynamic>('/sessions/$id/stop');
+    return decoded(response, sessionFromJson);
+  });
+
+  /// POST /auth/refresh — rotate this device's token.
+  ///
+  /// The new token is handed to [PiUiClient.onTokenRotated] so the store can
+  /// persist it: the old one stops working as soon as the new one is written.
+  Future<PairResult> refresh() => guarded(() async {
+    final response = await _dio.post<dynamic>('/auth/refresh');
+    final result = decoded(
+      response,
+      (body) => PairResult.fromJson({
+        ...body,
+        'deviceId': str(body['deviceId'], fallback: profile.deviceId ?? ''),
+        'server': asMap(body['server'])?.isNotEmpty == true
+            ? body['server']
+            : profile.identity?.toJson(),
+      }),
+    );
+    onTokenRotated?.call(result);
+    return result;
+  });
+
+  /// GET /auth/devices — the paired devices (admin scope).
+  Future<List<DeviceInfo>> devices() => guarded(() async {
+    final response = await _dio.get<dynamic>('/auth/devices');
+    return decoded(
+      response,
+      (body) => [
+        for (final item in asMapList(body['devices']))
+          DeviceInfo.fromJson(item),
+      ],
+    );
+  });
+
+  /// DELETE /auth/devices/{id} — revoke one device (admin scope).
+  Future<void> revokeDevice(String id) => guarded(() async {
+    final response = await _dio.delete<dynamic>('/auth/devices/$id');
+    if ((response.statusCode ?? 0) >= 300) {
+      decoded(response, (body) => body);
+    }
+  });
+
+  /// POST /auth/pair — pair this client with a server.
+  ///
+  /// Standalone on purpose: pairing has no token yet, so it builds its own Dio.
+  /// A [code] is the typed invitation, a [secret] the QR one, and [password]
+  /// the admin branch. Exactly one of them must be present.
+  static Future<PairResult> pair({
+    required String baseUrl,
+    required String deviceName,
+    String? code,
+    String? secret,
+    String? password,
+    String? platform,
+    String? fingerprint,
+    Dio? dio,
+  }) => guarded(() async {
+    final client = dio ?? createDio(baseUrl: baseUrl, fingerprint: fingerprint);
+    final response = await client.post<dynamic>(
+      '/auth/pair',
+      data: {
+        'deviceName': deviceName,
+        if (code != null && code.isNotEmpty) 'code': code.trim(),
+        if (secret != null && secret.isNotEmpty) 'secret': secret,
+        if (password != null && password.isNotEmpty) 'password': password,
+        if (platform != null && platform.isNotEmpty) 'platform': platform,
+      },
+    );
+    return decoded(response, PairResult.fromJson);
+  });
+}

@@ -1,14 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:piui/core/api/dto.dart';
+import 'package:piui/core/api/profile.dart';
+import 'package:piui/core/api/providers.dart';
 import 'package:piui/core/app.dart';
+import 'package:piui/core/models/session.dart';
 
-/// Pumps the app in a window of [size] logical pixels.
-Future<void> pumpApp(WidgetTester tester, Size size) async {
+/// A profile that is already paired, so the router lets the shell render.
+ServerProfile pairedProfile() => const ServerProfile(
+  baseUrl: 'http://pi-ui.test:8787',
+  deviceName: 'test device',
+  token: 'd_test.secret',
+  deviceId: 'd_test',
+  scope: DeviceScope.operator,
+);
+
+/// Pumps the app in a window of [size] logical pixels, with a paired profile and
+/// a session list that never touches the network.
+Future<void> pumpApp(
+  WidgetTester tester,
+  Size size, {
+  List<SessionModel> sessions = const [],
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(const ProviderScope(child: PiuiApp()));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        profileStoreProvider.overrideWithValue(
+          MemoryProfileStore(profile: pairedProfile()),
+        ),
+        socketProvider.overrideWithValue(null),
+        sessionsProvider.overrideWith((ref) => Stream.value(sessions)),
+      ],
+      child: const PiuiApp(),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 

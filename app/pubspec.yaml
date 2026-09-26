@@ -44,6 +44,7 @@ dependencies:
   shared_preferences: ^2.5.5
   piui_markdown:
     path: ../packages/piui-markdown
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +56,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  stream_channel: ^2.1.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
