@@ -20,6 +20,14 @@ const (
 	frameUIResponse  = "ui_response"
 	framePing        = "ping"
 
+	frameTerminalOpen   = "terminal.open"
+	frameTerminalInput  = "terminal.input"
+	frameTerminalResize = "terminal.resize"
+	frameTerminalClose  = "terminal.close"
+
+	frameTerminalOutput = "terminal.output"
+	frameTerminalClosed = "terminal.closed"
+
 	frameWelcome  = "welcome"
 	frameRequest  = "request"
 	frameResponse = "response"
@@ -35,18 +43,23 @@ const tsLayout = "2006-01-02T15:04:05.000Z07:00"
 // frame is acceptable; this struct only reads the fields the hub acts on, so an
 // unknown field of a newer client is ignored here exactly as the schema allows.
 type inbound struct {
-	Type      string          `json:"type"`
-	V         int             `json:"v"`
-	ID        string          `json:"id"`
-	SessionID string          `json:"sessionId"`
-	Op        string          `json:"op"`
-	Payload   json.RawMessage `json:"payload"`
-	Since     json.RawMessage `json:"since"`
-	Replay    *bool           `json:"replay"`
-	Value     json.RawMessage `json:"value"`
-	Confirmed *bool           `json:"confirmed"`
-	Cancelled *bool           `json:"cancelled"`
-	Client    *struct {
+	Type       string          `json:"type"`
+	V          int             `json:"v"`
+	ID         string          `json:"id"`
+	SessionID  string          `json:"sessionId"`
+	Op         string          `json:"op"`
+	Payload    json.RawMessage `json:"payload"`
+	Since      json.RawMessage `json:"since"`
+	Replay     *bool           `json:"replay"`
+	TerminalID string          `json:"terminalId"`
+	Data       string          `json:"data"`
+	Cols       int             `json:"cols"`
+	Rows       int             `json:"rows"`
+	Dir        string          `json:"dir"`
+	Value      json.RawMessage `json:"value"`
+	Confirmed  *bool           `json:"confirmed"`
+	Cancelled  *bool           `json:"cancelled"`
+	Client     *struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 	} `json:"client"`

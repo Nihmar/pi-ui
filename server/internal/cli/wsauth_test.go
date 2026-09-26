@@ -26,7 +26,10 @@ func (s *stubWSHub) Publish(ws.Event) uint64             { return 0 }
 func (s *stubWSHub) SetReplayer(ws.Replayer)             {}
 func (s *stubWSHub) SetCommandHandler(ws.CommandHandler) {}
 func (s *stubWSHub) SetDialogHandler(ws.DialogHandler)   {}
-func (s *stubWSHub) Close() error                        { return nil }
+
+// SetTerminalHandler is part of the Hub seam even when the test never opens a PTY.
+func (s *stubWSHub) SetTerminalHandler(ws.TerminalHandler) {}
+func (s *stubWSHub) Close() error                          { return nil }
 
 // connectRequest builds one handshake request with an optional token.
 func connectRequest(remoteAddr, token string) *http.Request {

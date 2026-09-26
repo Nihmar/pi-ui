@@ -66,7 +66,10 @@
           "description": "Optional structured context (limit, field, retryAfterMs, ...). Open map so a new detail never breaks a client."
         }
       },
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "description": "Error object of a failed `response` and of the `server.error` event. Both carry the same shape so a client needs one renderer for every failure."
     },
     "WsTimestamp": {
@@ -88,7 +91,10 @@
           "description": "Client version string, for support and diagnostics only. The server compares versions of the protocol (`v`), never of the client."
         }
       },
-      "required": ["name", "version"],
+      "required": [
+        "name",
+        "version"
+      ],
       "description": "Identifying information about the connecting client. Optional client fields beyond these two are preserved but not interpreted."
     },
     "WsHello": {
@@ -105,7 +111,11 @@
           "$ref": "#/$defs/WsHelloClient"
         }
       },
-      "required": ["type", "v", "client"],
+      "required": [
+        "type",
+        "v",
+        "client"
+      ],
       "description": "First frame of every connection and the only frame accepted before the handshake finishes. The server answers `welcome` (same `v`) or closes with HTTP 4401 when the version is unknown or the peer is not authorized; nothing else is read from the socket until then."
     },
     "WsReplayCursor": {
@@ -119,7 +129,9 @@
               "description": "Last seq the client already has; replay returns the events of the session with Seq > since.seq. seq 0 means \"from the beginning of the ring\", which is also what a fresh subscriber sends. Cheap (memory only) but limited to the ring window."
             }
           },
-          "required": ["seq"],
+          "required": [
+            "seq"
+          ],
           "description": "In-memory cursor: replay everything the ring still holds for the session."
         },
         {
@@ -129,7 +141,9 @@
               "$ref": "#/$defs/WsEntryId"
             }
           },
-          "required": ["entryId"],
+          "required": [
+            "entryId"
+          ],
           "description": "Durable cursor: replay delegates to the injected Replayer (get_entries), which survives a server restart. An unknown cursor yields complete=false plus a replay_cursor_invalid error instead of a silently empty replay."
         }
       ],
@@ -153,7 +167,10 @@
           "description": "Opt-out flag for clients that only want the live tail (default true): false suppresses the whole replay sequence, so a background viewer never pays for history it will not render. Subscribing to a session the server does not know is not an error — the server could not tell a race from a bug — and the client learns about a missing session from the REST surface."
         }
       },
-      "required": ["type", "sessionId"],
+      "required": [
+        "type",
+        "sessionId"
+      ],
       "description": "Registers the connection as a subscriber of one session. Replay is per subscriber, so two clients resuming from different cursors never see each other's gap."
     },
     "WsClientUnsubscribe": {
@@ -167,7 +184,10 @@
           "$ref": "#/$defs/WsSessionId"
         }
       },
-      "required": ["type", "sessionId"],
+      "required": [
+        "type",
+        "sessionId"
+      ],
       "description": "Drops the subscription and the buffered backlog of that session for this connection. Idempotent: unsubscribing twice is not an error, because a client racing with a reconnect must not have to track server state."
     },
     "WsClientCommand": {
@@ -194,7 +214,12 @@
           "description": "Op-specific arguments, passed through to the handler verbatim. Untyped on purpose: the payload belongs to the op (and, for session.command.raw, to pi), so pinning it here would force a schema change for every new pi command."
         }
       },
-      "required": ["type", "id", "sessionId", "op"],
+      "required": [
+        "type",
+        "id",
+        "sessionId",
+        "op"
+      ],
       "description": "Asks the server to act on a session. Exactly one `response` with the same id comes back — ok=true with the handler's data, or ok=false with a coded error — so the client always has a terminal outcome to clear its optimistic UI."
     },
     "WsClientUiResponse": {
@@ -224,16 +249,26 @@
           "description": "Explicit dismissal. The server also writes cancelled=true to the child when the dialog times out, so the child always gets exactly one answer."
         }
       },
-      "required": ["type", "sessionId", "id"],
+      "required": [
+        "type",
+        "sessionId",
+        "id"
+      ],
       "anyOf": [
         {
-          "required": ["value"]
+          "required": [
+            "value"
+          ]
         },
         {
-          "required": ["confirmed"]
+          "required": [
+            "confirmed"
+          ]
         },
         {
-          "required": ["cancelled"]
+          "required": [
+            "cancelled"
+          ]
         }
       ],
       "description": "Answers an extension UI dialog. The first answer wins; later ones get response{ok:false,error:{code:\"already_answered\"}}, which is why the frame carries the dialog id and no client-chosen response id."
@@ -246,7 +281,9 @@
           "const": "ping"
         }
       },
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "description": "Connection-level liveness probe, answered immediately with `pong`. It is separate from the server-initiated heartbeat so a client behind a proxy can keep an idle connection alive without subscribing to anything."
     },
     "WsClientFrame": {
@@ -268,6 +305,18 @@
         },
         {
           "$ref": "#/$defs/WsClientPing"
+        },
+        {
+          "$ref": "#/$defs/WsClientTerminalOpen"
+        },
+        {
+          "$ref": "#/$defs/WsClientTerminalInput"
+        },
+        {
+          "$ref": "#/$defs/WsClientTerminalResize"
+        },
+        {
+          "$ref": "#/$defs/WsClientTerminalClose"
         }
       ],
       "description": "Union of every frame a client may send, and the document root. The hub compiles it once at construction and validates every inbound frame against it before any handler runs; a frame that fails gets response{ok:false,error:{code:\"bad_request\"}} when it carries an id and is dropped otherwise, so a malformed frame can never reach a handler or tear the connection down."
@@ -296,7 +345,12 @@
           "description": "Server limits as scalars (maxSessions, replayEvents, replayWindowSec, dialogTimeoutSec, heartbeatSec, sendBuffer, ...). Open map so a new limit lands without a breaking schema change."
         }
       },
-      "required": ["version", "piVersion", "features", "limits"],
+      "required": [
+        "version",
+        "piVersion",
+        "features",
+        "limits"
+      ],
       "description": "Server identity and advertised capabilities, re-declared from core.json's ServerInfo (which stays authoritative for REST). Pin the shape here so the `welcome` frame is self-describing."
     },
     "WsWelcome": {
@@ -318,7 +372,12 @@
           "description": "Interval of the server-initiated `ping`, in seconds. Published so the client can size its own pong deadline and its reconnect policy instead of guessing a constant phase 4 would then have to change on both sides."
         }
       },
-      "required": ["type", "v", "server", "heartbeatSec"],
+      "required": [
+        "type",
+        "v",
+        "server",
+        "heartbeatSec"
+      ],
       "description": "Handshake response, sent once per connection. After it the client may subscribe; the server never sends a second `welcome`, so a client that needs to renegotiate opens a new connection."
     },
     "WsEvent": {
@@ -347,7 +406,11 @@
           "description": "Event body, verbatim. For pi.* events it is the child record byte for byte, including fields this server does not understand; for server.* events it is the documented per-type object."
         }
       },
-      "required": ["type", "seq", "ts"],
+      "required": [
+        "type",
+        "seq",
+        "ts"
+      ],
       "description": "The one frame type that carries the event stream. sessionId is absent only for server-wide facts (heartbeat, startup diagnostics), and entryId only for events that do not map to a pi session entry."
     },
     "WsRequest": {
@@ -367,7 +430,12 @@
         },
         "method": {
           "type": "string",
-          "enum": ["select", "confirm", "input", "editor"],
+          "enum": [
+            "select",
+            "confirm",
+            "input",
+            "editor"
+          ],
           "description": "Dialog kind, copied from the child's extension_ui_request. Only the answerable methods appear here — fire-and-forget ones (notify, setStatus, setWidget, setTitle, set_editor_text) become ext.* events instead, because they must never block on a client."
         },
         "title": {
@@ -402,7 +470,14 @@
           "$ref": "#/$defs/WsTimestamp"
         }
       },
-      "required": ["type", "id", "sessionId", "method", "title", "ts"],
+      "required": [
+        "type",
+        "id",
+        "sessionId",
+        "method",
+        "title",
+        "ts"
+      ],
       "description": "A blocking extension UI question, broadcast to the current subscribers of the session. It is a frame of its own rather than an event because it demands an answer: the first ui_response with this id wins, so clients can render it as a prompt instead of a log line."
     },
     "WsResponse": {
@@ -428,7 +503,11 @@
           "$ref": "#/$defs/WsError"
         }
       },
-      "required": ["type", "id", "ok"],
+      "required": [
+        "type",
+        "id",
+        "ok"
+      ],
       "anyOf": [
         {
           "type": "object",
@@ -437,7 +516,9 @@
               "const": true
             }
           },
-          "required": ["ok"]
+          "required": [
+            "ok"
+          ]
         },
         {
           "type": "object",
@@ -446,7 +527,10 @@
               "const": false
             }
           },
-          "required": ["ok", "error"]
+          "required": [
+            "ok",
+            "error"
+          ]
         }
       ],
       "description": "Terminal outcome of one request. Exactly one arrives per id, including for frames that failed validation, so a client never has to time out a request it sent."
@@ -459,8 +543,173 @@
           "const": "pong"
         }
       },
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "description": "Answer to a `ping` or to the server heartbeat, and the only proof of liveness the hub acts on: after three consecutive heartbeats without any inbound traffic the connection is closed, so a half-open TCP connection cannot hold a subscriber slot forever."
+    },
+    "WsClientTerminalOpen": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "terminal.open"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Client-chosen id, echoed in the response frame exactly like a command id, so a client never waits for an answer it cannot correlate."
+        },
+        "dir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Working directory of the shell. It is resolved through the workspace confinement before any process is started: a directory outside every root is a path_escape and no shell is spawned."
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Initial terminal width in columns. Omitted means the server default."
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Initial terminal height in rows. Omitted means the server default."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "dir"
+      ],
+      "description": "Opens a PTY in one workspace directory. Operator scope only: a terminal runs arbitrary commands, so it is the one read-adjacent frame that a viewer may not send. The answer is a `response` frame carrying `{terminalId, cwd, cols, rows, pid}`."
+    },
+    "WsClientTerminalInput": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "terminal.input"
+        },
+        "terminalId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Terminal the bytes go to, as the open response reported it."
+        },
+        "data": {
+          "type": "string",
+          "description": "Base64 of the bytes to write to the PTY, because a keystroke is bytes and a chunk may split a UTF-8 rune; a JSON string would corrupt what the shell receives."
+        }
+      },
+      "required": [
+        "type",
+        "terminalId"
+      ],
+      "description": "Writes input to an open terminal. A terminal the connection does not own is a not_found, never somebody else's shell."
+    },
+    "WsClientTerminalResize": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "terminal.resize"
+        },
+        "terminalId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        }
+      },
+      "required": [
+        "type",
+        "terminalId",
+        "cols",
+        "rows"
+      ],
+      "description": "Tells the shell how big the client's terminal is. The size reaches the process as SIGWINCH, which is what makes a full-screen program redraw instead of wrapping at the wrong column."
+    },
+    "WsClientTerminalClose": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "terminal.close"
+        },
+        "terminalId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "type",
+        "terminalId"
+      ],
+      "description": "Closes one terminal. Idempotent: a terminal that is already gone is a successful close, because the client's intent (it is not using it any more) is satisfied either way. The whole process group is signalled, so a command the shell started does not outlive it."
+    },
+    "WsTerminalOutput": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "terminal.output"
+        },
+        "terminalId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "data": {
+          "type": "string",
+          "description": "Base64 of the bytes the PTY produced. It is a stream of its own: these frames carry no seq and are never replayed, because a terminal is live state and not a conversation."
+        },
+        "ts": {
+          "$ref": "#/$defs/WsTimestamp"
+        }
+      },
+      "required": [
+        "type",
+        "terminalId",
+        "data"
+      ],
+      "description": "Output of an open terminal, written to the connection that opened it. A terminal has exactly one reader on purpose: two clients typing into one shell is a shared session, which is a different feature with its own frames."
+    },
+    "WsTerminalClosed": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "terminal.closed"
+        },
+        "terminalId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exitCode": {
+          "type": "integer",
+          "description": "Exit status of the shell, -1 when a signal ended it or when the exit status is unknown."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why it closed: `client` (the client asked), `owner` (the connection that owned it is gone), `server` (a shutdown) or `exit` (the shell ended on its own)."
+        },
+        "ts": {
+          "$ref": "#/$defs/WsTimestamp"
+        }
+      },
+      "required": [
+        "type",
+        "terminalId"
+      ],
+      "description": "One terminal is gone, with the reason and the exit status. Sent exactly once per terminal, after the last output chunk, so a client can close its pane without polling."
     }
   }
 }

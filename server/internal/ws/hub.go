@@ -51,7 +51,11 @@ type hub struct {
 	cmd       CommandHandler
 	dialog    DialogHandler
 	replayer  Replayer
+	terminal  TerminalHandler
 	closed    bool
+	// terminalOwner maps one open terminal to the connection that opened it: a
+	// terminal is live state of one socket, and its output goes nowhere else.
+	terminalOwner map[string]*connection
 
 	// connWG tracks the goroutines owned by a connection plus the heartbeat loop:
 	// Close waits for those, because draining connections is Close's contract.
@@ -67,8 +71,9 @@ type hub struct {
 
 // The hub is both interfaces; the assertions keep them from drifting apart.
 var (
-	_ Hub       = (*hub)(nil)
-	_ Requester = (*hub)(nil)
+	_ Hub          = (*hub)(nil)
+	_ Requester    = (*hub)(nil)
+	_ TerminalSink = (*hub)(nil)
 )
 
 // New builds the WebSocket hub of one server process.
@@ -93,6 +98,7 @@ func New(o Options) Hub {
 		handshakeTimeout: handshakeTimeout,
 		conns:            map[*connection]struct{}{},
 		bySession:        map[string]map[*connection]struct{}{},
+		terminalOwner:    map[string]*connection{},
 		done:             make(chan struct{}),
 	}
 

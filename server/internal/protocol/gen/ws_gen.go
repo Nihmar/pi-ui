@@ -155,6 +155,218 @@ func (j *WsClientSubscribe) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// Closes one terminal. Idempotent: a terminal that is already gone is a successful
+// close, because the client's intent (it is not using it any more) is satisfied
+// either way. The whole process group is signalled, so a command the shell started
+// does not outlive it.
+type WsClientTerminalClose struct {
+	// TerminalId corresponds to the JSON schema field "terminalId".
+	TerminalId string `json:"terminalId" yaml:"terminalId" mapstructure:"terminalId"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *WsClientTerminalClose) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["terminalId"]; raw != nil && !ok {
+		return fmt.Errorf("field terminalId in WsClientTerminalClose: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in WsClientTerminalClose: required")
+	}
+	type Plain WsClientTerminalClose
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if utf8.RuneCountInString(string(plain.TerminalId)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "terminalId", 1)
+	}
+	if plain.Type != "terminal.close" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "terminal.close")
+	}
+	*j = WsClientTerminalClose(plain)
+	return nil
+}
+
+// Writes input to an open terminal. A terminal the connection does not own is a
+// not_found, never somebody else's shell.
+type WsClientTerminalInput struct {
+	// Base64 of the bytes to write to the PTY, because a keystroke is bytes and a
+	// chunk may split a UTF-8 rune; a JSON string would corrupt what the shell
+	// receives.
+	Data *string `json:"data,omitempty,omitzero" yaml:"data,omitempty" mapstructure:"data,omitempty"`
+
+	// Terminal the bytes go to, as the open response reported it.
+	TerminalId string `json:"terminalId" yaml:"terminalId" mapstructure:"terminalId"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *WsClientTerminalInput) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["terminalId"]; raw != nil && !ok {
+		return fmt.Errorf("field terminalId in WsClientTerminalInput: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in WsClientTerminalInput: required")
+	}
+	type Plain WsClientTerminalInput
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if utf8.RuneCountInString(string(plain.TerminalId)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "terminalId", 1)
+	}
+	if plain.Type != "terminal.input" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "terminal.input")
+	}
+	*j = WsClientTerminalInput(plain)
+	return nil
+}
+
+// Opens a PTY in one workspace directory. Operator scope only: a terminal runs
+// arbitrary commands, so it is the one read-adjacent frame that a viewer may not
+// send. The answer is a `response` frame carrying `{terminalId, cwd, cols, rows,
+// pid}`.
+type WsClientTerminalOpen struct {
+	// Initial terminal width in columns. Omitted means the server default.
+	Cols *int `json:"cols,omitempty,omitzero" yaml:"cols,omitempty" mapstructure:"cols,omitempty"`
+
+	// Working directory of the shell. It is resolved through the workspace
+	// confinement before any process is started: a directory outside every root is a
+	// path_escape and no shell is spawned.
+	Dir string `json:"dir" yaml:"dir" mapstructure:"dir"`
+
+	// Client-chosen id, echoed in the response frame exactly like a command id, so a
+	// client never waits for an answer it cannot correlate.
+	Id string `json:"id" yaml:"id" mapstructure:"id"`
+
+	// Initial terminal height in rows. Omitted means the server default.
+	Rows *int `json:"rows,omitempty,omitzero" yaml:"rows,omitempty" mapstructure:"rows,omitempty"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *WsClientTerminalOpen) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["dir"]; raw != nil && !ok {
+		return fmt.Errorf("field dir in WsClientTerminalOpen: required")
+	}
+	if _, ok := raw["id"]; raw != nil && !ok {
+		return fmt.Errorf("field id in WsClientTerminalOpen: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in WsClientTerminalOpen: required")
+	}
+	type Plain WsClientTerminalOpen
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if plain.Cols != nil && 1000 < *plain.Cols {
+		return fmt.Errorf("field %s: must be <= %v", "cols", 1000)
+	}
+	if plain.Cols != nil && 1 > *plain.Cols {
+		return fmt.Errorf("field %s: must be >= %v", "cols", 1)
+	}
+	if utf8.RuneCountInString(string(plain.Dir)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "dir", 1)
+	}
+	if utf8.RuneCountInString(string(plain.Id)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "id", 1)
+	}
+	if plain.Rows != nil && 1000 < *plain.Rows {
+		return fmt.Errorf("field %s: must be <= %v", "rows", 1000)
+	}
+	if plain.Rows != nil && 1 > *plain.Rows {
+		return fmt.Errorf("field %s: must be >= %v", "rows", 1)
+	}
+	if plain.Type != "terminal.open" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "terminal.open")
+	}
+	*j = WsClientTerminalOpen(plain)
+	return nil
+}
+
+// Tells the shell how big the client's terminal is. The size reaches the process
+// as SIGWINCH, which is what makes a full-screen program redraw instead of
+// wrapping at the wrong column.
+type WsClientTerminalResize struct {
+	// Cols corresponds to the JSON schema field "cols".
+	Cols int `json:"cols" yaml:"cols" mapstructure:"cols"`
+
+	// Rows corresponds to the JSON schema field "rows".
+	Rows int `json:"rows" yaml:"rows" mapstructure:"rows"`
+
+	// TerminalId corresponds to the JSON schema field "terminalId".
+	TerminalId string `json:"terminalId" yaml:"terminalId" mapstructure:"terminalId"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *WsClientTerminalResize) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["cols"]; raw != nil && !ok {
+		return fmt.Errorf("field cols in WsClientTerminalResize: required")
+	}
+	if _, ok := raw["rows"]; raw != nil && !ok {
+		return fmt.Errorf("field rows in WsClientTerminalResize: required")
+	}
+	if _, ok := raw["terminalId"]; raw != nil && !ok {
+		return fmt.Errorf("field terminalId in WsClientTerminalResize: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in WsClientTerminalResize: required")
+	}
+	type Plain WsClientTerminalResize
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if 1000 < plain.Cols {
+		return fmt.Errorf("field %s: must be <= %v", "cols", 1000)
+	}
+	if 1 > plain.Cols {
+		return fmt.Errorf("field %s: must be >= %v", "cols", 1)
+	}
+	if 1000 < plain.Rows {
+		return fmt.Errorf("field %s: must be <= %v", "rows", 1000)
+	}
+	if 1 > plain.Rows {
+		return fmt.Errorf("field %s: must be >= %v", "rows", 1)
+	}
+	if utf8.RuneCountInString(string(plain.TerminalId)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "terminalId", 1)
+	}
+	if plain.Type != "terminal.resize" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "terminal.resize")
+	}
+	*j = WsClientTerminalResize(plain)
+	return nil
+}
+
 // Answers an extension UI dialog. The first answer wins; later ones get
 // response{ok:false,error:{code:"already_answered"}}, which is why the frame
 // carries the dialog id and no client-chosen response id.
@@ -910,6 +1122,104 @@ func (j *WsSessionId) UnmarshalJSON(value []byte) error {
 		return fmt.Errorf("field %s pattern match: must match %s", "", `^s_[0-9a-f]{16}$`)
 	}
 	*j = WsSessionId(plain)
+	return nil
+}
+
+// One terminal is gone, with the reason and the exit status. Sent exactly once per
+// terminal, after the last output chunk, so a client can close its pane without
+// polling.
+type WsTerminalClosed struct {
+	// Exit status of the shell, -1 when a signal ended it or when the exit status is
+	// unknown.
+	ExitCode *int `json:"exitCode,omitempty,omitzero" yaml:"exitCode,omitempty" mapstructure:"exitCode,omitempty"`
+
+	// Why it closed: `client` (the client asked), `owner` (the connection that owned
+	// it is gone), `server` (a shutdown) or `exit` (the shell ended on its own).
+	Reason *string `json:"reason,omitempty,omitzero" yaml:"reason,omitempty" mapstructure:"reason,omitempty"`
+
+	// TerminalId corresponds to the JSON schema field "terminalId".
+	TerminalId string `json:"terminalId" yaml:"terminalId" mapstructure:"terminalId"`
+
+	// Ts corresponds to the JSON schema field "ts".
+	Ts *WsTimestamp `json:"ts,omitempty,omitzero" yaml:"ts,omitempty" mapstructure:"ts,omitempty"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *WsTerminalClosed) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["terminalId"]; raw != nil && !ok {
+		return fmt.Errorf("field terminalId in WsTerminalClosed: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in WsTerminalClosed: required")
+	}
+	type Plain WsTerminalClosed
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if utf8.RuneCountInString(string(plain.TerminalId)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "terminalId", 1)
+	}
+	if plain.Type != "terminal.closed" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "terminal.closed")
+	}
+	*j = WsTerminalClosed(plain)
+	return nil
+}
+
+// Output of an open terminal, written to the connection that opened it. A terminal
+// has exactly one reader on purpose: two clients typing into one shell is a shared
+// session, which is a different feature with its own frames.
+type WsTerminalOutput struct {
+	// Base64 of the bytes the PTY produced. It is a stream of its own: these frames
+	// carry no seq and are never replayed, because a terminal is live state and not a
+	// conversation.
+	Data string `json:"data" yaml:"data" mapstructure:"data"`
+
+	// TerminalId corresponds to the JSON schema field "terminalId".
+	TerminalId string `json:"terminalId" yaml:"terminalId" mapstructure:"terminalId"`
+
+	// Ts corresponds to the JSON schema field "ts".
+	Ts *WsTimestamp `json:"ts,omitempty,omitzero" yaml:"ts,omitempty" mapstructure:"ts,omitempty"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *WsTerminalOutput) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["data"]; raw != nil && !ok {
+		return fmt.Errorf("field data in WsTerminalOutput: required")
+	}
+	if _, ok := raw["terminalId"]; raw != nil && !ok {
+		return fmt.Errorf("field terminalId in WsTerminalOutput: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in WsTerminalOutput: required")
+	}
+	type Plain WsTerminalOutput
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if utf8.RuneCountInString(string(plain.TerminalId)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "terminalId", 1)
+	}
+	if plain.Type != "terminal.output" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "terminal.output")
+	}
+	*j = WsTerminalOutput(plain)
 	return nil
 }
 

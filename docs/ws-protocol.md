@@ -144,6 +144,34 @@ A frame that fails validation:
 | `response` | `{"type":"response","id":"c1","ok":true,"data":{…}}` or `{"type":"response","id":"c1","ok":false,"error":{"code","message"}}` | One per request id, including for frames that failed validation. |
 | `pong` | `{"type":"pong"}` | Answer to `ping`. |
 
+## Terminals
+
+A PTY is live state of one socket, not a conversation: its frames carry no `seq`, they
+are **never replayed**, and a terminal has exactly one reader. Two clients typing into
+one shell would be a shared session, which is a different feature with its own frames.
+
+| Frame (client) | Shape | Notes |
+|---|---|---|
+| `terminal.open` | `{"type":"terminal.open","id":"c1","dir":"/srv/app","cols":120,"rows":32}` | `operator` only: a terminal runs arbitrary commands. `dir` goes through the workspace confinement, so a directory outside every root is a `path_escape` and no shell is started. The answer is the `response` of `c1` with `{terminalId,cwd,pid,cols,rows}`. |
+| `terminal.input` | `{"type":"terminal.input","terminalId":"t_…","data":"<base64>"}` | Bytes, base64 because a keystroke is bytes and a chunk may split a UTF-8 rune. |
+| `terminal.resize` | `{"type":"terminal.resize","terminalId":"t_…","cols":100,"rows":30}` | The size reaches the process as SIGWINCH. |
+| `terminal.close` | `{"type":"terminal.close","terminalId":"t_…"}` | Idempotent. The whole process group is signalled, so a command the shell started does not outlive it. |
+
+| Frame (server) | Shape | Notes |
+|---|---|---|
+| `terminal.output` | `{"type":"terminal.output","terminalId":"t_…","data":"<base64>","ts":"…"}` | Written to the connection that opened the terminal and to nobody else. |
+| `terminal.closed` | `{"type":"terminal.closed","terminalId":"t_…","exitCode":0,"reason":"exit","ts":"…"}` | Exactly once per terminal, after the last output chunk. `reason` is `client` (a close frame), `owner` (the connection that owned it is gone), `server` (a shutdown) or `exit` (the shell ended on its own). |
+
+Ownership rules:
+
+- A frame that names a terminal the connection did not open is `not_found` — never
+  somebody else's shell.
+- A disconnected socket closes the terminals it owned (`reason: "owner"`), so a browser
+  tab that disappears leaves no process tree behind.
+- The server sends `501`/`unsupported` for every terminal frame when no workspace is
+  configured: the capability follows the `--root` flag, exactly like the filesystem and
+  the git surface.
+
 ## Operations (`op` of a `command`)
 
 Ops are registered in one map in `internal/sessions`, not in the hub: the hub validates

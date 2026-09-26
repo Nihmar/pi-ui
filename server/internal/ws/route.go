@@ -37,6 +37,9 @@ func (h *hub) serveConn(wsConn *websocket.Conn, who principal) {
 	}
 	defer func() {
 		conn.stopAll()
+		// The shells of a gone socket are gone with it: a browser tab that closes
+		// must not leave a process tree running on the host.
+		h.releaseTerminals(conn)
 		conn.shutdown()
 		// The hub forgets the connection before waiting for the socket to finish
 		// closing: counts and fan-out must be correct immediately, and the library's
@@ -143,6 +146,14 @@ func (h *hub) route(c *connection, raw []byte) {
 		h.handleCommand(c, frame)
 	case frameUIResponse:
 		h.handleUIResponse(c, frame)
+	case frameTerminalOpen:
+		h.handleTerminalOpen(c, frame)
+	case frameTerminalInput:
+		h.handleTerminalInput(c, frame)
+	case frameTerminalResize:
+		h.handleTerminalResize(c, frame)
+	case frameTerminalClose:
+		h.handleTerminalClose(c, frame)
 	case frameHello:
 		// Only the first frame may be hello. A second one is ignored: it has no id
 		// to answer, and renegotiating would change the meaning of everything

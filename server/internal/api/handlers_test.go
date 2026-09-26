@@ -102,6 +102,7 @@ func (f *fakeHub) Publish(ws.Event) uint64               { return 1 }
 func (f *fakeHub) SetReplayer(r ws.Replayer)             { f.replay = r }
 func (f *fakeHub) SetCommandHandler(h ws.CommandHandler) { f.handler = h }
 func (f *fakeHub) SetDialogHandler(h ws.DialogHandler)   { f.dialog = h }
+func (f *fakeHub) SetTerminalHandler(ws.TerminalHandler) {}
 func (f *fakeHub) Close() error                          { f.closed = true; return nil }
 
 // newTestRouter builds the router with the spike authenticator and a configurable token.

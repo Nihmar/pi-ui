@@ -17,6 +17,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
+	"github.com/Nihmar/pi-ui/server/internal/terminal"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
 
@@ -124,6 +125,8 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	hub.SetDialogHandler(supervisor)
 	hub.SetReplayer(supervisor)
 
+	var terminalsOf *terminal.Manager
+
 	options := api.Options{
 		Supervisor: supervisor,
 		Hub:        hub,
@@ -137,8 +140,11 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		},
 	}
 	if len(cfg.roots) > 0 || len(cfg.sessionDirs) > 0 {
-		// The message search does not need a workspace, but the file half does: a
-		// server with only session dirs answers file queries with a path_escape.
+		// The workspaces are the only host directories a client may reach, and the
+		// session directories are the one extra place the message search reads. A
+		// server started with neither exposes no filesystem at all (a 501, never a
+		// guess); one started with only session dirs gets them as its roots, so even
+		// the file half of a search stays inside them.
 		files, err := fs.New(fs.Config{Roots: searchRoots(cfg.roots, cfg.sessionDirs)})
 		if err != nil {
 			return err
@@ -149,16 +155,16 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		options.Search = found
-	}
-
-	if len(cfg.roots) > 0 {
-		// The workspaces are the only host directories a client may reach; a server
-		// started without one exposes no filesystem at all (a 501, never a guess).
-		files, err := fs.New(fs.Config{Roots: cfg.roots})
-		if err != nil {
-			return err
+		if len(cfg.roots) > 0 {
+			// A PTY is the one capability that runs arbitrary commands, so it exists
+			// only where a real workspace was configured: session directories are for
+			// reading, not for running a shell in.
+			terminals, err := newTerminals(files, hub, cfg.terminals)
+			if err != nil {
+				return err
+			}
+			terminalsOf = terminals
 		}
-		options.FS = files
 	}
 
 	options.Auth = authenticator
@@ -244,15 +250,28 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("http server: %w", err)
 		}
 	}
-	return shutdown(logger, server, hub, supervisor)
+	return shutdown(logger, server, hub, supervisor, terminalsOf)
 }
 
 // shutdown reaps the children first and drains HTTP afterwards: a SIGTERM must not wait for
 // connected clients before the children start dying, which is what keeps acceptance
 // criterion C8 (every child reaped within two seconds) true.
-func shutdown(logger *slog.Logger, server *http.Server, hub ws.Hub, supervisor *sessions.Manager) error {
+func shutdown(
+	logger *slog.Logger,
+	server *http.Server,
+	hub ws.Hub,
+	supervisor *sessions.Manager,
+	terminals *terminal.Manager,
+) error {
 	reaped := make(chan error, 1)
-	go func() { reaped <- supervisor.Shutdown(context.Background()) }()
+	go func() {
+		// The shells go first: a PTY outliving the process that showed it is a
+		// command nobody can see any more.
+		if terminals != nil {
+			_ = terminals.Shutdown()
+		}
+		reaped <- supervisor.Shutdown(context.Background())
+	}()
 
 	// Closing the hub drops the websocket connections, so the drain below cannot wait on a
 	// subscriber that simply stays connected.

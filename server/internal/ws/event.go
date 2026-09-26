@@ -81,6 +81,12 @@ type Hub interface {
 	SetReplayer(Replayer)
 	SetCommandHandler(CommandHandler)
 	SetDialogHandler(DialogHandler)
+	// SetTerminalHandler installs the PTY seam. The value returned by New also
+	// implements TerminalSink, which is what the terminal service writes its output
+	// into, so a caller that needs the outbound half asserts it:
+	//
+	//	sink, ok := hub.(ws.TerminalSink)
+	SetTerminalHandler(TerminalHandler)
 	Close() error
 }
 
