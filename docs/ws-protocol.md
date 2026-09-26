@@ -157,6 +157,13 @@ The session lifecycle events (`server.spawned`, `server.exited`, …) are publis
 per **subscriber**, never shared: two clients resuming from different cursors do not
 see each other's gap.
 
+Subscribing to a session the server does not know is **not** an error: the server
+cannot tell a race (a client that subscribes before the REST call that creates the
+session has been processed) from a bug, so the subscription is accepted, its replay is
+empty (`count:0`), and it starts receiving events as soon as the session publishes any.
+The client learns about a session that really does not exist from the REST surface,
+which is the only place that can answer the question.
+
 ### Without a cursor
 
 `{"type":"subscribe","sessionId":"s_…"}` (or with `replay:true` and no `since`) replays
@@ -199,9 +206,12 @@ server.replay.begin {direction:"entry"} → <events from the Replayer> → serve
   replayed entry is history, and writing it back would let every other subscriber replay
   it a second time.
 - An unknown cursor yields `server.error{code:"replay_cursor_invalid"}` and
-  `complete:false`. A failure the Replayer reports with its own `ErrorCode()` keeps that
-  code. Without a Replayer configured the answer is
-  `server.error{code:"unsupported"}` + `complete:false` — never a silent empty replay.
+  `complete:false`, so the client reloads through REST instead of rendering a partial
+  history. The Replayer may report that failure itself (sessions does, because it knows
+  which pi rejection means "cursor unknown") or return it as an error, in which case the
+  hub reports it with the Replayer's own `ErrorCode()`; `complete:false` arrives either
+  way. Without a Replayer configured the answer is `server.error{code:"unsupported"}` +
+  `complete:false` — never a silent empty replay.
 
 ### Ordering, buffering and dedup
 

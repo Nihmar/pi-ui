@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/coder/websocket"
@@ -191,5 +192,49 @@ func TestUnauthorizedResponseShape(t *testing.T) {
 	}
 	if body.Error.Code != codeUnauthorized || body.Error.Message == "" {
 		t.Fatalf("refusal body = %+v, want code %q and a message", body.Error, codeUnauthorized)
+	}
+}
+
+// TestOversizedFrameClosesWithMessageTooBig: the read limit is the one bound a client
+// cannot exceed, and the connection says so instead of letting the server allocate.
+func TestOversizedFrameClosesWithMessageTooBig(t *testing.T) {
+	ts := newTestHub(t, nil)
+	client := ts.dial(nil)
+	defer client.close()
+	client.hello()
+
+	// One byte past the limit. The server closes the connection while the client is
+	// still writing, so a write error is expected; the close status is the assertion.
+	huge := `{"type":"command","id":"c1","sessionId":"s_0123456789abcdef","op":"session.prompt","payload":{"message":"` +
+		strings.Repeat("x", maxInboundFrameBytes) + `"}}`
+	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	defer cancel()
+	_ = client.conn.Write(ctx, websocket.MessageText, []byte(huge))
+
+	client.expectClose(websocket.StatusMessageTooBig)
+}
+
+// TestSubscribeToAnUnknownSessionIsNotAnError documents the race the server cannot
+// resolve: a client may subscribe before the REST call that creates the session has
+// been processed, so the subscription is accepted and starts empty.
+func TestSubscribeToAnUnknownSessionIsNotAnError(t *testing.T) {
+	const session = "s_0123456789abcdef"
+	ts := newTestHub(t, nil)
+
+	client := ts.dial(nil)
+	defer client.close()
+	client.hello()
+	subscribe(t, ts, client, `{"type":"subscribe","sessionId":"`+session+`"}`, 1)
+
+	client.waitFor(EventReplayBegin)
+	end := client.waitFor(EventReplayEnd)
+	if count := payloadOf(t, end)["count"]; count != float64(0) {
+		t.Fatalf("replay.end count = %v, want 0 for a session with no history", count)
+	}
+
+	// The session can still appear later: the subscription is already live.
+	ts.hub.Publish(Event{Type: "pi.message_update", SessionID: session, Payload: json.RawMessage(`{"i":1}`)})
+	if got := seqOf(t, client.waitFor("pi.message_update")); got == 0 {
+		t.Fatal("event after the empty replay has no seq")
 	}
 }
