@@ -104,6 +104,12 @@ func TestATaskRunsAndKeepsItsOutput(t *testing.T) {
 	if !ok || !strings.Contains(output, "first") || !strings.Contains(output, "second") {
 		t.Fatalf("output %q (%v)", output, ok)
 	}
+	// The end event is published by the reaper, which runs after the status flips: wait
+	// for the event rather than assuming the two are simultaneous.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) && hub.count() < 2 {
+		time.Sleep(10 * time.Millisecond)
+	}
 	if hub.count() < 2 {
 		t.Fatalf("a start and an end are worth an event, got %d", hub.count())
 	}

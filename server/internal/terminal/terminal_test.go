@@ -301,7 +301,19 @@ func (b *lockedBuffer) String() string {
 // TestCopyToDeliversTheOutput covers the sink-less path: a plain reader still sees
 // the shell, which is what a future `pi-ui attach` uses.
 func TestCopyToDeliversTheOutput(t *testing.T) {
-	manager, root, _ := newManager(t, 2)
+	// No sink here on purpose: `CopyTo` is the sink-less path, and a test that both
+	// pumps the PTY through a sink and reads it would have two readers stealing each
+	// other's bytes.
+	root := t.TempDir()
+	files, err := fs.New(fs.Config{Roots: []string{root}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := New(Config{FS: files})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = manager.Shutdown() })
 
 	session, err := manager.Open(context.Background(), root, 80, 24)
 	if err != nil {
