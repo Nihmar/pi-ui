@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -472,6 +473,46 @@ func TestSyntheticPromptStream(t *testing.T) {
 	if want := 45 * time.Millisecond; result.elapsed < want {
 		t.Errorf("--rate did not pace the stream: %v elapsed, want >= %v", result.elapsed, want)
 	}
+}
+
+// TestSyntheticPromptStreamCatchesUp is the counterpart of TestSyntheticPromptStream:
+// --rate must hold even when the interval is finer than the host's timer granularity
+// (250µs here; common hosts fire a 200µs ticker at ~1ms, which is why the emitter paces
+// on a deadline schedule). A ticker or a per-record sleep would deliver this stream at
+// ~1000 records/s, i.e. in ~2s instead of the ~0.5s the schedule takes.
+func TestSyntheticPromptStreamCatchesUp(t *testing.T) {
+	const (
+		events = 2000
+		rate   = 4000 // 250µs per record
+	)
+	result := runPipe(t, []string{"--emit", fmt.Sprint(events), "--rate", fmt.Sprint(rate)}, "{\"id\":\"p1\",\"type\":\"prompt\"}\n")
+	if got := len(records(t, result.stdout)); got != events+3 {
+		t.Errorf("record count = %d, want %d (response, updates, agent_end, agent_settled)", got, events+3)
+	}
+	if want := 1 * time.Second; result.elapsed > want {
+		t.Errorf("--rate did not catch up: %v elapsed for %d records at %d/s, want <= %v", result.elapsed, events, rate, want)
+	}
+}
+
+// TestNewPacerRejectsUnusableRates pins every rate that must not become a schedule: zero
+// and negative (unpaced by contract), NaN and the infinities (valid float64 values whose
+// time.Duration conversion is implementation-defined) and a rate so high that the
+// interval rounds to zero.
+func TestNewPacerRejectsUnusableRates(t *testing.T) {
+	for _, rate := range []float64{0, -1, math.NaN(), math.Inf(1), math.Inf(-1), 1e12} {
+		if p := newPacer(rate); p != nil {
+			t.Errorf("newPacer(%v) = %+v, want nil (unpaced)", rate, p)
+		}
+	}
+
+	p := newPacer(2000)
+	if p == nil || p.interval != 500*time.Microsecond {
+		t.Fatalf("newPacer(2000) = %+v, want a 500µs interval", p)
+	}
+	// A deadline that has already passed (and the first record) must not block.
+	p.start = time.Now().Add(-time.Second)
+	p.wait(0)
+	p.wait(1)
 }
 
 func TestBigRecord(t *testing.T) {

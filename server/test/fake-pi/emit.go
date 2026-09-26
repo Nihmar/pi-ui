@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -98,14 +99,9 @@ func (e *emitter) emitSyntheticRun(cfg config) error {
 		}
 	}
 	if cfg.emit > 0 {
-		ticker := newRateTicker(cfg.rate)
-		if ticker != nil {
-			defer ticker.Stop()
-		}
+		pacer := newPacer(cfg.rate)
 		for i := 0; i < cfg.emit; i++ {
-			if i > 0 && ticker != nil {
-				<-ticker.C
-			}
+			pacer.wait(i)
 			record, err := deltaRecord("chunk-"+strconv.Itoa(i), &spikeMarker{I: i, NS: time.Now().UnixNano()})
 			if err != nil {
 				return err
@@ -121,18 +117,50 @@ func (e *emitter) emitSyntheticRun(cfg config) error {
 	return e.writeRecord(json.RawMessage(`{"type":"agent_settled"}`))
 }
 
-// newRateTicker bounds the synthetic stream to --rate records per second; a nil ticker
-// means "as fast as the writer allows". A ticker (not a per-record sleep) keeps the
-// sustained rate on target instead of accumulating sleep overhead.
-func newRateTicker(rate float64) *time.Ticker {
-	if rate <= 0 {
+// pacer holds the synthetic stream to --rate records per second. It is a deadline
+// schedule, not a ticker: record i is due at start + i/rate, and the loop waits only
+// while it is ahead of that schedule. A ticker cannot work here, because the interval
+// of a criterion run (5 000 events/s is 200µs) is finer than the timer granularity of
+// many hosts (this one fires a 200µs ticker at ~1ms, i.e. 1 000 events/s), and a ticker
+// never makes up the ticks it missed. A per-record sleep would accumulate the same
+// granularity error; the deadline schedule absorbs it by emitting the catch-up records
+// back to back, so the sustained rate is the requested one.
+type pacer struct {
+	start    time.Time
+	interval time.Duration
+}
+
+// newPacer returns the schedule for rate records per second; a nil pacer (rate <= 0 or
+// not a finite number, or an interval that rounds to zero) means "as fast as the writer
+// allows". A NaN rate reaches here as a valid float64, and time.Duration(NaN) is an
+// implementation-defined value, so it is rejected explicitly.
+func newPacer(rate float64) *pacer {
+	if math.IsNaN(rate) || math.IsInf(rate, 0) || rate <= 0 {
 		return nil
 	}
 	interval := time.Duration(float64(time.Second) / rate)
 	if interval <= 0 {
 		return nil
 	}
-	return time.NewTicker(interval)
+	return &pacer{start: time.Now(), interval: interval}
+}
+
+// wait blocks until record i is due. A nil pacer, the first record and any record that
+// is already behind the schedule return immediately, which is what makes the stream
+// catch up after a coarse timer slept through several deadlines.
+func (p *pacer) wait(i int) {
+	if p == nil || i == 0 {
+		return
+	}
+	offset := time.Duration(i) * p.interval
+	if offset <= 0 {
+		// i * interval overflowed int64 (a rate so slow that one record's interval is
+		// most of a year): emitting unpaced beats emitting on a wrapped deadline.
+		return
+	}
+	if ahead := time.Until(p.start.Add(offset)); ahead > 0 {
+		time.Sleep(ahead)
+	}
 }
 
 // assistantMessageEvent is the delta-only event pi puts in a message_update.
