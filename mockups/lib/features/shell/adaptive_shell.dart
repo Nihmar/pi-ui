@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/breakpoints.dart';
 import '../../core/theme/theme_tokens.dart';
+import '../../widgets/connection_banner.dart';
 
 /// The adaptive shell of pi-ui: a NavigationBar on a phone, a NavigationRail from
 /// the desktop breakpoint up, the same branch state in both.
@@ -64,14 +65,26 @@ class AdaptiveShell extends StatelessWidget {
               ],
             ),
             const VerticalDivider(width: 1),
-            Expanded(child: navigationShell),
+            Expanded(
+              child: Column(
+                children: [
+                  const ConnectionBanner(),
+                  Expanded(child: navigationShell),
+                ],
+              ),
+            ),
           ],
         ),
       );
     }
 
     return Scaffold(
-      body: navigationShell,
+      body: Column(
+        children: [
+          const ConnectionBanner(),
+          Expanded(child: navigationShell),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: _go,

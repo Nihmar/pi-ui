@@ -215,6 +215,21 @@ class MockPiApi {
     _dialogs.remove(id)?.dispose();
   }
 
+  /// Queues a prompt while offline: the message is visible immediately and is
+  /// sent (with its answer) as soon as the connection returns.
+  void queueOffline(String sessionId, String text) {
+    final entryId = 'e-${_next()}';
+    _append(
+      sessionId,
+      UserMessage(id: entryId, at: DateTime.now(), text: text, queued: true),
+    );
+    _offlinePrompts.putIfAbsent(sessionId, () => []).add((entryId, text));
+    _updateSession(
+      sessionId,
+      (session) => session.copyWith(messageCount: session.messageCount + 1),
+    );
+  }
+
   /// Renames a session (the pi `rename` command and the projection follow).
   void renameSession(String id, String name) {
     _updateSession(id, (session) => session.copyWith(name: name));
@@ -372,11 +387,15 @@ class MockPiApi {
           return;
         }
         _connection.add(MockConnection.online);
-        _flushQueue(_offlineSession ?? _lastSessionId ?? '');
+        final sessionId = _offlineSession ?? _lastSessionId ?? '';
+        _flushOfflinePrompts(sessionId);
+        _flushQueue(sessionId);
       });
     }
     if (state == MockConnection.online) {
-      _flushQueue(_offlineSession ?? _lastSessionId ?? '');
+      final sessionId = _offlineSession ?? _lastSessionId ?? '';
+      _flushOfflinePrompts(sessionId);
+      _flushQueue(sessionId);
     }
   }
 
@@ -660,6 +679,36 @@ class MockPiApi {
     });
   }
 
+  void _flushOfflinePrompts(String sessionId) {
+    final pending = _offlinePrompts.remove(sessionId);
+    if (pending == null || pending.isEmpty) {
+      return;
+    }
+    for (final (entryId, _) in pending) {
+      final entries = _entries[sessionId]?.value ?? const <ChatEntry>[];
+      for (final entry in entries) {
+        if (entry.id == entryId && entry is UserMessage) {
+          _replaceEntry(
+            sessionId,
+            entryId,
+            UserMessage(id: entry.id, at: entry.at, text: entry.text),
+          );
+        }
+      }
+    }
+    _append(
+      sessionId,
+      StatusEntry(
+        id: 'e-${_next()}',
+        at: DateTime.now(),
+        text:
+            '${pending.length} queued message${pending.length == 1 ? '' : 's'} sent',
+        kind: StatusKind.success,
+      ),
+    );
+    _playStreamingAnswer(sessionId);
+  }
+
   void _flushQueue(String sessionId) {
     final queue = _queues[sessionId];
     if (queue == null || queue.value.isEmpty) {
@@ -697,6 +746,8 @@ class MockPiApi {
   }
 
   // ------------------------------------------------------------------ plumbing
+
+  final _offlinePrompts = <String, List<(String, String)>>{};
 
   String? _offlineSession;
 

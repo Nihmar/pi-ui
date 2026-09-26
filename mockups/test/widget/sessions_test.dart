@@ -25,7 +25,8 @@ void main() {
   });
 
   testWidgets('tapping a session opens its chat timeline', (tester) async {
-    await pumpApp(tester, const Size(420, 900));
+    // Tall enough that the seeded conversation is built without scrolling.
+    await pumpApp(tester, const Size(420, 1400));
 
     await tester.tap(find.text('pi-ui'));
     await tester.pumpAndSettle();

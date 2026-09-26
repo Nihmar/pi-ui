@@ -175,6 +175,34 @@ void main() {
     });
   });
 
+  test('an offline prompt is marked sent and answered on reconnect', () {
+    fakeAsync((async) {
+      api.runScenario(MockScenario.offlineQueue, sessionId);
+      api.queueOffline(sessionId, 'written while offline');
+      expect(
+        api.currentEntries(sessionId).whereType<UserMessage>().last.queued,
+        isTrue,
+      );
+
+      api.setConnection(MockConnection.reconnecting);
+      async.elapse(const Duration(seconds: 5));
+
+      final sent = api
+          .currentEntries(sessionId)
+          .whereType<UserMessage>()
+          .firstWhere((message) => message.text == 'written while offline');
+      expect(sent.queued, isFalse);
+      expect(
+        api
+            .currentEntries(sessionId)
+            .whereType<StatusEntry>()
+            .any((entry) => entry.text.contains('queued message')),
+        isTrue,
+      );
+      async.elapse(const Duration(seconds: 5));
+    });
+  });
+
   test('the wrap-up scenario ends the session with a handoff', () {
     fakeAsync((async) {
       api.runScenario(MockScenario.wrapUp, sessionId);

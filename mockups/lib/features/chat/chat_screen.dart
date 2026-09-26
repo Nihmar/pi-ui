@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/data/providers.dart';
 import '../../core/models/chat_entry.dart';
 import 'widgets/chat_timeline.dart';
+import 'widgets/composer.dart';
+import 'widgets/dialog_card.dart';
+import 'widgets/queue_strip.dart';
 import 'widgets/session_header.dart';
 
 /// The conversation of one session: header, timeline and (in the next slice) the
@@ -21,6 +24,7 @@ class ChatScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final entries =
         ref.watch(chatProvider(sessionId)).value ?? const <ChatEntry>[];
+    final dialog = ref.watch(dialogProvider(sessionId)).value;
     return Column(
       children: [
         SessionHeader(sessionId: sessionId),
@@ -38,6 +42,11 @@ class ChatScreen extends ConsumerWidget {
             },
           ),
         ),
+        // The dialog sits between the conversation and the composer: it belongs
+        // to the run, not to a modal layer over it.
+        if (dialog != null) DialogCard(sessionId: sessionId, request: dialog),
+        QueueStrip(sessionId: sessionId),
+        Composer(sessionId: sessionId),
       ],
     );
   }
