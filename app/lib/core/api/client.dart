@@ -4,6 +4,7 @@ import '../models/session.dart';
 import 'dto.dart';
 import 'errors.dart';
 import 'files.dart';
+import 'git.dart';
 import 'http.dart';
 import 'json.dart';
 import 'profile.dart';
@@ -136,6 +137,59 @@ class PiUiClient {
         );
         return decoded(response, FileContent.fromJson);
       });
+
+  /// GET /git/status — the working tree of one repository.
+  Future<GitStatus> gitStatus(String dir) => guarded(() async {
+    final response = await _dio.get<dynamic>(
+      '/git/status',
+      queryParameters: {'dir': dir},
+    );
+    return decoded(response, GitStatus.fromJson);
+  });
+
+  /// GET /git/log — the newest commits of one repository.
+  Future<List<GitCommit>> gitLog(String dir, {int limit = 20}) =>
+      guarded(() async {
+        final response = await _dio.get<dynamic>(
+          '/git/log',
+          queryParameters: {'dir': dir, 'limit': '$limit'},
+        );
+        return decoded(response, GitCommit.listFrom);
+      });
+
+  /// GET /git/diff — a unified diff of one repository.
+  Future<String> gitDiff(String dir, {String? path, bool staged = false}) =>
+      guarded(() async {
+        final response = await _dio.get<dynamic>(
+          '/git/diff',
+          queryParameters: {
+            'dir': dir,
+            'path': ?path,
+            if (staged) 'staged': 'true',
+          },
+        );
+        return decoded(response, (body) => str(body['diff']));
+      });
+
+  /// POST /git/stage — adds paths to the index (operator + the `git.write` setting).
+  Future<void> gitStage(String dir, List<String> paths) => guarded(() async {
+    final response = await _dio.post<dynamic>(
+      '/git/stage',
+      data: {'dir': dir, 'paths': paths},
+    );
+    if ((response.statusCode ?? 0) >= 300) {
+      decoded(response, (body) => body);
+    }
+  });
+
+  /// POST /git/commit — records the index.
+  Future<GitCommit> gitCommit(String dir, String message) => guarded(() async {
+    final response = await _dio.post<dynamic>(
+      '/git/commit',
+      data: {'dir': dir, 'message': message},
+    );
+    return decoded(response, GitCommit.fromJson);
+  });
 
   /// GET /settings — the server's own policy, as the effective values.
   ///

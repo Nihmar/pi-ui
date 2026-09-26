@@ -29,6 +29,16 @@ abstract final class ErrorCodes {
   /// The child pi process failed (a command it refused, a broken pipe).
   static const piError = 'pi_error';
 
+  /// The server's own policy turned the capability off (`git.write`), which is not the
+  /// same as this device lacking the scope.
+  static const featureDisabled = 'feature_disabled';
+
+  /// The server has no workspace, so it exposes no filesystem, git or terminal surface.
+  static const unsupported = 'unsupported';
+
+  /// The deployment manages that itself (`POST /updates/apply`).
+  static const managedMode = 'managed_mode';
+
   /// A dialog id that was never open or is already answered.
   static const notFound = 'not_found';
   static const alreadyAnswered = 'already_answered';
@@ -69,6 +79,9 @@ abstract final class ErrorCodes {
     notFound => 'That is not there any more.',
     alreadyAnswered => 'Somebody answered first.',
     unavailable => 'The server is shutting down.',
+    featureDisabled => 'The server has that capability turned off.',
+    unsupported => 'This server does not offer that.',
+    managedMode => 'This deployment manages that itself.',
     unreachable => 'The server is unreachable.',
     offline => 'The connection dropped.',
     timeout => 'The server did not answer in time.',

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +13,7 @@ import '../../../core/theme/theme_tokens.dart';
 import '../../../widgets/context_bar.dart';
 import '../../../widgets/info_chip.dart';
 import '../../../widgets/status_badge.dart';
+import '../../git/git_panel.dart';
 import 'model_picker.dart';
 
 /// The header of one session: identity, state, model, context and the actions
@@ -195,6 +198,7 @@ class _SessionMenu extends ConsumerWidget {
         if (session.status.isLive)
           const PopupMenuItem(value: 'stop', child: Text('Stop session')),
         const PopupMenuItem(value: 'rename', child: Text('Rename…')),
+        const PopupMenuItem(value: 'git', child: Text('Git…')),
         const PopupMenuItem(value: 'compact', child: Text('Compact context')),
         const PopupMenuDivider(),
         const PopupMenuItem(
@@ -219,6 +223,10 @@ class _SessionMenu extends ConsumerWidget {
       switch (action) {
         case 'stop':
           await actions.stop(session.id);
+        case 'git':
+          if (context.mounted) {
+            unawaited(showGitPanel(context, session.cwd));
+          }
         case 'compact':
           await actions.compact(session.id);
         case 'copy-cwd':

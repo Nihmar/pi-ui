@@ -12,6 +12,7 @@ import 'errors.dart';
 import 'dto.dart';
 import 'frames.dart';
 import 'files.dart';
+import 'git.dart';
 import 'models.dart';
 import 'profile.dart';
 import 'session_actions.dart';
@@ -419,6 +420,56 @@ final fileContentProvider = FutureProvider.family<FileContent, String>((
     );
   }
   return client.readFile(path);
+});
+
+/// The working tree of one repository, keyed by its directory.
+final gitStatusProvider = FutureProvider.family<GitStatus, String>((
+  ref,
+  dir,
+) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    throw const PiuiException(
+      ErrorCodes.offline,
+      'Not connected to the server.',
+    );
+  }
+  return client.gitStatus(dir);
+});
+
+/// The newest commits of one repository.
+final gitLogProvider = FutureProvider.family<List<GitCommit>, String>((
+  ref,
+  dir,
+) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    return const <GitCommit>[];
+  }
+  return client.gitLog(dir);
+});
+
+/// One diff: the repository, the path and which side of the index.
+typedef GitDiffRequest = ({String dir, String path, bool staged});
+
+/// The unified diff of one path, mapped onto the timeline's diff model.
+final gitDiffProvider = FutureProvider.family<DiffPreview, GitDiffRequest>((
+  ref,
+  request,
+) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    throw const PiuiException(
+      ErrorCodes.offline,
+      'Not connected to the server.',
+    );
+  }
+  final diff = await client.gitDiff(
+    request.dir,
+    path: request.path,
+    staged: request.staged,
+  );
+  return diffPreviewFrom(request.path, diff);
 });
 
 /// The models pi can switch the session onto, loaded when a picker opens.

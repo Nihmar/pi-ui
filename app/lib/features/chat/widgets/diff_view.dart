@@ -62,13 +62,19 @@ class DiffView extends StatelessWidget {
             ),
           ),
           Divider(height: 1, color: tokens.codeBorder),
+          // The lines scroll sideways (a long line must not wrap) and every line's
+          // background reaches the widest one: `IntrinsicWidth` is what gives the column
+          // a bounded width inside a horizontal scroll view, which `stretch` alone
+          // cannot do (it asks for an infinite one).
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final line in diff.lines) _DiffLineTile(line: line),
-              ],
+            child: IntrinsicWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final line in diff.lines) _DiffLineTile(line: line),
+                ],
+              ),
             ),
           ),
         ],
