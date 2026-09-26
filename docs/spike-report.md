@@ -3,9 +3,9 @@
 **Owner:** measure workstream (`docs/spike-interfaces.md` §13).
 **Runner:** `server/scripts/measure.sh`, a wrapper around `pi-ui measure`
 (`server/internal/cli/measure.go`) and `internal/spike` (`docs/spike-interfaces.md` §5.6).
-**Tree measured:** the working tree at HEAD `a0c64e0` plus the harness fixes this document
-lands with — the deadline pacer in `server/test/fake-pi/emit.go` and the latency reservoir
-window committed as `6e4bbd8`.
+**Tree measured:** HEAD `a0c64e0` plus the harness fixes the run was built with, now in
+history: `df82ca0` (deadline pacer in `server/test/fake-pi/emit.go`), `6e4bbd8` (latency
+reservoir window) and the runner as of `0194bd4` (`pi-ui measure` plus the paced rapid run).
 **Host measured (one machine, all runs):** 13th Gen Intel Core i5-13400F, 12 cores,
 31 925 MiB RAM, kernel `7.2.7-1-cachyos`; `pi` 0.87.1 at `~/.local/bin/pi`. Host load
 average 2.68 before the run and 2.12 after; the host is shared with other agent work, so
@@ -100,8 +100,8 @@ All sample paths are relative to `.piui/spike/`.
 | C4 | per-child RSS, real `pi`, idle | sum of 8 ≤ 2 400 MiB | 1 136.4 MiB (≈142 MiB/child) | PASS | `real-pi-spawn/spawn.json` |
 | C5 | fake-pi → rpc → sessions → hub → 1 WS client throughput | ≥ 5 000 events/s sustained 30 s, loss 0 | 210 002 events in 30.00 s = 6 999.9 events/s, loss 0 | PASS | `throughput-rapid/throughput.json` |
 | C6 | end-to-end event latency under load (p95) | p95 ≤ 300 ms | rapid p50 0.10 ms, p95 0.34 ms; 3-minute soak p50 0.13 ms, p95 0.34 ms, max 25.6 ms | PASS | `throughput-rapid/throughput.json`, `throughput-soak/throughput.json` |
-| C7 | framing correctness: U+2028/U+2029, CRLF, 8 MiB record, split reads | 100 % of records intact, no panic | adversarial framing + pipeline suite green | PASS | `server/test/adversarial` (run first by the runner) |
-| C8 | shutdown reaps all children | ≤ 2 s, zero orphans | adversarial lifecycle suite green | PASS | `server/test/adversarial` (real binary, SIGTERM) |
+| C7 | framing correctness: U+2028/U+2029, CRLF, 8 MiB record, split reads | 100 % of records intact, no panic | adversarial framing + pipeline suite green (31 PASS, 0 FAIL, race on, at the measured tree) | PASS | `server/test/adversarial` (run first by the runner) |
+| C8 | shutdown reaps all children | ≤ 2 s, zero orphans | adversarial lifecycle suite green; `TestServerSigtermReapsChildren` (e2e, same tree) exits in 9.76 ms with 2 of 2 children reaped, zero orphans | PASS | `server/test/e2e` + `server/test/adversarial` (real binary, SIGTERM) |
 | C9 | memory stability: 3 min soak at ~2 000 events/s | Go RSS growth ≤ 10 % after warm-up | 360 002 events in 180.00 s = 2 000.0 events/s, loss 0; RSS 20.6 MiB after warm-up → 20.2 MiB at the end = −2.10 % | PASS | `throughput-soak/throughput.json` |
 
 ### Raw samples behind the matrix
@@ -111,14 +111,15 @@ All sample paths are relative to `.piui/spike/`.
 | C1 ready latency (ms) | 535.3, 578.5, 536.0, 577.4, 584.4, 547.0, 535.2, 567.1 |
 | C4 per-child RSS (MiB) | 142.7, 141.1, 141.0, 142.0, 140.7, 142.7, 145.6, 140.6 (sum 1 136.4) |
 | C6 latency window | rapid: 65 536 samples retained out of 210 000 taken; soak: 65 536 retained out of 360 000 taken |
-| C9 RSS series (MiB) | flat between 20.0 and 21.1 for the whole run (readings every 5 s, 20.6 after warm-up → 20.2 at the end) |
+| C9 RSS series (MiB) | flat between 19.9 and 21.1 for the whole run (readings every 5 s, 20.6 after warm-up → 20.2 at the end) |
 
 **Why the source is paced at 7 000/s.** A source paced at exactly 5 000 events/s can only
 ever measure at or below 5 000 events/s, so it could never show the pipeline meeting the
 threshold; the rapid run therefore paces the source 40 % above it (7 000/s for 30 s). On
-the same host, as separate ad-hoc runs outside `measure.sh`, a source at 10 000/s and a
-source at 15 000/s each sustained 30 s with loss 0, so the 7 000/s run measures the
-pipeline, not the source.
+the same host, as separate ad-hoc runs outside `measure.sh` (samples in `.piui/diag/headroom-10k/`
+and `.piui/diag/headroom-15k/`), a source at 10 000/s sustained 9 999.7 events/s and a source
+at 15 000/s sustained 14 999.9 events/s for 30 s each, loss 0, so the 7 000/s run measures
+the pipeline, not the source.
 
 ## 3. Measurement defects found and fixed
 
@@ -131,10 +132,11 @@ property of the harness.
 `fake-pi` metered its synthetic `--emit` stream with a `time.Ticker`
 (`server/test/fake-pi/emit.go`). A ticker fires on the host's timer granularity and never
 makes up a missed tick, so an interval finer than that granularity caps the delivered rate
-well below the request. Measured on this host: a 200 µs ticker fires 970 times/s, a
-500 µs ticker 966/s, a 1 ms ticker 945/s. The consequence was visible on the wire: a
-5 000 events/s run produced 1 031.9 events/s end-to-end, so C5 would have "failed" as a
-property of the harness.
+well below the request. Measured on this host with single 3 s samples: a 200 µs ticker fires
+≈1 000 times/s, a 500 µs ticker ≈960/s, and even a 1 ms ticker only ≈950/s. The consequence was visible on the wire: a
+5 000 events/s run produced 1 031.9 events/s end-to-end (pre-fix summary in
+`.piui/spike/pre-fix-summaries.txt`), so C5 would have "failed" as a property of the
+harness.
 
 Fixed by emitting on a deadline schedule instead of a ticker: record `i` is due at
 `start + i/rate`, and the loop sleeps only while it is ahead of that deadline, so the
@@ -159,8 +161,13 @@ so every sample of the run is equally likely to be in the window, the percentile
 unbiased, and the retained memory stops growing with the event count. The raw file records
 both numbers: `latencyRetained` / `latencyTaken` are 65 536 retained out of 360 000 taken
 for the soak. The first number was a measurement artefact, not a leak; the evidence is the
-same run measured twice — +43.98 % before the fix, −2.10 % after it — together with the RSS
-series, which is flat between 20.0 and 21.1 MiB for the whole run (§2).
+same run measured twice — +43.98 % before the fix, −2.10 % after it (the pre-fix summary is
+kept in `.piui/spike/pre-fix-summaries.txt`; its raw `throughput.json` was overwritten by
+the fixed run) — together with the RSS series, which is flat between 19.9 and 21.1 MiB for
+the whole run (§2). The retained diagnostic runs under `.piui/diag/` show the same mechanism
+from another angle: the same 60 s stream grows RSS by 0.75 MiB with one subscriber and
+2.14 MiB with two (`soak-60s-1c/`, `soak-60s-2c/`), i.e. with the number of in-process
+sample accumulators, not with the server's event handling.
 
 ## 4. Residual risks and what this does not verify
 
