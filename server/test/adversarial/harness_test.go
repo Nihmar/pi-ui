@@ -311,6 +311,9 @@ type wsClient struct {
 	t      *testing.T
 	conn   *websocket.Conn
 	frames []string // types of every frame read, for failure diagnostics
+	// pending holds the frames an expectation read without matching, so a later
+	// expectation still sees them.
+	pending []map[string]json.RawMessage
 }
 
 // dial opens a socket without completing the handshake, so a test can decide what
@@ -390,11 +393,23 @@ func (c *wsClient) next(timeout time.Duration) (map[string]json.RawMessage, erro
 }
 
 // mustNext reads until pred holds, failing the test on timeout or disconnect.
+//
+// A frame that does not match is kept, not dropped: the order two independent frames
+// arrive in is the server's to choose — a dialog `request` may be written before the
+// `response` to the command that caused it — so an expectation that skipped one must
+// not hide it from the next one. Dropping it was what made the dialog tests flaky.
 func (c *wsClient) mustNext(what string, pred func(map[string]json.RawMessage) bool) map[string]json.RawMessage {
 	c.t.Helper()
 
 	deadline := time.Now().Add(waitTimeout)
 	for time.Now().Before(deadline) {
+		for index, frame := range c.pending {
+			if !pred(frame) {
+				continue
+			}
+			c.pending = append(c.pending[:index], c.pending[index+1:]...)
+			return frame
+		}
 		frame, err := c.next(time.Until(deadline))
 		if err != nil {
 			c.t.Fatalf("waiting for %s: %v (frames read: %v)", what, err, c.frames)
@@ -402,6 +417,7 @@ func (c *wsClient) mustNext(what string, pred func(map[string]json.RawMessage) b
 		if pred(frame) {
 			return frame
 		}
+		c.pending = append(c.pending, frame)
 	}
 	c.t.Fatalf("timed out waiting for %s (frames read: %v)", what, c.frames)
 	return nil
