@@ -274,6 +274,13 @@ func apiError(t *testing.T, data []byte) (code, message string) {
 	return body.Error.Code, body.Error.Message
 }
 
+// requestNoAuth performs a request without the stack credential, which is how
+// the tests observe the viewer scope of a loopback peer.
+func (s *stack) requestNoAuth(method, path, body string) (*http.Response, []byte) {
+	s.t.Helper()
+	return s.request(method, path, body, map[string]string{"Authorization": ""})
+}
+
 // itoa is strconv.Itoa for the tests that build JSON by hand.
 func itoa(n int) string { return strconv.Itoa(n) }
 
@@ -445,6 +452,17 @@ func hasResponse(id string) func(map[string]json.RawMessage) bool {
 	return func(frame map[string]json.RawMessage) bool {
 		return frameType(frame) == "response" && fieldString(frame, "id") == id
 	}
+}
+
+// fieldInt reads a numeric field of a frame.
+func fieldInt(t *testing.T, frame map[string]json.RawMessage, key string) int {
+	t.Helper()
+
+	var value int
+	if err := json.Unmarshal(frame[key], &value); err != nil {
+		t.Fatalf("frame field %q is not an integer: %v (%s)", key, err, frame[key])
+	}
+	return value
 }
 
 // fieldString reads a string field of a frame, "" when absent.
