@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -84,14 +85,39 @@ func TestHandshakeRequiresHelloFirst(t *testing.T) {
 	client.expectClose(websocket.StatusCode(closeCodeUnauthorized))
 }
 
-// TestHandshakeRejectsUnsupportedVersion pins the v:1 negotiation.
+// TestHandshakeRejectsUnsupportedVersion pins the v:1 negotiation: a well-formed v2
+// hello is refused with the version in the close reason, not with the generic schema
+// message, because the schema cannot express a version it does not speak.
 func TestHandshakeRejectsUnsupportedVersion(t *testing.T) {
 	ts := newTestHub(t, nil)
 	client := ts.dial(nil)
 	defer client.close()
 
 	client.sendRaw(`{"type":"hello","v":2,"client":{"name":"future","version":"9"}}`)
-	client.expectClose(websocket.StatusCode(closeCodeUnauthorized))
+	_, err := client.read()
+	var closeErr websocket.CloseError
+	if !errors.As(err, &closeErr) {
+		t.Fatalf("read error = %v, want a close error", err)
+	}
+	if closeErr.Code != websocket.StatusCode(closeCodeUnauthorized) {
+		t.Fatalf("close code = %v, want %v", closeErr.Code, closeCodeUnauthorized)
+	}
+	if !strings.Contains(closeErr.Reason, "version 2") {
+		t.Fatalf("close reason = %q, want it to name the offered version", closeErr.Reason)
+	}
+}
+
+// TestHandshakeSkipsBinaryFrames pins finding W6: a binary frame is not the protocol, so
+// it is ignored while waiting for hello exactly like it is ignored after the handshake.
+func TestHandshakeSkipsBinaryFrames(t *testing.T) {
+	ts := newTestHub(t, nil)
+	client := ts.dial(nil)
+	defer client.close()
+
+	client.sendBinary([]byte{0x00, 0x01, 0x02})
+	if welcome := client.hello(); welcome["type"] != frameWelcome {
+		t.Fatalf("first frame after hello = %v, want %s", welcome["type"], frameWelcome)
+	}
 }
 
 // TestHandshakeRejectsMalformedHello covers a hello that is not a hello: the

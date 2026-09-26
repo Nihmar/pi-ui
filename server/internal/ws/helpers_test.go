@@ -142,6 +142,17 @@ func (c *testClient) send(v any) {
 	}
 }
 
+// sendBinary writes one binary message, the frame type the protocol ignores.
+func (c *testClient) sendBinary(data []byte) {
+	c.t.Helper()
+
+	ctx, cancel := context.WithTimeout(c.ctx, testTimeout)
+	defer cancel()
+	if err := c.conn.Write(ctx, websocket.MessageBinary, data); err != nil {
+		c.t.Fatalf("send binary: %v", err)
+	}
+}
+
 // read returns the next frame, or the read error when the connection is gone.
 func (c *testClient) read() (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, testTimeout)

@@ -59,14 +59,24 @@ func (h *hub) handshake(c *connection) error {
 	ctx, cancel := context.WithTimeout(c.ctx, h.handshakeTimeout)
 	defer cancel()
 
-	typ, data, err := c.ws.Read(ctx)
-	if err != nil {
-		return errors.New("hello must be the first frame")
-	}
-	if typ != websocket.MessageText {
-		return errors.New("hello must be a text frame")
+	// A binary frame is not the protocol, so it is skipped here exactly like the read
+	// loop skips one after the handshake; the deadline still bounds a peer that sends
+	// nothing but binary frames.
+	var data []byte
+	for {
+		typ, frame, err := c.ws.Read(ctx)
+		if err != nil {
+			return errors.New("hello must be the first frame")
+		}
+		if typ == websocket.MessageText {
+			data = frame
+			break
+		}
 	}
 	if !h.validateFrame(data) {
+		if version, ok := helloVersion(data); ok && version != protocolVersion {
+			return fmt.Errorf("protocol version %d is not supported (this server speaks v%d)", version, protocolVersion)
+		}
 		return errors.New("hello does not match schemas/ws.json")
 	}
 	var frame inbound
@@ -76,13 +86,29 @@ func (h *hub) handshake(c *connection) error {
 	if frame.Type != frameHello {
 		return fmt.Errorf("hello must be the first frame, got %q", frame.Type)
 	}
-	if frame.V != protocolVersion {
-		return fmt.Errorf("protocol version %d is not supported (this server speaks v%d)", frame.V, protocolVersion)
-	}
 	if frame.Client != nil {
 		c.clientName = frame.Client.Name
 	}
 	return nil
+}
+
+// helloVersion reads the claimed protocol version out of a frame that failed
+// validation. The schema pins `v` to the version this server speaks, so a
+// well-formed v2 hello can only be recognised before the schema gate; this keeps
+// the close reason useful for a client that upgraded its protocol instead of
+// reporting a generic schema mismatch.
+func helloVersion(data []byte) (int, bool) {
+	var frame struct {
+		Type string `json:"type"`
+		V    *int   `json:"v"`
+	}
+	if err := json.Unmarshal(data, &frame); err != nil {
+		return 0, false
+	}
+	if frame.Type != frameHello || frame.V == nil {
+		return 0, false
+	}
+	return *frame.V, true
 }
 
 // route validates one inbound frame and dispatches it.
