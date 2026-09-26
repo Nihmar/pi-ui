@@ -211,11 +211,11 @@ server.replay.begin {direction:"entry"} → <events from the Replayer> → serve
   it a second time.
 - An unknown cursor yields `server.error{code:"replay_cursor_invalid"}` and
   `complete:false`, so the client reloads through REST instead of rendering a partial
-  history. The Replayer may report that failure itself (sessions does, because it knows
-  which pi rejection means "cursor unknown") or return it as an error, in which case the
-  hub reports it with the Replayer's own `ErrorCode()`; `complete:false` arrives either
-  way. Without a Replayer configured the answer is `server.error{code:"unsupported"}` +
-  `complete:false` — never a silent empty replay.
+  history. The Replayer returns that failure as an error — sessions does, because it knows
+  which pi rejection means "cursor unknown" — and the hub reports it with the Replayer's
+  own `ErrorCode()` to the replaying connection, before `server.replay.end`; the failure
+  never enters the session event stream. Without a Replayer configured the answer is
+  `server.error{code:"unsupported"}` + `complete:false` — never a silent empty replay.
 
 ### Ordering, buffering and dedup
 

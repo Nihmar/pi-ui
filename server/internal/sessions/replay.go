@@ -18,9 +18,11 @@ type entryEnvelope struct {
 // id, so the hub delegates here: this method calls get_entries{since} and emits one
 // pi.entry_appended event per entry, in child order, with the entry id as the cursor.
 //
-// An unknown cursor is not an error the client can act on: server.error with
-// replay_cursor_invalid is published and complete=false is returned, which tells the client
-// to reload through REST instead of replaying.
+// An unknown cursor is not an error the client can act on: it is returned as a coded
+// replay_cursor_invalid error with complete=false, which tells the client to reload
+// through REST instead of replaying. The hub reports the returned error to the replaying
+// connection before replay.end, so the failure never enters the session event stream
+// where every other subscriber of the session would see it.
 func (m *Manager) ReplayFromEntry(ctx context.Context, sessionID, entryID string, emit func(ws.Event)) (bool, error) {
 	s, ok := m.find(sessionID)
 	if !ok {
@@ -31,11 +33,7 @@ func (m *Manager) ReplayFromEntry(ctx context.Context, sessionID, entryID string
 	if err != nil {
 		var coded *CodedError
 		if errors.As(err, &coded) && coded.Code == CodePiRejected {
-			m.publishJSON(ws.EventError, sessionID, errorPayload{
-				Code:    CodeReplayCursorInvalid,
-				Message: coded.Msg,
-			})
-			return false, nil
+			return false, Codedf(CodeReplayCursorInvalid, "%s", coded.Msg)
 		}
 		return false, err
 	}

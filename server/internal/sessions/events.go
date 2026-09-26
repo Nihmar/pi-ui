@@ -40,12 +40,6 @@ const (
 	piEventPrefix = "pi."
 )
 
-// errorPayload is the body of server.error (§7).
-type errorPayload struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
 // rawLinePayload is the body of a pi.unknown event whose record is not valid JSON: the
 // child's line as a JSON string, so the hub can frame it and a client can still recover
 // the bytes it received (`raw` round-trips them exactly).

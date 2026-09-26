@@ -79,7 +79,7 @@ func TestReplayFromStartReturnsEveryEntry(t *testing.T) {
 	}
 }
 
-func TestReplayWithUnknownCursorIsReportedNotFatal(t *testing.T) {
+func TestReplayWithUnknownCursorFailsWithACodedError(t *testing.T) {
 	mgr, rec := newTestManager(t, nil)
 	argv := fakeChild(t, fakeharness.Script{Entries: replayEntries()})
 	info := startSession(t, mgr, Spec{CWD: t.TempDir(), Command: argv})
@@ -87,19 +87,14 @@ func TestReplayWithUnknownCursorIsReportedNotFatal(t *testing.T) {
 	complete, err := mgr.ReplayFromEntry(context.Background(), info.ID, "nope", func(ws.Event) {
 		t.Errorf("an unknown cursor must not emit entries")
 	})
-	if err != nil {
-		t.Fatalf("ReplayFromEntry(unknown) = %v, want a reported event instead", err)
-	}
 	if complete {
 		t.Errorf("complete = true, want false: the client must reload through REST")
 	}
-
-	reported := waitForEvent(t, rec, ws.EventError)
-	if code := payloadString(t, reported, "code"); code != CodeReplayCursorInvalid {
-		t.Errorf("server.error code = %q, want %q", code, CodeReplayCursorInvalid)
+	if code := CodeOf(err); code != CodeReplayCursorInvalid {
+		t.Fatalf("ReplayFromEntry(unknown) = %v (code %q), want a %q failure", err, code, CodeReplayCursorInvalid)
 	}
-	if reported.SessionID != info.ID {
-		t.Errorf("server.error sessionId = %q, want %q", reported.SessionID, info.ID)
+	if events := rec.ofType(ws.EventError); len(events) != 0 {
+		t.Errorf("published %d %s events, want none: the failure belongs to the replaying connection", len(events), ws.EventError)
 	}
 }
 
