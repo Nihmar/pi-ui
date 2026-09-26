@@ -6,6 +6,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/Nihmar/pi-ui/server/internal/audit"
+	"github.com/Nihmar/pi-ui/server/internal/fs"
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
@@ -38,6 +39,9 @@ type Options struct {
 	// corresponding budget.
 	RateLimit        *ratelimit.Limiter
 	RefreshRateLimit *ratelimit.Limiter
+	// FS is the confined filesystem service behind /workspaces and /fs, /files.
+	// Nil means this server has no workspace and those endpoints answer 501.
+	FS *fs.Service
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -101,6 +105,7 @@ func NewRouter(o Options) http.Handler {
 		audit:            o.Audit,
 		rateLimit:        o.RateLimit,
 		refreshRateLimit: o.RefreshRateLimit,
+		files:            o.FS,
 		pairSchema:       compilePairSchema(),
 	}
 	switch {
@@ -137,6 +142,14 @@ func NewRouter(o Options) http.Handler {
 	// The trail is admin-only: it names devices, sessions and outcomes.
 	mux.HandleFunc("GET /api/v1/audit", a.authorized(ScopeAdmin, a.listAudit))
 
+	// The filesystem surface: read with viewer, mutate with operator.
+	mux.HandleFunc("GET /api/v1/workspaces", a.authorized(ScopeViewer, a.workspaces))
+	mux.HandleFunc("GET /api/v1/fs/list", a.authorized(ScopeViewer, a.listFiles))
+	mux.HandleFunc("GET /api/v1/fs/stat", a.authorized(ScopeViewer, a.statFile))
+	mux.HandleFunc("GET /api/v1/files/read", a.authorized(ScopeViewer, a.readFile))
+	mux.HandleFunc("PUT /api/v1/files/write", a.authorized(ScopeOperator, a.writeFile))
+	mux.HandleFunc("DELETE /api/v1/files/delete", a.authorized(ScopeOperator, a.deleteFile))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -172,6 +185,7 @@ type api struct {
 	audit            AuditService
 	rateLimit        *ratelimit.Limiter
 	refreshRateLimit *ratelimit.Limiter
+	files            *fs.Service
 	pairSchema       *jsonschema.Schema
 }
 

@@ -1,7 +1,7 @@
 # REST API v1
 
-**Status:** the conventions, `/health`, `/server` and the auth surface are
-normative here and in `schemas/server.json`; every later endpoint (sessions,
+**Status:** the conventions, `/health`, `/server`, the auth surface and the
+filesystem surface are normative here and in `schemas/server.json`; every later endpoint (sessions,
 files, git, terminal, search, tasks, MCP, updates, settings, audit) is added to
 this document and to the schema in the same commit as its handler.
 **Source of truth:** `schemas/server.json` for the DTOs and
@@ -218,3 +218,34 @@ and a token is what unlocks operator and admin from anywhere. Returns
 `SrvServerIdentity`: version, `piVersion`, protocol, `features[]`, `limits{}`
 and `tls` when the server terminates TLS. The app uses it to negotiate
 capabilities and to confirm a certificate fingerprint (TOFU/pin).
+
+## Files and workspaces
+
+The server exposes the host filesystem **only inside the workspaces the operator
+configured** (`serve --root /path/to/projects`, repeatable). Confinement happens in
+`internal/fs` on the *resolved* path, so a symlink inside a root that points outside
+it is refused like any other escape (`path_escape`, HTTP 403, audited as
+`path.escape.blocked`). The client never receives bytes above the read cap; a larger
+file is a `too_large` and belongs to the download endpoint when that lands.
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/api/v1/workspaces` | viewer | `{"roots":[{"id","path"}]}`: the allowed roots, first one is the default |
+| GET | `/api/v1/fs/list?path=` | viewer | `{"entries":[…]}` — directories first, then names, case-insensitive |
+| GET | `/api/v1/fs/stat?path=` | viewer | one `FsEntry` |
+| GET | `/api/v1/files/read?path=&maxBytes=` | viewer | `{"entry","text"}` for UTF-8, `{"entry","base64"}` otherwise |
+| PUT | `/api/v1/files/write` | operator | `{path, text\|base64, expectedSha256?}` → the written `FsEntry` |
+| DELETE | `/api/v1/files/delete` | operator | `{path, recursive?}` → `{"removed":path}` |
+
+`FsEntry` is `{name, path, rel, rootId, isDir, size, mode, modTime, sha256?}`: absolute
+host path, path relative to the root that contains it, and the content hash (files up
+to the read cap) that a conditional write sends back.
+
+A conditional write — `expectedSha256` set to the hash the client read — is refused
+with `bad_request` when the file changed in between, and it never creates a file the
+client believed existed. A mutation is audited (`file.write`, `file.delete`) with the
+path as its target; a refused escape is audited as `path.escape.blocked` with
+`outcome: denied`.
+
+A server started without `--root` answers `501 unsupported` on every one of these
+endpoints instead of exposing the whole filesystem by accident.
