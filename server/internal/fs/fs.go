@@ -126,6 +126,21 @@ func New(cfg Config) (*Service, error) {
 	return service, nil
 }
 
+// Resolve returns the absolute, confined path a caller may act on, or the coded
+// failure that says why not.
+//
+// It is the seam the other host services use: git, search and the terminal all need
+// to know that a directory is inside a workspace, and none of them should
+// re-implement the rule (a second implementation is a second place to get a symlink
+// wrong).
+func (s *Service) Resolve(path string) (string, error) {
+	placement, err := s.resolve(path)
+	if err != nil {
+		return "", err
+	}
+	return placement.abs, nil
+}
+
 // Roots lists the allowed workspaces, so a client can offer them without asking.
 func (s *Service) Roots() []Root { return append([]Root(nil), s.roots...) }
 

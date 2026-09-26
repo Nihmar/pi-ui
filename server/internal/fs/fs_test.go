@@ -233,6 +233,24 @@ func TestMkdirCreatesParents(t *testing.T) {
 	}
 }
 
+func TestResolveIsThePublishedConfinement(t *testing.T) {
+	service, root := newService(t)
+	path := filepath.Join(root, "sub", "created", "later.md")
+
+	resolved, err := service.Resolve(path)
+	if err != nil {
+		t.Fatalf("a path under the root must resolve, even before it exists: %v", err)
+	}
+	if resolved != path {
+		t.Fatalf("resolved %q, wanted %q", resolved, path)
+	}
+	if _, err := service.Resolve(filepath.Join(root, "..", "outside")); err == nil {
+		t.Fatal("an escape must not resolve")
+	} else if code := sessions.CodeOf(err); code != "path_escape" {
+		t.Fatalf("code %q", code)
+	}
+}
+
 func TestBadPathsAreBadRequests(t *testing.T) {
 	service, root := newService(t)
 
