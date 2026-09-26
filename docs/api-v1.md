@@ -1,7 +1,12 @@
 # REST API v1
 
-**Status:** the conventions, `/health`, `/server`, the auth surface and the
-filesystem surface are normative here and in `schemas/server.json`; every later endpoint (sessions,
+**Status:** the conventions, `/health`, `/server` and the auth surface are normative
+here and in `schemas/server.json`, alongside the filesystem, git, search, settings,
+tasks and drain surfaces documented below. The DTOs of those later endpoints are Go
+types (`internal/fs`, `internal/git`, …) that the schema still has to absorb: until they
+do, this document is their contract and a change here is a change to the wire surface.
+Where a Go type and this document disagree, the document wins and the doc is fixed in
+the same commit; every later endpoint (sessions,
 files, git, terminal, search, tasks, MCP, updates, settings, audit) is added to
 this document and to the schema in the same commit as its handler.
 **Source of truth:** `schemas/server.json` for the DTOs and

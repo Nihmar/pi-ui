@@ -13,6 +13,24 @@ WebSocket with replay and reconnection. The UI is the approved Phase 2 mockup in
 `mockups/` (see `docs/mockups.md`) — same widgets, real data source — over the Phase 1
 server spike whose measured numbers and protocol contracts are in `docs/`.
 
+Beyond driving pi, the server owns the capabilities pi does not have, each confined to
+the workspaces an operator allows:
+
+| Capability | Where it lives | Endpoints |
+|---|---|---|
+| Files | `internal/fs` | `/workspaces`, `/fs/list`, `/fs/stat`, `/files/read\|write\|delete` |
+| Git | `internal/git` | `/git/status\|log\|diff\|stage\|commit` |
+| Search | `internal/search` | `/search` (ripgrep over the roots, JSONL scan of the sessions) |
+| Terminals | `internal/terminal` | WebSocket `terminal.open\|input\|resize\|close` |
+| Background tasks | `internal/tasks` | `/tasks`, `/tasks/{id}/stop` |
+| Server policy | `internal/settings` | `/settings` (admin), `server.settings.changed` |
+| Drain | `internal/api` | `/drain/start\|resume` |
+
+The confinement rule is one implementation (`internal/fs`): a path is decided on its
+resolved form, so a symlink inside a root cannot point outside it, and every capability
+reuses it rather than re-deriving it. A server started without `--root` exposes no
+filesystem, git, task or terminal surface at all (a `501`, never a guess).
+
 ## Repository layout
 
 | Path | What it is |
@@ -41,7 +59,13 @@ CGO_ENABLED=0 go build -o bin/pi-ui ./cmd/pi-ui
 ```
 
 `serve` starts one `pi --mode rpc` child per `--session`, serves REST on `/api/v1` and
-WebSockets on `/ws/v1`, and shuts down gracefully on SIGINT/SIGTERM, reaping every child.
+WebSockets on `/ws/v1`, and shuts down gracefully on SIGINT/SIGTERM, reaping every child
+(and stopping every terminal and background task first).
+
+Useful flags beyond the session ones: `--root <path>` (repeatable) for the workspaces a
+client may browse, `--session-dirs <list>` for the pi session JSONL the message search
+reads, `--terminals N` for the shell budget, `--state-dir` for the settings and the
+device tokens.
 Configuration also comes from `PIUI_*` environment variables (see
 `docs/spike-interfaces.md` §5.7).
 
