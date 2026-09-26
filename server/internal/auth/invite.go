@@ -39,26 +39,43 @@ type Invite struct {
 // inviteCodeDigits is the length of the typable pairing code.
 const inviteCodeDigits = 6
 
-// inviteStore keeps the pending invitations. They are process-local on purpose: an
-// invitation that survives a restart is a credential nobody remembers creating.
-type inviteStore struct {
+// InviteStore keeps the pending pairing invitations. The seam exists because the
+// invitations must be shared between processes: `pi-ui pair` mints one, the running
+// `pi-ui serve` consumes it, and only the store both open can make that work. The
+// memory implementation ships for tests and for a server whose invitations die with
+// it; the SQLite implementation persists them behind the same interface.
+type InviteStore interface {
+	// Save records one invitation, replacing an invitation with the same code.
+	Save(invite Invite) error
+	// Take removes and returns the invitation matching both the code and the secret,
+	// dropping expired ones. A wrong secret leaves the invitation alive: burning it
+	// would let anyone who read the digits cancel the pairing.
+	Take(code, secret string, now time.Time) (Invite, bool)
+	// Pending counts the unexpired invitations.
+	Pending(now time.Time) int
+}
+
+// MemoryInviteStore is the in-process InviteStore.
+type MemoryInviteStore struct {
 	mu      sync.Mutex
 	invites []Invite
 }
 
-// put records one invitation.
-func (s *inviteStore) put(invite Invite) {
+// NewMemoryInviteStore returns an empty in-process store.
+func NewMemoryInviteStore() *MemoryInviteStore { return &MemoryInviteStore{} }
+
+// Save implements InviteStore.
+func (s *MemoryInviteStore) Save(invite Invite) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.invites = append(s.invites, invite)
+	return nil
 }
 
-// take consumes the invitation matching both the code and the secret, dropping
-// expired ones on the way. The comparisons are constant-time across every pending
+// Take implements InviteStore with constant-time comparisons across every pending
 // invitation, so the timing of a failed attempt does not reveal whether a code
-// exists; a wrong secret leaves the invitation alive, because burning it would let
-// anyone who read the digits cancel the pairing.
-func (s *inviteStore) take(code, secret string, now time.Time) (Invite, bool) {
+// exists.
+func (s *MemoryInviteStore) Take(code, secret string, now time.Time) (Invite, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -82,11 +99,17 @@ func (s *inviteStore) take(code, secret string, now time.Time) (Invite, bool) {
 	return found, matched
 }
 
-// len reports the pending invitation count, for tests and diagnostics.
-func (s *inviteStore) len() int {
+// Pending implements InviteStore.
+func (s *MemoryInviteStore) Pending(now time.Time) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return len(s.invites)
+	count := 0
+	for _, invite := range s.invites {
+		if now.Before(invite.ExpiresAt) {
+			count++
+		}
+	}
+	return count
 }
 
 // newInviteCode returns a zero-padded code of inviteCodeDigits digits.

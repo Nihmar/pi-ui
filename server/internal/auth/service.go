@@ -65,6 +65,8 @@ type Options struct {
 	// SlidingRefresh is how much time must pass before an authenticated request
 	// extends the token expiry (default one hour).
 	SlidingRefresh time.Duration
+	// Invites is where pairing invitations live (default NewMemoryInviteStore).
+	Invites InviteStore
 }
 
 // withDefaults fills the zero fields of Options.
@@ -95,6 +97,9 @@ func withDefaults(o Options) Options {
 	}
 	if o.SlidingRefresh <= 0 {
 		o.SlidingRefresh = defaultSlidingRefresh
+	}
+	if o.Invites == nil {
+		o.Invites = NewMemoryInviteStore()
 	}
 	return o
 }
@@ -132,7 +137,7 @@ type PairResult struct {
 type Service struct {
 	opts    Options
 	store   Store
-	invites *inviteStore
+	invites InviteStore
 	limiter *attemptLimiter
 
 	mu     sync.Mutex
@@ -153,7 +158,7 @@ func New(store Store, opts Options) *Service {
 	return &Service{
 		opts:    opts,
 		store:   store,
-		invites: &inviteStore{},
+		invites: opts.Invites,
 		limiter: newAttemptLimiter(opts.PairLimit, opts.PairWindow),
 	}
 }
@@ -180,12 +185,14 @@ func (s *Service) NewInvite(kind InviteKind) (Invite, error) {
 		}
 		invite.Secret = base64.RawURLEncoding.EncodeToString(secret)
 	}
-	s.invites.put(invite)
+	if err := s.invites.Save(invite); err != nil {
+		return Invite{}, fmt.Errorf("auth: saving the invitation: %w", err)
+	}
 	return invite, nil
 }
 
 // PendingInvites reports how many invitations are waiting, for diagnostics.
-func (s *Service) PendingInvites() int { return s.invites.len() }
+func (s *Service) PendingInvites() int { return s.invites.Pending(s.now()) }
 
 // Pair exchanges a code (with the QR secret) or the admin password for a device
 // token. callerKey bounds the attempts (the client IP); every attempt counts, so a
@@ -215,7 +222,7 @@ func (s *Service) Pair(req PairRequest, callerKey string) (PairResult, error) {
 
 // pairWithCode consumes an invitation and mints an operator device.
 func (s *Service) pairWithCode(req PairRequest, now time.Time) (PairResult, error) {
-	_, ok := s.invites.take(req.Code, req.Secret, now)
+	_, ok := s.invites.Take(req.Code, req.Secret, now)
 	if !ok {
 		return PairResult{}, unauthorized("unknown, expired or mismatched pairing invitation")
 	}

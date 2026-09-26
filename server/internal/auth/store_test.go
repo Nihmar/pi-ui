@@ -84,28 +84,34 @@ func TestMemoryStorePasswordRoundTrip(t *testing.T) {
 
 func TestInviteStoreIsSingleUseAndKeepsMismatches(t *testing.T) {
 	now := time.Unix(1000, 0)
-	store := &inviteStore{}
-	store.put(Invite{Kind: InviteQR, Code: "123456", Secret: "s3cret", ExpiresAt: now.Add(time.Minute)})
-	store.put(Invite{Kind: InviteTyped, Code: "654321", ExpiresAt: now.Add(time.Minute)})
-	store.put(Invite{Kind: InviteTyped, Code: "000000", ExpiresAt: now.Add(-time.Second)})
+	store := NewMemoryInviteStore()
+	for _, invite := range []Invite{
+		{Kind: InviteQR, Code: "123456", Secret: "s3cret", ExpiresAt: now.Add(time.Minute)},
+		{Kind: InviteTyped, Code: "654321", ExpiresAt: now.Add(time.Minute)},
+		{Kind: InviteTyped, Code: "000000", ExpiresAt: now.Add(-time.Second)},
+	} {
+		if err := store.Save(invite); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+	}
 
-	if _, ok := store.take("123456", "wrong", now); ok {
+	if _, ok := store.Take("123456", "wrong", now); ok {
 		t.Fatal("a mismatched secret consumed an invitation")
 	}
-	if store.len() != 2 {
-		t.Fatalf("pending invites = %d, want 2 (the expired one was pruned)", store.len())
+	if got := store.Pending(now); got != 2 {
+		t.Fatalf("pending invites = %d, want 2 (the expired one is not pending)", got)
 	}
-	if _, ok := store.take("123456", "s3cret", now); !ok {
+	if _, ok := store.Take("123456", "s3cret", now); !ok {
 		t.Fatal("the correct code+secret did not match")
 	}
-	if _, ok := store.take("654321", "", now); !ok {
+	if _, ok := store.Take("654321", "", now); !ok {
 		t.Fatal("a typed invitation did not match without a secret")
 	}
-	if _, ok := store.take("000000", "", now); ok {
+	if _, ok := store.Take("000000", "", now); ok {
 		t.Fatal("an expired invitation was accepted")
 	}
-	if store.len() != 0 {
-		t.Fatalf("pending invites = %d, want 0", store.len())
+	if got := store.Pending(now); got != 0 {
+		t.Fatalf("pending invites = %d, want 0", got)
 	}
 }
 
