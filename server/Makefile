@@ -17,7 +17,12 @@ LDFLAGS  = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 .PHONY: check build gen drift test clean
 
 check:
-	@test -z "$$(gofmt -l .)" || { echo "gofmt -l . reported unformatted files:"; gofmt -l .; exit 1; }
+	@unformatted="$$(gofmt -l .)" || { echo "gofmt exited non-zero (could not parse a file?)"; exit 1; }; \
+	if [ -n "$$unformatted" ]; then \
+		echo "gofmt -l . reported unformatted files:"; \
+		echo "$$unformatted"; \
+		exit 1; \
+	fi
 	$(GO) vet ./...
 	$(GO) test -race ./...
 	CGO_ENABLED=0 $(GO) build ./...
@@ -30,7 +35,12 @@ gen:
 
 drift:
 	bash scripts/gen.sh
-	git diff --exit-code -- internal/protocol/gen
+	@drift="$$(git status --porcelain -- internal/protocol/gen)"; \
+	if [ -n "$$drift" ]; then \
+		echo "generated code drift in internal/protocol/gen:"; \
+		echo "$$drift"; \
+		exit 1; \
+	fi
 
 test:
 	$(GO) test -race ./...
