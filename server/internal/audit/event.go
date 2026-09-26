@@ -49,6 +49,10 @@ const (
 	ActionFileWrite Action = "file.write"
 	// ActionFileDelete deletes one.
 	ActionFileDelete Action = "file.delete"
+	// ActionTaskStart starts a background task.
+	ActionTaskStart Action = "task.start"
+	// ActionTaskStop stops one.
+	ActionTaskStop Action = "task.stop"
 	// ActionGitWrite is any mutating git operation.
 	ActionGitWrite Action = "git.write"
 	// ActionMcpUpdate changes the MCP configuration.

@@ -227,6 +227,7 @@ Events the hub itself publishes:
 | `server.replay.begin` | `{"direction":"seq"\|"entry"}` | once per replay, to the replaying subscriber only |
 | `server.replay.end` | `{"count","complete","truncated?"}` | once per replay, to the replaying subscriber only |
 | `server.settings.changed` | `{"key","value","actor"}` | an admin changed a setting (`PATCH /api/v1/settings`); server-wide, never replayed |
+| `server.tasks.changed` | a `Task` (docs/api-v1.md, "Tasks") | a background task started, ended or was stopped; server-wide, never replayed |
 | `server.error` | `{"code","message"}` | connection-scoped failures: `slow_consumer`, replay failures, an event payload that could not be encoded |
 
 The session lifecycle events (`server.spawned`, `server.exited`, …) are published by

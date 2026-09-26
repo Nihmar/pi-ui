@@ -18,6 +18,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/settings"
+	"github.com/Nihmar/pi-ui/server/internal/tasks"
 	"github.com/Nihmar/pi-ui/server/internal/terminal"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -126,10 +127,14 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	hub.SetDialogHandler(supervisor)
 	hub.SetReplayer(supervisor)
 
-	var terminalsOf *terminal.Manager
+	var (
+		terminalsOf *terminal.Manager
+		tasksOf     *tasks.Service
+	)
 
 	options := api.Options{
 		Supervisor: supervisor,
+		Tasks:      tasksOf,
 		Hub:        hub,
 		Info: api.ServerInfo{
 			Version: Version,
@@ -165,6 +170,11 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 				return err
 			}
 			terminalsOf = terminals
+			runner, err := tasks.New(tasks.Config{FS: files, Hub: hub})
+			if err != nil {
+				return err
+			}
+			tasksOf = runner
 		}
 	}
 
@@ -257,7 +267,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("http server: %w", err)
 		}
 	}
-	return shutdown(logger, server, hub, supervisor, terminalsOf)
+	return shutdown(logger, server, hub, supervisor, terminalsOf, tasksOf)
 }
 
 // shutdown reaps the children first and drains HTTP afterwards: a SIGTERM must not wait for
@@ -269,6 +279,7 @@ func shutdown(
 	hub ws.Hub,
 	supervisor *sessions.Manager,
 	terminals *terminal.Manager,
+	tasks *tasks.Service,
 ) error {
 	reaped := make(chan error, 1)
 	go func() {
@@ -276,6 +287,10 @@ func shutdown(
 		// command nobody can see any more.
 		if terminals != nil {
 			_ = terminals.Shutdown()
+		}
+		if tasks != nil {
+			// A build outliving the server that showed it is a process nobody owns.
+			tasks.StopAll()
 		}
 		reaped <- supervisor.Shutdown(context.Background())
 	}()

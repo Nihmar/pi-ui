@@ -12,6 +12,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/settings"
+	"github.com/Nihmar/pi-ui/server/internal/tasks"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
 
@@ -53,6 +54,8 @@ type Options struct {
 	// limit, retention). Nil means no state directory, hence no settings: the
 	// capability follows the scope alone.
 	Settings *settings.Service
+	// Tasks runs background commands inside those workspaces. Nil answers 501.
+	Tasks *tasks.Service
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -120,6 +123,7 @@ func NewRouter(o Options) http.Handler {
 		git:              o.Git,
 		search:           o.Search,
 		settings:         o.Settings,
+		tasks:            o.Tasks,
 		pairSchema:       compilePairSchema(),
 	}
 	switch {
@@ -179,6 +183,12 @@ func NewRouter(o Options) http.Handler {
 	mux.HandleFunc("PATCH /api/v1/settings", a.authorized(ScopeAdmin, a.patchSettings))
 	mux.HandleFunc("DELETE /api/v1/settings/{key}", a.authorized(ScopeAdmin, a.deleteSetting))
 
+	// Background tasks: starting and stopping is operator, reading is viewer.
+	mux.HandleFunc("GET /api/v1/tasks", a.authorized(ScopeViewer, a.listTasks))
+	mux.HandleFunc("GET /api/v1/tasks/{id}", a.authorized(ScopeViewer, a.getTask))
+	mux.HandleFunc("POST /api/v1/tasks", a.authorized(ScopeOperator, a.startTask))
+	mux.HandleFunc("POST /api/v1/tasks/{id}/stop", a.authorized(ScopeOperator, a.stopTask))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -218,6 +228,7 @@ type api struct {
 	git              *git.Service
 	search           *search.Service
 	settings         *settings.Service
+	tasks            *tasks.Service
 	pairSchema       *jsonschema.Schema
 }
 

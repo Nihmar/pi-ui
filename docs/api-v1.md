@@ -150,6 +150,7 @@ see.
 | `device_limit` | 409 | the maximum of paired devices is reached; revoke one first |
 | `rate_limited` | 429 | pairing or command rate limit, with `Retry-After` |
 | `feature_disabled` | 403 | an administrative setting turned the capability off (`git.write`) |
+| `path_escape` | 403 | a path or directory outside every workspace |
 | `bad_request` | 400 | body not readable or missing a required field |
 | `too_large` | 413 | body above the 1 MiB cap |
 
@@ -330,3 +331,26 @@ A value is validated before it is written (type, range, duration syntax) and a
 `PATCH` carrying one invalid entry changes nothing at all. A server started with
 `--token` instead of a state directory answers `501 unsupported` here: it has nowhere
 to remember a setting, and its scope rules alone decide what a token may do.
+
+## Tasks
+
+Background commands on the host — a build, a test run, a dev server — started and
+stopped with `operator`, read with `viewer`, and audited as `task.start` / `task.stop`.
+A task is not a session: it has no model and no conversation. Like every other host
+capability it goes through the workspace confinement, so a directory outside the roots
+is a `path_escape` and no process starts.
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/api/v1/tasks` | viewer | `{tasks:[…]}`, newest first |
+| GET | `/api/v1/tasks/{id}` | viewer | `{task, output}` — the kept output of the task |
+| POST | `/api/v1/tasks` | operator | `{name?, command, args?[], dir}` → the task (201) |
+| POST | `/api/v1/tasks/{id}/stop` | operator | SIGTERM to the process group, SIGKILL after a grace period |
+
+A `Task` is `{id, name, command, args, dir, pid?, status, exitCode?, startedAt, endedAt?,
+truncated, owner?}`. `status` is `running`, `exited`, `failed` (a non-zero exit) or
+`stopped` (somebody asked). The output is a ring of the last 256 KiB with
+`truncated: true` once bytes were dropped, because the end of a build is what someone
+reads. `command` and `args` are kept apart and executed directly, never through a
+shell. The concurrency limit is 4 and a stopped task frees its slot; a change publishes
+`server.tasks.changed` on the WebSocket.
