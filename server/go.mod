@@ -6,6 +6,7 @@ require (
 	github.com/atombender/go-jsonschema v0.24.1
 	github.com/coder/websocket v1.8.15
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
+	golang.org/x/crypto v0.57.0
 )
 
 require (
@@ -18,5 +19,6 @@ require (
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )

@@ -106,7 +106,7 @@ flutter test          # when the package has tests
 
 ## Server (`server/`, Go)
 
-Go (1.27+), stdlib `net/http` + `ServeMux` (method+wildcard patterns, no third-party router), `coder/websocket`, `creack/pty`, `modernc.org/sqlite` (pure Go — keep `CGO_ENABLED=0` so binaries stay static), `santhosh-tekuri/jsonschema/v6`, `log/slog`; git CLI and ripgrep; CLI built on `flag`.
+Go (1.27+), stdlib `net/http` + `ServeMux` (method+wildcard patterns, no third-party router), `coder/websocket`, `creack/pty`, `modernc.org/sqlite` (pure Go — keep `CGO_ENABLED=0` so binaries stay static), `golang.org/x/crypto/argon2` (device tokens and the admin password), `santhosh-tekuri/jsonschema/v6`, `log/slog`; git CLI and ripgrep; CLI built on `flag`.
 
 ```bash
 gofmt -l . && go vet ./... && go test -race ./... && go build ./...
