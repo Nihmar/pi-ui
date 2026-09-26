@@ -1,5 +1,6 @@
 import '../models/session.dart';
 import 'client.dart';
+import 'models.dart';
 import 'socket.dart';
 
 /// The operations the UI performs on one session.
@@ -73,6 +74,39 @@ class SessionActions {
     op: 'session.command.raw',
     payload: {'type': 'get_session_stats'},
   );
+
+  /// Asks pi which models are configured (`get_available_models`).
+  ///
+  /// It goes through `session.command.raw` on purpose: a new pi command must flow
+  /// through the generic passthrough instead of a server-side special case
+  /// (`AGENTS.md`, "pi is orchestrated, never forked").
+  Future<List<ModelOption>> models(String sessionId) async {
+    final data = await socket.command(
+      sessionId: sessionId,
+      op: 'session.command.raw',
+      payload: {'type': 'get_available_models'},
+    );
+    return ModelOption.listFrom(data);
+  }
+
+  /// Switches the session onto one model (`set_model`).
+  Future<void> setModel(String sessionId, ModelOption model) => socket.command(
+    sessionId: sessionId,
+    op: 'session.command.raw',
+    payload: {
+      'type': 'set_model',
+      'provider': model.provider,
+      'modelId': model.id,
+    },
+  );
+
+  /// Sets the reasoning level (`set_thinking_level`).
+  Future<void> setThinkingLevel(String sessionId, String level) =>
+      socket.command(
+        sessionId: sessionId,
+        op: 'session.command.raw',
+        payload: {'type': 'set_thinking_level', 'level': level},
+      );
 
   /// Compacts the context now (`/compact`).
   Future<void> compact(String sessionId) => socket.command(

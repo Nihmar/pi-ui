@@ -11,6 +11,7 @@ import '../../../core/theme/theme_tokens.dart';
 import '../../../widgets/context_bar.dart';
 import '../../../widgets/info_chip.dart';
 import '../../../widgets/status_badge.dart';
+import 'model_picker.dart';
 
 /// The header of one session: identity, state, model, context and the actions
 /// that act on the whole session.
@@ -93,13 +94,19 @@ class SessionHeader extends ConsumerWidget {
             spacing: tokens.spaceSm,
             runSpacing: tokens.spaceXs,
             children: [
+              // The model chip opens the picker: what pi offers is a question for pi,
+              // and the answer goes back through the same command passthrough.
               if (metrics.provider != null || metrics.modelId != null)
-                InfoChip(
-                  icon: Icons.memory,
-                  label: [
-                    metrics.provider,
-                    metrics.modelId,
-                  ].whereType<String>().join(' · '),
+                InkWell(
+                  onTap: () => showModelPicker(context, ref, sessionId),
+                  borderRadius: BorderRadius.circular(tokens.radiusLg),
+                  child: InfoChip(
+                    icon: Icons.memory,
+                    label: [
+                      metrics.provider,
+                      metrics.modelId,
+                    ].whereType<String>().join(' · '),
+                  ),
                 ),
               if (metrics.thinkingLevel != null)
                 InfoChip(

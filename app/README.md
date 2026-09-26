@@ -16,6 +16,9 @@ flutter run -d linux        # desktop
 flutter run -d <device>     # Android
 ```
 
+The theme follows the server's `ui.theme` setting, so a deployment meant to look a
+certain way says so once; a server that cannot answer leaves the app on its defaults.
+
 The first launch asks for the server URL and a pairing code: on the server,
 `pi-ui status` prints the code and `pi-ui pair --url http://<host>:8787` renders a
 scannable QR. The device token is stored in the OS keystore; the server keeps only
@@ -41,5 +44,5 @@ Windows build.
 | `lib/core/theme/` | `AppTokens`, the two `ThemeData`s, breakpoints, markdown style. |
 | `lib/core/api/` | REST + WebSocket client, DTOs, reconnection and replay. |
 | `lib/core/models/` | The UI models the screens render (`SessionModel`, `ChatEntry`). |
-| `lib/features/` | One directory per screen/feature. |
+| `lib/features/` | One directory per screen/feature. The chat header's model chip opens the picker, which asks pi itself (`get_available_models`, `set_model`) through the generic command passthrough. |
 | `lib/widgets/` | Widgets shared by more than one feature. |

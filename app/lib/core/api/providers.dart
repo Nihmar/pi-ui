@@ -11,6 +11,7 @@ import 'client.dart';
 import 'errors.dart';
 import 'dto.dart';
 import 'frames.dart';
+import 'models.dart';
 import 'profile.dart';
 import 'session_actions.dart';
 import 'session_stream.dart';
@@ -379,6 +380,22 @@ final streamingProvider = Provider.family<bool, String>(
   (ref, sessionId) =>
       ref.watch(chatStateProvider(sessionId)).value?.streaming ?? false,
 );
+
+/// The models pi can switch the session onto, loaded when a picker opens.
+///
+/// It is a family of futures rather than a stream: the list changes when the operator
+/// edits pi's configuration, not while somebody watches it, and a failed load is an
+/// error the picker shows instead of an empty list.
+final sessionModelsProvider = FutureProvider.family<List<ModelOption>, String>((
+  ref,
+  sessionId,
+) async {
+  final actions = ref.watch(sessionActionsProvider);
+  if (actions == null) {
+    return const <ModelOption>[];
+  }
+  return actions.models(sessionId);
+});
 
 /// The name of the platform this build runs on, as pairing reports it.
 String currentPlatform() => switch (defaultTargetPlatform) {
