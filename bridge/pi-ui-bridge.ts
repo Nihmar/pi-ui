@@ -43,6 +43,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * True only for arrays whose every entry is a string. `Array.isArray` narrows to
+ * `any[]`, so the entries are re-typed as `unknown` before the guard proves each
+ * one: no entry — and no array element — escapes as `any`.
+ */
+function isStringArray(value: unknown): value is readonly string[] {
+  if (!Array.isArray(value)) return false;
+  const entries: readonly unknown[] = value;
+  return entries.every((entry): entry is string => typeof entry === "string");
+}
+
 function offConfig(reason: string): BridgeConfig {
   diagnostic(reason);
   return { approvals: OFF };
@@ -69,7 +80,7 @@ function readApprovals(value: unknown, source: string): Approvals | undefined {
   if (patterns === undefined) {
     return { mode: mode ?? "confirm", patterns: DEFAULT_PATTERNS };
   }
-  if (!Array.isArray(patterns) || patterns.some((entry) => typeof entry !== "string")) {
+  if (!isStringArray(patterns)) {
     diagnostic(`config ${source}: "approvals.patterns" must be an array of strings`);
     return undefined;
   }
