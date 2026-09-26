@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/coder/websocket"
 )
 
 // subscribe makes one client subscribe and waits until the hub registered it, so a
@@ -385,4 +387,42 @@ func TestBeginReplayKeepsEventsBufferedBeforeIt(t *testing.T) {
 	if liveIndex < beginIndex {
 		t.Fatalf("the live event arrived before %s (frames: %v)", EventReplayBegin, frames)
 	}
+}
+
+// TestReplayBufferOverflowClosesTheSubscriber pins the flow-control contract on the replay
+// path: a subscriber that cannot even consume its own catch-up is disconnected like any
+// other slow consumer — server.error{slow_consumer} and a 1008 close — instead of being
+// told about the dropped events and left running.
+func TestReplayBufferOverflowClosesTheSubscriber(t *testing.T) {
+	const session = "s_dddddddddddddddd"
+	ts := newTestHub(t, func(o *Options) { o.SendBuffer = 2 })
+
+	inReplay := make(chan struct{})
+	release := make(chan struct{})
+	replayer := &stubReplayer{fn: func(context.Context, string, string, func(Event)) (bool, error) {
+		close(inReplay)
+		<-release
+		return true, nil
+	}}
+	ts.hub.SetReplayer(replayer)
+
+	client := ts.dial(nil)
+	defer client.close()
+	client.hello()
+	client.sendRaw(`{"type":"subscribe","sessionId":"` + session + `","since":{"entryId":"e-1"}}`)
+	client.waitFor(EventReplayBegin)
+
+	// The replay is in flight, so live events are buffered; more of them than SendBuffer
+	// makes the subscription overflow.
+	<-inReplay
+	for i := 0; i < 5; i++ {
+		ts.hub.Publish(Event{Type: "pi.message_update", SessionID: session, Payload: json.RawMessage(`{"i":1}`)})
+	}
+	close(release)
+
+	frame := client.waitFor(EventError)
+	if code := errorCodeOf(t, frame); code != codeSlowConsumer {
+		t.Fatalf("server.error code = %q, want %q", code, codeSlowConsumer)
+	}
+	client.expectClose(websocket.StatusPolicyViolation)
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 	"sync"
+
+	"github.com/coder/websocket"
 )
 
 // subscription is one connection's feed of one session.
@@ -135,6 +137,11 @@ func (s *subscription) replayError(h *hub, code, message string) {
 // the client a stream that goes backwards. Events the replay already covered
 // (seq <= lastSent) are dropped, which is what makes the duplicate case explicit
 // rather than a double render in the client.
+//
+// A buffer that overflowed means the subscriber could not consume its own
+// catch-up: it gets the reason and then the close the flow-control contract
+// promises (docs/ws-protocol.md), exactly like a subscriber whose live queue
+// overflowed.
 func (s *subscription) endReplay(h *hub, count int, complete, truncated bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -144,6 +151,7 @@ func (s *subscription) endReplay(h *hub, count int, complete, truncated bool) {
 	if s.overflow {
 		s.overflow = false
 		s.conn.enqueue(mustMarshalEvent(h.errorEvent(codeSlowConsumer, "dropped events while replaying")))
+		s.conn.shutdownWith(websocket.StatusPolicyViolation, "slow consumer")
 	}
 }
 
