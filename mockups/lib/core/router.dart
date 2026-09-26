@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/search/search_screen.dart';
+import '../features/sessions/session_detail_screen.dart';
 import '../features/sessions/session_list_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shell/adaptive_shell.dart';
@@ -37,6 +38,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: Routes.sessions,
                 builder: (context, state) => const SessionListScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) => SessionDetailScreen(
+                      sessionId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

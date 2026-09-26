@@ -215,6 +215,19 @@ class MockPiApi {
     _dialogs.remove(id)?.dispose();
   }
 
+  /// Renames a session (the pi `rename` command and the projection follow).
+  void renameSession(String id, String name) {
+    _updateSession(id, (session) => session.copyWith(name: name));
+    _append(
+      id,
+      StatusEntry(
+        id: 'e-${_next()}',
+        at: DateTime.now(),
+        text: 'Renamed to "$name"',
+      ),
+    );
+  }
+
   /// Stops a session the way `POST /sessions/{id}/stop` does.
   void stopSession(String id) {
     _cancel(id);
@@ -801,8 +814,13 @@ class MockPiApi {
   }
 }
 
-/// A broadcast stream that replays its current value to every new listener, so a
-/// screen that subscribes late still renders the state it missed.
+/// A broadcast stream that replays its current value to **every** new listener, so
+/// a screen that subscribes late still renders the state it missed.
+///
+/// `onListen` is not enough here: it fires when the first listener arrives, and a
+/// second provider watching the same stream would then wait for the next change.
+/// `Stream.multi` gives each listener the current value before it joins the
+/// broadcast.
 class _Replay<T> {
   _Replay(this._value);
 
@@ -811,10 +829,19 @@ class _Replay<T> {
 
   T get value => _value;
 
-  Stream<T> get stream {
-    _controller.onListen = () => _controller.add(_value);
-    return _controller.stream;
-  }
+  Stream<T> get stream => Stream<T>.multi((controller) {
+    controller.add(_value);
+    final subscription = _controller.stream.listen(
+      controller.add,
+      onError: controller.addError,
+      onDone: () {
+        if (!controller.isClosed) {
+          controller.close();
+        }
+      },
+    );
+    controller.onCancel = subscription.cancel;
+  });
 
   void add(T value) {
     _value = value;

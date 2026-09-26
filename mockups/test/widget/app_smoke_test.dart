@@ -18,7 +18,8 @@ void main() {
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
-    expect(find.text('No sessions yet'), findsOneWidget);
+    // The seeded sessions are the branch content.
+    expect(find.text('pi-ui'), findsOneWidget);
   });
 
   testWidgets('a desktop window gets the navigation rail', (tester) async {
