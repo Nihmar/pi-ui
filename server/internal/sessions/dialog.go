@@ -109,11 +109,14 @@ func (s *session) openDialog(request uiRequest, raw json.RawMessage) {
 	s.mu.Lock()
 	s.pruneDialogsLocked(time.Now())
 	s.dialogs[request.ID] = pending
-	s.mu.Unlock()
-
+	// The timer is created while the lock is held: a client answer that races the request
+	// must never read the field while it is written. The callback only blocks on s.mu if it
+	// fires immediately, and by then the dialog is already in the map.
 	pending.timer = time.AfterFunc(s.mgr.cfg.DialogTimeout, func() {
 		s.dialogTimeout(request.ID, request.Method)
 	})
+	s.mu.Unlock()
+
 	s.mgr.sendDialog(s.id, frame)
 }
 
@@ -161,11 +164,11 @@ func (s *session) answer(ctx context.Context, requestID string, response json.Ra
 	}
 	pending.answered = true
 	pending.closedAt = time.Now()
-	bridge := s.bridge
+	timer, bridge := pending.timer, s.bridge
 	s.mu.Unlock()
 
-	if pending.timer != nil {
-		pending.timer.Stop()
+	if timer != nil {
+		timer.Stop()
 	}
 	if bridge == nil {
 		return Codedf(CodePiError, "session %s has no child", s.id)

@@ -3,6 +3,8 @@ package sessions
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -215,4 +217,36 @@ func TestFireAndForgetMethodsBecomeExtEvents(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDialogAnswerRacingTheTimeoutIsSafe drives the one genuine race of the dialog path: the
+// client answering while the timeout is firing. Every outcome must be one of the two
+// documented ones, and the race detector must stay quiet (-race runs this test).
+func TestDialogAnswerRacingTheTimeoutIsSafe(t *testing.T) {
+	mgr, rec := newTestManager(t, func(cfg *Config) { cfg.DialogTimeout = time.Millisecond })
+
+	const dialogs = 5
+	steps := make([]fakeharness.Step, 0, dialogs)
+	for i := 0; i < dialogs; i++ {
+		record := `{"type":"extension_ui_request","id":"u` + strconv.Itoa(i) + `","method":"confirm","title":"Approve?"}`
+		steps = append(steps, fakeharness.Step{Record: json.RawMessage(record)})
+	}
+	info := startSession(t, mgr, Spec{CWD: t.TempDir(), Command: fakeChild(t, fakeharness.Script{Startup: steps})})
+
+	waitFor(t, "every dialog to be routed", func() bool { return len(rec.dialogFrames()) == dialogs })
+
+	var wg sync.WaitGroup
+	for i := 0; i < dialogs; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			err := mgr.Respond(context.Background(), info.ID, "u"+strconv.Itoa(i), json.RawMessage(`{"confirmed":true}`))
+			switch CodeOf(err) {
+			case "", CodeAlreadyAnswered, CodeNotFound:
+			default:
+				t.Errorf("Respond(u%d) = %v (code %q), want a documented outcome", i, err, CodeOf(err))
+			}
+		}(i)
+	}
+	wg.Wait()
 }
