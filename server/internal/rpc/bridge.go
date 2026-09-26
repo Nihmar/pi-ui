@@ -458,16 +458,28 @@ func (b *bridge) releaseStart() {
 	b.mu.Unlock()
 }
 
-// register publishes the running child to the rest of the bridge.
+// register publishes the running child to the rest of the bridge. Close can run in the
+// window between the spawn and this call — shutdown then sees started=false and returns
+// without touching the child — so a closed bridge kills the child here instead of letting
+// it outlive the bridge.
 func (b *bridge) register(cmd *exec.Cmd, stdin io.WriteCloser) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	closed := b.closed
 	b.starting = false
 	b.started = true
 	b.cmd = cmd
 	b.stdin = stdin
 	if cmd.Process != nil {
 		b.pid = cmd.Process.Pid
+	}
+	b.mu.Unlock()
+
+	if closed {
+		b.logf("rpc: Close raced the spawn of child %d; killing it", b.PID())
+		if stdin != nil {
+			_ = stdin.Close()
+		}
+		b.kill(cmd.Process)
 	}
 }
 

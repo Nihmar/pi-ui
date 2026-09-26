@@ -195,3 +195,43 @@ func TestWriteWithoutStartFails(t *testing.T) {
 		t.Errorf("Write before Start = %v, want %v", err, errNotStarted)
 	}
 }
+
+// TestRegisterAfterCloseKillsTheChild pins finding R6: Close can run in the window between
+// the spawn and register, sees started=false and returns, so the registration that lost the
+// race has to kill the child itself — otherwise the just-spawned process outlives the
+// bridge. The sequence is driven directly because the window cannot be hit reliably.
+func TestRegisterAfterCloseKillsTheChild(t *testing.T) {
+	argv := fakePi(t, fakeharness.Script{}, "--ignore-stdin")
+	b, ok := New(Spec{Command: argv, Dir: t.TempDir()}, Options{KillGrace: 50 * time.Millisecond}).(*bridge)
+	if !ok {
+		t.Fatal("New did not return the bridge implementation")
+	}
+	if err := b.claimStart(); err != nil {
+		t.Fatalf("claimStart: %v", err)
+	}
+
+	cmd := exec.Command(argv[0], argv[1:]...)
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start scripted child: %v", err)
+	}
+	pid := cmd.Process.Pid
+
+	// Close in the window: nothing is registered yet, so it cannot see the child.
+	if err := b.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	b.register(cmd, nil)
+
+	waited := make(chan error, 1)
+	go func() { waited <- cmd.Wait() }()
+	select {
+	case <-waited:
+	case <-time.After(exitTimeout):
+		_ = cmd.Process.Kill()
+		<-waited
+		t.Fatalf("child %d survived the registration that lost the Close race", pid)
+	}
+	if processExists(pid) {
+		t.Fatalf("child %d is still visible to the kernel after its reap", pid)
+	}
+}
