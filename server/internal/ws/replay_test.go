@@ -302,3 +302,39 @@ func TestEntryReplayDelegatesToTheReplayer(t *testing.T) {
 		t.Fatalf("replayer calls = %d, want 1", replayer.calls)
 	}
 }
+
+// TestEachSessionHasItsOwnReplayWindow pins the per-session ring: a busy session must
+// not shrink the replay window of a quiet one.
+func TestEachSessionHasItsOwnReplayWindow(t *testing.T) {
+	const busy = "s_aaaaaaaaaaaaaaaa"
+	const quiet = "s_bbbbbbbbbbbbbbbb"
+	ts := newTestHub(t, func(o *Options) { o.ReplayEvents = 2 })
+
+	for i := 0; i < 3; i++ {
+		ts.hub.Publish(Event{Type: "pi.message_update", SessionID: busy, Payload: json.RawMessage(`{"i":1}`)})
+	}
+	quietSeq := ts.hub.Publish(Event{Type: "pi.message_update", SessionID: quiet, Payload: json.RawMessage(`{"i":0}`)})
+	for i := 0; i < 3; i++ {
+		ts.hub.Publish(Event{Type: "pi.message_update", SessionID: busy, Payload: json.RawMessage(`{"i":2}`)})
+	}
+
+	client := ts.dial(nil)
+	defer client.close()
+	client.hello()
+	client.sendRaw(`{"type":"subscribe","sessionId":"` + quiet + `","since":{"seq":0}}`)
+
+	client.waitFor(EventReplayBegin)
+	event := client.waitFor("pi.message_update")
+	if got := seqOf(t, event); got != quietSeq {
+		t.Fatalf("replayed seq = %d, want the quiet session's %d", got, quietSeq)
+	}
+
+	end := client.waitFor(EventReplayEnd)
+	payload := payloadOf(t, end)
+	if payload["count"] != float64(1) {
+		t.Fatalf("replay.end count = %v, want 1: the busy session must not evict the quiet one's history", payload["count"])
+	}
+	if _, truncated := payload["truncated"]; truncated {
+		t.Fatalf("replay.end = %v, want no truncation: the quiet session lost nothing", payload)
+	}
+}

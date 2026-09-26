@@ -63,8 +63,12 @@ func TestRingPrunesByAge(t *testing.T) {
 	if len(events) != 0 {
 		t.Fatalf("snapshot past the window returned %d events, want 0", len(events))
 	}
-	if truncated {
-		t.Fatal("truncated = true with an empty cursor history")
+	if !truncated {
+		t.Fatal("truncated = false after both events aged out of the window")
+	}
+	// A cursor that never claimed to have anything is still not truncated.
+	if _, truncated := r.snapshot("s_a", 0, false, start.Add(100*time.Millisecond)); truncated {
+		t.Fatal("truncated = true for a subscriber without a cursor")
 	}
 }
 
@@ -132,5 +136,22 @@ func TestRingClampsASizeOfZero(t *testing.T) {
 func TestRingLatestIsEmptyOnAFreshRing(t *testing.T) {
 	if got := newRing(4, time.Minute).latest(); got != 0 {
 		t.Fatalf("latest = %d, want 0", got)
+	}
+}
+
+// TestRingDoesNotReportTruncationWithoutEviction pins the exactness of the flag: a
+// session whose first event happens to carry a high global seq (other sessions
+// published before it) has lost nothing, and a client must not be sent to REST for it.
+func TestRingDoesNotReportTruncationWithoutEviction(t *testing.T) {
+	r := newRing(4, time.Minute)
+	now := time.Now()
+	r.add(ringEvent("s_a", 7), now)
+
+	events, truncated := r.snapshot("s_a", 0, true, now)
+	if len(events) != 1 || events[0].Seq != 7 {
+		t.Fatalf("snapshot = %+v, want the single retained event", events)
+	}
+	if truncated {
+		t.Fatal("truncated = true although nothing was evicted")
 	}
 }

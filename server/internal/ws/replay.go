@@ -32,7 +32,16 @@ func (h *hub) startReplay(sub *subscription, cursor replayCursor) {
 // a cursor gets told when events were lost (truncated), a client asking for "what
 // you still have" does not, because it never claimed to have anything.
 func (h *hub) replayFromRing(sub *subscription, since uint64, hasSince bool) {
-	events, truncated := h.ring.snapshot(sub.sessionID, since, hasSince, time.Now())
+	h.mu.Lock()
+	r := h.rings[sub.sessionID]
+	h.mu.Unlock()
+
+	// No ring yet means the session never published: an empty replay, not an error.
+	if r == nil {
+		r = newRing(h.opts.ReplayEvents, h.opts.ReplayWindow)
+	}
+
+	events, truncated := r.snapshot(sub.sessionID, since, hasSince, time.Now())
 	if sub.ctx.Err() != nil {
 		return
 	}

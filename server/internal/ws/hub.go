@@ -33,13 +33,18 @@ type hub struct {
 
 	startedAt time.Time
 	seq       atomic.Uint64
-	ring      *ring
 
 	// handshakeTimeout is copied from the package variable at construction, so a
 	// live connection never observes a value changing under it.
 	handshakeTimeout time.Duration
 
-	mu        sync.Mutex
+	mu sync.Mutex
+	// rings is one bounded history per session (docs/spike-interfaces.md §5.2): a
+	// shared ring would make every session's replay window shrink with the number of
+	// sessions publishing, and the spike's memory ceiling is bounded by the session
+	// limit anyway. Server-wide events have no session and are never replayable, so
+	// they are not kept at all.
+	rings     map[string]*ring
 	conns     map[*connection]struct{}
 	bySession map[string]map[*connection]struct{}
 	cmd       CommandHandler
@@ -83,7 +88,7 @@ func New(o Options) Hub {
 		request:          request,
 		schemaID:         schemaID,
 		startedAt:        time.Now(),
-		ring:             newRing(o.ReplayEvents, o.ReplayWindow),
+		rings:            map[string]*ring{},
 		handshakeTimeout: handshakeTimeout,
 		conns:            map[*connection]struct{}{},
 		bySession:        map[string]map[*connection]struct{}{},
@@ -236,7 +241,6 @@ func (h *hub) Publish(ev Event) uint64 {
 	if h.closed {
 		return 0
 	}
-	h.ring.add(ev, now)
 	if ev.SessionID == "" {
 		// A server-wide fact (heartbeat, startup diagnostics) is not part of any
 		// session stream: every connection gets it, none of them can replay it.
@@ -245,6 +249,7 @@ func (h *hub) Publish(ev Event) uint64 {
 		}
 		return ev.Seq
 	}
+	h.sessionRing(ev.SessionID).add(ev, now)
 	for c := range h.bySession[ev.SessionID] {
 		c.deliver(h, ev)
 	}
@@ -267,6 +272,17 @@ func (h *hub) stamp(ev *Event) {
 	if ev.EntryID == "" && ev.Type == EventEntryAppended {
 		ev.EntryID = entryIDOf(ev.Payload)
 	}
+}
+
+// sessionRing returns the replay history of one session, creating it on first use.
+// Callers must hold h.mu.
+func (h *hub) sessionRing(sessionID string) *ring {
+	r, ok := h.rings[sessionID]
+	if !ok {
+		r = newRing(h.opts.ReplayEvents, h.opts.ReplayWindow)
+		h.rings[sessionID] = r
+	}
+	return r
 }
 
 // entryIDOf reads payload.entry.id out of a pi.entry_appended record, so clients

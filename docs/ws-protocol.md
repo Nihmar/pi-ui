@@ -180,14 +180,18 @@ the whole replay sequence.
 server.replay.begin {direction:"seq"} → <events> → server.replay.end {count,complete,truncated?}
 ```
 
-- The ring holds the last `ReplayEvents` events (default 2000) of **all** sessions, and
-  forgets events older than `ReplayWindow` (default 15 m) by the moment the hub accepted
-  them, not by their `ts`: a replayed event may carry an old timestamp.
-- `truncated:true` means the cursor fell out of that window — events with a `seq` inside
-  the gap were evicted or aged out. The client is expected to reload the session through
-  REST instead of rendering a stream with a hole in it. `complete` is `true` here: the
-  server did everything the cursor allowed.
-- A cursor at or ahead of the newest seq replays nothing and is not truncated.
+- Each session has its **own** ring: the last `ReplayEvents` events of that session
+  (default 2000), forgetting events older than `ReplayWindow` (default 15 m) by the
+  moment the hub accepted them, not by their `ts` (a replayed event may carry an old
+  timestamp). A busy session therefore cannot shrink a quiet one's replay window, and
+  server-wide events are never kept: they have no session to replay into.
+- `truncated:true` means events of **this** session with a `seq` above the cursor were
+  evicted or aged out. The client is expected to reload the session through REST instead
+  of rendering a stream with a hole in it. `complete` is `true` here: the server did
+  everything the cursor allowed.
+- A cursor at or ahead of the newest seq replays nothing and is not truncated, and neither
+  is a session whose first event happens to carry a high global seq because other sessions
+  published before it: nothing was lost, so nothing is reported as lost.
 
 ### `since.entryId` — durable replay
 
@@ -281,7 +285,7 @@ rather than putting a value on the wire no client can branch on.
 
 | Option | Default | Effect |
 |---|---|---|
-| `ReplayEvents` | 2000 | ring size, events retained across all sessions |
+| `ReplayEvents` | 2000 | ring size: events retained per session |
 | `ReplayWindow` | 15 m | ring age |
 | `Heartbeat` | 30 s | protocol ping interval, `server.heartbeat` interval, and the missed-pong budget |
 | `WriteTimeout` | 10 s | per-frame write deadline |

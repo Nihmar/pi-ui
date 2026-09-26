@@ -14,11 +14,13 @@ type ringEntry struct {
 	at    time.Time
 }
 
-// ring is the bounded, time-windowed history that serves `since.seq` replay.
+// ring is the bounded, time-windowed history of one session's events that serves
+// `since.seq` replay.
 //
-// One ring holds the events of every session, filtered by session at snapshot
-// time: Options carries a single size, and a per-session ring would have made the
-// memory ceiling depend on how many sessions happen to exist.
+// One ring per session (the hub keeps a map of them): a shared ring would make every
+// session's replay window shrink with the number of sessions publishing, and the memory
+// ceiling stays bounded by the session limit either way. Server-wide events have no
+// session and are never replayable, so they are not kept at all.
 type ring struct {
 	mu     sync.Mutex
 	size   int
@@ -26,6 +28,11 @@ type ring struct {
 	buf    []ringEntry
 	head   int // index of the oldest entry
 	n      int // number of valid entries
+	// evicted is the highest seq this ring has dropped, by size or by age. It is what
+	// makes truncation exact: a session whose first event happens to carry a high
+	// global seq (other sessions published before it) has lost nothing, and a client
+	// must not be told to reload because of it.
+	evicted uint64
 }
 
 // newRing returns a ring of exactly size entries (at least one) that forgets
@@ -44,12 +51,13 @@ func (r *ring) add(ev Event, at time.Time) {
 	defer r.mu.Unlock()
 
 	r.pruneLocked(at)
+	if r.n == r.size {
+		// The slot the new entry goes into is the one holding the oldest entry, so the
+		// old one is dropped first: reading it afterwards would read the new event.
+		r.dropLocked()
+	}
 	idx := (r.head + r.n) % r.size
 	r.buf[idx] = ringEntry{event: ev, at: at}
-	if r.n == r.size {
-		r.head = (r.head + 1) % r.size
-		return
-	}
 	r.n++
 }
 
@@ -61,46 +69,46 @@ func (r *ring) pruneLocked(now time.Time) {
 	}
 	cutoff := now.Add(-r.window)
 	for r.n > 0 && !r.buf[r.head].at.After(cutoff) {
-		r.head = (r.head + 1) % r.size
-		r.n--
+		r.dropLocked()
 	}
 }
 
-// snapshot returns the retained events of one session, oldest first, and reports
-// whether the client's cursor fell out of the ring.
+// dropLocked removes the oldest entry and remembers that its seq is gone. Callers
+// must hold the lock.
+func (r *ring) dropLocked() {
+	dropped := r.buf[r.head].event.Seq
+	if dropped > r.evicted {
+		r.evicted = dropped
+	}
+	r.head = (r.head + 1) % r.size
+	r.n--
+}
+
+// snapshot returns the retained events of the ring (one session), oldest first, and
+// reports whether the client's cursor fell out of it.
 //
-// hasSince is false for a subscriber that asked for replay without a cursor: it
-// gets whatever the ring still holds and truncated stays false, because it never
-// claimed to have anything. With a cursor, a gap between the cursor and the
-// oldest retained event of the session means events were evicted or aged out, and
-// the client has to reload through REST instead of rendering a stream with a hole
-// in it.
+// hasSince is false for a subscriber that asked for replay without a cursor: it gets
+// whatever the ring still holds and truncated stays false, because it never claimed to
+// have anything. With a cursor, truncated means events of this session with a seq above
+// it were evicted or aged out, so the client has to reload through REST instead of
+// rendering a stream with a hole in it.
 func (r *ring) snapshot(sessionID string, since uint64, hasSince bool, now time.Time) ([]Event, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.pruneLocked(now)
 
-	var (
-		first uint64
-		count int
-		out   []Event
-	)
+	var out []Event
 	for i := 0; i < r.n; i++ {
 		ev := r.buf[(r.head+i)%r.size].event
 		if ev.SessionID != sessionID {
 			continue
 		}
-		if count == 0 {
-			first = ev.Seq
-		}
-		count++
 		if !hasSince || ev.Seq > since {
 			out = append(out, ev)
 		}
 	}
-	truncated := hasSince && count > 0 && first > since+1
-	return out, truncated
+	return out, hasSince && since < r.evicted
 }
 
 // latest returns the highest seq the ring still holds, or 0 when it is empty.
