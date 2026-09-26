@@ -70,3 +70,24 @@ func TestResponseDataMapsPiRejections(t *testing.T) {
 		t.Fatalf("success data = %s, err = %v", data, err)
 	}
 }
+
+// TestInfoDoesNotAliasTheExitCode pins the projection boundary: a caller may keep and even
+// mutate the Info it receives without reaching into the session's own state under its lock.
+func TestInfoDoesNotAliasTheExitCode(t *testing.T) {
+	mgr, _ := newTestManager(t, nil)
+	s := newSession(mgr, codegenSessionID, Spec{CWD: "/work"})
+	s.mu.Lock()
+	code := 7
+	s.exitCode = &code
+	s.mu.Unlock()
+
+	info := s.info()
+	if info.ExitCode == nil || *info.ExitCode != 7 {
+		t.Fatalf("exitCode = %v, want 7", info.ExitCode)
+	}
+	*info.ExitCode = 99
+
+	if got := s.info().ExitCode; got == nil || *got != 7 {
+		t.Fatalf("exitCode after the caller mutated its copy = %v, want 7", got)
+	}
+}

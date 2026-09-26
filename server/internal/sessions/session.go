@@ -144,8 +144,13 @@ func (s *session) info() Info {
 		ModelProvider: s.piState.ModelProvider,
 		ModelID:       s.piState.ModelID,
 		ThinkingLevel: s.piState.ThinkingLevel,
-		ExitCode:      s.exitCode,
 		CreatedAt:     timestamp(s.createdAt),
+	}
+	if s.exitCode != nil {
+		// Copy the value: the projection must not hand callers a pointer into the
+		// session's own state, which the pump mutates under the lock.
+		code := *s.exitCode
+		info.ExitCode = &code
 	}
 	if !s.lastEvent.IsZero() {
 		info.LastEventAt = timestamp(s.lastEvent)
