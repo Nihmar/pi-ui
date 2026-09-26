@@ -56,6 +56,9 @@ type stackOptions struct {
 	sendBuffer    int
 	script        *fakeharness.Script
 	piArgs        []string
+	// piCommand replaces the default fake-pi argv entirely. It is how a test
+	// puts a script in front of the child (a dirty stdout, a pid recorder).
+	piCommand []string
 }
 
 func defaultStackOptions() stackOptions {
@@ -79,6 +82,7 @@ type stack struct {
 	mgr        *sessions.Manager
 	srv        *httptest.Server
 	scriptPath string
+	command    []string // custom child argv, empty for fakeharness.Command
 	token      string
 }
 
@@ -95,11 +99,14 @@ func newStack(t *testing.T, mutate func(*stackOptions)) *stack {
 		opts.script = &fakeharness.Script{}
 	}
 
-	// Build runs first because Command reads the binary it cached; the returned
-	// path is only needed by Command itself.
+	// Build first: Command reads the binary it cached, and the tests that build
+	// their own wrapper need the same binary path from Build.
 	fakeharness.Build(t)
 	scriptPath := fakeharness.WriteScript(t, *opts.script)
-	argv := fakeharness.Command(scriptPath, opts.piArgs...)
+	argv := opts.piCommand
+	if len(argv) == 0 {
+		argv = fakeharness.Command(scriptPath, opts.piArgs...)
+	}
 
 	hub := ws.New(ws.Options{
 		Token:         opts.token,
@@ -152,7 +159,7 @@ func newStack(t *testing.T, mutate func(*stackOptions)) *stack {
 		}
 	})
 
-	return &stack{t: t, hub: hub, mgr: mgr, srv: srv, scriptPath: scriptPath, token: opts.token}
+	return &stack{t: t, hub: hub, mgr: mgr, srv: srv, scriptPath: scriptPath, command: argv, token: opts.token}
 }
 
 // addr is the host:port the listener bound.
@@ -171,7 +178,10 @@ func (s *stack) wsURL() string {
 func (s *stack) startSession(t *testing.T, cwd string, extra ...string) sessions.Info {
 	t.Helper()
 
-	argv := fakeharness.Command(s.scriptPath, extra...)
+	argv := s.command
+	if len(extra) > 0 {
+		argv = fakeharness.Command(s.scriptPath, extra...)
+	}
 	info, err := s.mgr.Start(context.Background(), sessions.Spec{CWD: cwd, Command: argv})
 	if err != nil {
 		t.Fatalf("start session in %s: %v", cwd, err)
