@@ -2,6 +2,8 @@
     <!-- The client talks to the pi-ui server over HTTP/WebSocket. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- A finished run tells the user while the app is in the background. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="piui"
         android:name="${applicationName}"

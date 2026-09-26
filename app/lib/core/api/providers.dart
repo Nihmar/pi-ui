@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/chat_entry.dart';
 import '../models/session.dart';
+import '../notify.dart';
 import 'client.dart';
 import 'dto.dart';
 import 'frames.dart';
@@ -193,6 +194,54 @@ final socketProvider = Provider<PiUiSocket?>((ref) {
   ref.onDispose(() => unawaited(socket.dispose()));
   socket.start();
   return socket;
+});
+
+/// The OS notifier this build can use.
+///
+/// Every target pi-ui ships for has a notification centre, so the real notifier
+/// is unconditional; the seam exists for tests and for a platform where the
+/// plugin is unavailable (the app then just does not disturb anybody).
+final appNotifierProvider = Provider<AppNotifier>((ref) {
+  final notifier = LocalNotifier();
+  ref.onDispose(() => unawaited(notifier.initialize()));
+  return notifier;
+});
+
+/// Keeps the foreground state the watcher reads, and brings the app back to life
+/// on resume: the socket reconnects at once instead of waiting out its backoff,
+/// and the session list is re-read because a lot may have happened meanwhile.
+final foregroundProvider = Provider<ForegroundState>((ref) {
+  final state = ForegroundState(
+    onResumed: () {
+      unawaited(ref.read(socketProvider)?.reconnectNow());
+      ref.invalidate(sessionsProvider);
+    },
+  );
+  ref.onDispose(state.dispose);
+  return state;
+});
+
+/// Notifies when a run ends while the app is in the background.
+///
+/// One watcher per app: it follows the same socket the screens do, so a session
+/// the user never opened still tells them when it is done.
+final sessionWatcherProvider = Provider<SessionWatcher?>((ref) {
+  final socket = ref.watch(socketProvider);
+  if (socket == null) {
+    return null;
+  }
+  final notifier = ref.watch(appNotifierProvider);
+  unawaited(notifier.initialize());
+  final foreground = ref.watch(foregroundProvider);
+  final watcher = SessionWatcher(
+    frames: socket.frames,
+    notifier: notifier,
+    isForeground: () => foreground.isForeground,
+    titleOf: (sessionId) =>
+        ref.read(sessionProvider(sessionId))?.displayName ?? 'pi session',
+  )..start();
+  ref.onDispose(() => unawaited(watcher.dispose()));
+  return watcher;
 });
 
 /// The driving operations of one session (prompt, steer, stop, rename, …).

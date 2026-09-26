@@ -19,13 +19,20 @@ flutter run -d <device>     # Android
 The first launch asks for the server URL and a pairing code: on the server,
 `pi-ui status` prints the code and `pi-ui pair --url http://<host>:8787` renders a
 scannable QR. The device token is stored in the OS keystore; the server keeps only
-its hash.
+its hash. A self-signed certificate is confirmed by its SHA-256 fingerprint once
+and pinned afterwards — a fingerprint that changes is a hard failure, not a prompt.
+
+A session that finishes while the app is in the background tells the user through
+the OS notification centre; everything else is already on the timeline.
 
 ## Checks
 
 ```bash
 dart fix --apply && dart format . && flutter analyze && flutter test
 ```
+
+The same checks run in CI (`.github/workflows/ci.yml`) together with a Linux and a
+Windows build.
 
 ## Layout
 
