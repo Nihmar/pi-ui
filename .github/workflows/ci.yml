@@ -1,0 +1,88 @@
+name: CI
+
+# The guard the repository rules require for the server and the bridge:
+# formatting, vet, race tests, a static build and a generated-code drift check.
+# It is intentionally small: every job runs one area's documented check list,
+# and the bridge steps stay dormant until bridge/package.json lands.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Only checkout is needed; nothing in this workflow writes to the repository.
+permissions:
+  contents: read
+
+# A newer push on the same ref makes the running build obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: server (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Take the toolchain and the module cache key from the module itself.
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Check formatting
+        # gofmt is not configurable: any listed file fails the job.
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test with the race detector
+        run: go test -race ./...
+
+      - name: Build
+        # Static binary: pure-Go dependencies only (no cgo).
+        run: CGO_ENABLED=0 go build ./...
+
+      - name: Check generated code drift
+        # Regenerating internal/protocol/gen from schemas/ on a clean tree must
+        # produce byte-identical files; any diff means the generated types were
+        # not committed together with the schema change.
+        run: bash scripts/gen.sh && git diff --exit-code -- internal/protocol/gen
+
+  bridge:
+    name: bridge (TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bridge
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        # Guarded: bridge/ package.json is the switch that activates this job's
+        # checks, so CI is green before the bridge lands and strict afterwards.
+        if: ${{ hashFiles('bridge/package.json') != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bridge/package-lock.json
+
+      - name: Install dependencies
+        # npm ci requires the committed lockfile, so it stays reproducible.
+        if: ${{ hashFiles('bridge/package.json') != '' }}
+        run: npm ci
+
+      - name: Type check
+        if: ${{ hashFiles('bridge/package.json') != '' }}
+        run: npm run typecheck
