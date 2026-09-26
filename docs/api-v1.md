@@ -251,3 +251,25 @@ A server started without `--root` answers `501 unsupported` on every one of thes
 endpoints instead of exposing the whole filesystem by accident. A root that does not
 exist, or is not a directory, is refused at startup: a workspace is a promise the
 server makes to its clients, not something discovered later.
+
+## Git
+
+Reads are `viewer`, the two mutations are `operator` and are audited as
+`git.write` (a refused directory is `path.escape.blocked`). Every `dir` is resolved
+through the same workspace confinement as the filesystem endpoints, so git can only
+run inside `--root` directories; the commands are `git -C <dir>`, never the server's
+own working directory, and a hook that hangs is a `timeout` instead of a held
+request.
+
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/api/v1/git/status?dir=` | viewer | `{repo, branch, detached, ahead, behind, clean, changes:[{path,status,staged,unstaged}]}` |
+| GET | `/api/v1/git/log?dir=&limit=` | viewer | `{commits:[{hash,short,subject,author,at}]}`, newest first, 30 by default |
+| GET | `/api/v1/git/diff?dir=&path=&staged=` | viewer | `{diff,staged}` — unified diff, capped at 1 MiB |
+| POST | `/api/v1/git/stage` | operator | `{dir, paths:[…]}` |
+| POST | `/api/v1/git/commit` | operator | `{dir, message}` → the new commit |
+
+A git failure keeps git's own words: `not a git repository`, `nothing to commit` and
+the like come back as a `bad_request` whose message is the stderr, because that is
+the part a user can act on. Without a workspace configured these endpoints answer
+`501 unsupported`.

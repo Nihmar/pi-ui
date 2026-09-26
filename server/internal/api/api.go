@@ -7,6 +7,7 @@ import (
 
 	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/fs"
+	"github.com/Nihmar/pi-ui/server/internal/git"
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
@@ -42,6 +43,8 @@ type Options struct {
 	// FS is the confined filesystem service behind /workspaces and /fs, /files.
 	// Nil means this server has no workspace and those endpoints answer 501.
 	FS *fs.Service
+	// Git drives repositories inside those workspaces. Nil answers 501 too.
+	Git *git.Service
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -106,6 +109,7 @@ func NewRouter(o Options) http.Handler {
 		rateLimit:        o.RateLimit,
 		refreshRateLimit: o.RefreshRateLimit,
 		files:            o.FS,
+		git:              o.Git,
 		pairSchema:       compilePairSchema(),
 	}
 	switch {
@@ -150,6 +154,13 @@ func NewRouter(o Options) http.Handler {
 	mux.HandleFunc("PUT /api/v1/files/write", a.authorized(ScopeOperator, a.writeFile))
 	mux.HandleFunc("DELETE /api/v1/files/delete", a.authorized(ScopeOperator, a.deleteFile))
 
+	// The git surface: the same rule, reads with viewer, writes with operator.
+	mux.HandleFunc("GET /api/v1/git/status", a.authorized(ScopeViewer, a.gitStatus))
+	mux.HandleFunc("GET /api/v1/git/log", a.authorized(ScopeViewer, a.gitLog))
+	mux.HandleFunc("GET /api/v1/git/diff", a.authorized(ScopeViewer, a.gitDiff))
+	mux.HandleFunc("POST /api/v1/git/stage", a.authorized(ScopeOperator, a.gitStage))
+	mux.HandleFunc("POST /api/v1/git/commit", a.authorized(ScopeOperator, a.gitCommit))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -186,6 +197,7 @@ type api struct {
 	rateLimit        *ratelimit.Limiter
 	refreshRateLimit *ratelimit.Limiter
 	files            *fs.Service
+	git              *git.Service
 	pairSchema       *jsonschema.Schema
 }
 
