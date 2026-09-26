@@ -12,6 +12,8 @@
 import { readFileSync } from "node:fs";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
+import { readMcpDocument, registerMcpServers, type McpConnection } from "./mcp.ts";
+
 /** Exact strings relied on by the fixtures and the WS `ext.notify` tests. */
 const READY_NOTIFY = "pi-ui-bridge ready";
 const CONFIRM_TITLE = "pi-ui-bridge: confirm command";
@@ -31,6 +33,13 @@ interface Approvals {
 interface BridgeConfig {
   readonly sessionId?: string;
   readonly approvals: Approvals;
+  /**
+   * Path of the MCP configuration the server maintains (`GET/PUT /api/v1/mcp`).
+   *
+   * A path and not the configuration: one document serves every session, and a change
+   * takes effect at the next spawn.
+   */
+  readonly mcpConfig?: string;
 }
 
 const OFF: Approvals = { mode: "off", patterns: DEFAULT_PATTERNS };
@@ -122,7 +131,15 @@ function readConfig(): BridgeConfig {
   if (sessionId !== undefined && typeof sessionId !== "string") {
     return offConfig(`config ${path}: "sessionId" must be a string`);
   }
-  return sessionId === undefined ? { approvals } : { sessionId, approvals };
+  const mcpConfig = parsed.mcpConfig;
+  if (mcpConfig !== undefined && typeof mcpConfig !== "string") {
+    return offConfig(`config ${path}: "mcpConfig" must be a string`);
+  }
+  return {
+    approvals,
+    ...(sessionId === undefined ? {} : { sessionId }),
+    ...(mcpConfig === undefined || mcpConfig.trim() === "" ? {} : { mcpConfig }),
+  };
 }
 
 function describe(error: unknown): string {
@@ -154,8 +171,30 @@ export default function (pi: ExtensionAPI): void {
   const session = config.sessionId === undefined ? "" : `, session ${config.sessionId}`;
   diagnostic(`approvals mode: ${config.approvals.mode}${session}`);
 
+  // The MCP servers are connected once per child, and their tools are registered before
+  // the first turn: `pi.registerTool` in an async handler is what the extension API
+  // documents as "close session-scoped resources from an idempotent session_shutdown
+  // handler", which is the other half of this pair.
+  let mcpConnections: readonly McpConnection[] = [];
+
   pi.on("session_start", (_event, ctx: ExtensionContext) => {
     ctx.ui.notify(READY_NOTIFY, "info");
+    if (config.mcpConfig === undefined) return;
+    const document = readMcpDocument(config.mcpConfig);
+    void registerMcpServers(pi, document).then(
+      (connections) => {
+        mcpConnections = connections;
+      },
+      (error: unknown) => diagnostic(`MCP setup failed: ${describe(error)}`),
+    );
+  });
+
+  pi.on("session_shutdown", async () => {
+    // Idempotent on purpose: cancellation, a session replacement and process exit can
+    // all converge here, and a connection that is already closed is a no-op.
+    const closing = mcpConnections;
+    mcpConnections = [];
+    await Promise.all(closing.map((connection) => connection.close()));
   });
 
   pi.on("tool_call", async (event, ctx) => {

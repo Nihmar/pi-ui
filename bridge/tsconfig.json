@@ -12,9 +12,10 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["pi-ui-bridge.ts"]
+  "include": ["pi-ui-bridge.ts", "mcp.ts", "test/**/*.ts"]
 }

@@ -14,6 +14,8 @@ Contract: `docs/spike-interfaces.md` §10 (behaviour) and §5.7 (`PI_UI_BRIDGE_C
 | `tool_call` for `bash`, approvals `confirm`, command matches a pattern, `ctx.hasUI` | `ctx.ui.confirm("pi-ui-bridge: confirm command", "<message containing the command>")` |
 | confirmation refused | `ctx.ui.notify("Command blocked by pi-ui-bridge", "warning")` and `{ block: true, reason: "blocked by pi-ui-bridge" }` |
 | everything else | no UI, returns `undefined` (the tool call proceeds) |
+| `session_start`, when `mcpConfig` is set | connects every enabled **stdio** MCP server, lists its tools and registers each as a pi tool named `mcp_<server>_<tool>` |
+| `session_shutdown` | closes those connections (SIGTERM, then SIGKILL) — idempotent, like every cleanup path |
 
 Patterns match as **case-insensitive substrings**, not regular expressions: the patterns
 come from configuration, and a substring can neither fail to compile nor backtrack.
@@ -52,6 +54,27 @@ in the child environment.
 | `mcpConfig` | no | — | Path of the MCP configuration the bridge should connect to (`GET/PUT /api/v1/mcp`). The server writes it when MCP is configured; **it names a file, it does not carry the configuration**, because one document serves every session and a change takes effect at the next spawn |
 | `approvals.mode` | no | `"confirm"` | `"confirm"` asks the client; `"off"` never confirms |
 | `approvals.patterns` | no | `["rm -rf", "git push --force", "sudo"]` | Case-insensitive substrings; empty entries are ignored |
+
+## MCP
+
+The bridge is the half of MCP that speaks the protocol: the Go server stores and
+validates the configuration (`GET/PUT /api/v1/mcp`) and writes its **path** into
+`mcpConfig`, and this extension connects to the servers it names. A change therefore
+takes effect at the next spawn, and the server never runs a tool server itself.
+
+- **Transport**: stdio, one child process per enabled server. A remote (`url`) entry is
+  accepted by the configuration and reported on stderr as unsupported by this version
+  rather than silently ignored.
+- **Tools**: `initialize` → `notifications/initialized` → `tools/list`, and each tool is
+  registered with the MCP server's own JSON Schema wrapped rather than rebuilt, so no
+  keyword is lost.
+- **Failures**: one server that cannot start, cannot list or exits mid-call is reported
+  on stderr and skipped; its tools simply are not there, and a session still starts. A
+  tool that reports `isError` throws, because that is pi's tool contract for a failed
+  call, and a request that gets no answer in 60 s fails instead of hanging a turn.
+- **Tests**: `npm test` runs the Node test runner against a real child process that
+  speaks the protocol (start, handshake, listing, a call, a failure, a shutdown), so the
+  client is exercised end to end without an MCP server installed.
 
 ### Degradation rules
 
