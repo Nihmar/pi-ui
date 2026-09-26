@@ -3,8 +3,10 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -231,5 +233,28 @@ func assertRawFiles(t *testing.T, dir string, names ...string) {
 		if info.Size() == 0 {
 			t.Errorf("raw sample %s is empty", path)
 		}
+	}
+}
+
+// TestRawOutputDirMustBeGitignored pins the CLI guard: inside the repository a raw sample
+// directory that git would stage is refused as a usage error, while the gitignored output
+// directory and a directory outside the work tree are accepted.
+func TestRawOutputDirMustBeGitignored(t *testing.T) {
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		t.Skipf("not inside a git work tree: %v", err)
+	}
+	root := strings.TrimSpace(string(out))
+
+	err = requireIgnoredRawDir(filepath.Join(root, "server", "not-ignored-raw-samples"))
+	var usage *UsageError
+	if !errors.As(err, &usage) {
+		t.Fatalf("an unignored directory inside the repository = %v, want a UsageError", err)
+	}
+	if err := requireIgnoredRawDir(filepath.Join(root, ".piui", "spike")); err != nil {
+		t.Fatalf("the gitignored output directory was refused: %v", err)
+	}
+	if err := requireIgnoredRawDir(t.TempDir()); err != nil {
+		t.Fatalf("a scratch directory outside the repository was refused: %v", err)
 	}
 }

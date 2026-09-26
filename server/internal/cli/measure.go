@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -75,8 +76,14 @@ func runMeasure(ctx context.Context, args []string, stdout, stderr io.Writer) er
 	}
 	if cfg.out != "" {
 		// The script reads <out>/<NAME>/summary.txt and expects the raw sample
-		// files next to it; without --out nothing is written.
-		measurement.RawDir = filepath.Dir(cfg.out)
+		// files next to it; without --out nothing is written. The directory must be
+		// ignored by git before anything lands there: the samples are megabytes of
+		// JSONL, exactly what a stray `git add -A` must not stage.
+		rawDir := filepath.Dir(cfg.out)
+		if err := requireIgnoredRawDir(rawDir); err != nil {
+			return err
+		}
+		measurement.RawDir = rawDir
 	}
 
 	var summaries []string
@@ -104,7 +111,12 @@ func runMeasure(ctx context.Context, args []string, stdout, stderr io.Writer) er
 		if err != nil {
 			return err
 		}
-		emit(throughput.Summary())
+		// The one-event unpaced pass is the smoke run that starts the pipeline for the
+		// idle measurement above: printing its throughput line as a C5/C6 result would
+		// read as if a measurement had been attempted.
+		if !throughput.Smoke() {
+			emit(throughput.Summary())
+		}
 	}
 
 	if cfg.out != "" {
@@ -232,4 +244,29 @@ so a longer soak is not cut off mid-stream.
 `, spike.DefaultSessions, spike.DefaultEvents, spike.DefaultClients,
 		spike.DefaultSessions, spike.DefaultEvents, spike.DefaultClients,
 		spike.DefaultWarmup, measureSlack, spike.DefaultTimeout)
+}
+
+// requireIgnoredRawDir refuses to write raw samples into a directory git would stage. It
+// mirrors the measurement runner's guard for direct CLI use: inside a git work tree the
+// directory must be ignored, outside one (a container run, a scratch directory) there is
+// nothing to protect and the check is skipped. git is consulted without requiring it:
+// a missing git binary degrades to the skip, because the guard protects an accident, not
+// the measurement.
+func requireIgnoredRawDir(dir string) error {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return nil
+	}
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return nil
+	}
+	root := strings.TrimSpace(string(out))
+	if root == "" || !strings.HasPrefix(absDir, root+string(filepath.Separator)) {
+		return nil
+	}
+	if err := exec.Command("git", "-C", root, "check-ignore", "-q", "--", absDir).Run(); err != nil {
+		return Usagef("--out %s: the raw sample directory is not gitignored; refusing to write samples git could stage", dir)
+	}
+	return nil
 }
