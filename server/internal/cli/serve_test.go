@@ -15,6 +15,7 @@ import (
 
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/test/fakeharness"
+	"github.com/coder/websocket"
 )
 
 // syncBuffer is a bytes.Buffer that is safe to read while the command writes to it: serve
@@ -328,4 +329,141 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatalf("timed out after 10s waiting for %s", what)
+}
+
+// TestServeWebSocketCommandRoundTrip drives the wiring `serve` owns end to end: a real
+// websocket client completes the handshake, subscribes to a session and sends a command that
+// reaches the child through the hub, the supervisor and rpc, then comes back as a response.
+func TestServeWebSocketCommandRoundTrip(t *testing.T) {
+	clearServeEnv(t)
+	binary := fakeharness.Build(t)
+	workDir := t.TempDir()
+
+	processCtx, stopServer := context.WithCancel(context.Background())
+	defer stopServer()
+	var stdout, stderr syncBuffer
+	done := make(chan error, 1)
+	go func() {
+		done <- Serve(processCtx, []string{
+			"--addr", "127.0.0.1:0",
+			"--pi", binary,
+			"--session", workDir,
+		}, &stdout, &stderr)
+	}()
+
+	addr := waitForAddress(t, &stdout)
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	var info sessions.Info
+	waitFor(t, "the boot session to become ready", func() bool {
+		var listed struct {
+			Sessions []sessions.Info `json:"sessions"`
+		}
+		decodeJSON(t, getJSON(t, client, "http://"+addr+"/api/v1/sessions"), &listed)
+		if len(listed.Sessions) != 1 {
+			return false
+		}
+		info = listed.Sessions[0]
+		return info.Status == sessions.StatusReady
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	conn, _, err := websocket.Dial(ctx, "ws://"+addr+"/ws/v1", nil)
+	if err != nil {
+		t.Fatalf("dial /ws/v1: %v", err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "test done")
+
+	writeFrame(t, ctx, conn, `{"type":"hello","v":1,"client":{"name":"pi-ui-test","version":"0.0.1"}}`)
+	welcome := readFrame(t, ctx, conn, hasType("welcome"))
+	if string(welcome["v"]) != "1" {
+		t.Errorf("welcome v = %s, want 1", welcome["v"])
+	}
+
+	writeFrame(t, ctx, conn, `{"type":"subscribe","sessionId":"`+info.ID+`"}`)
+
+	// A command reaches the child and its response comes back through the same socket.
+	writeFrame(t, ctx, conn, `{"type":"command","id":"c1","sessionId":"`+info.ID+
+		`","op":"session.command.raw","payload":{"type":"get_commands"}}`)
+	response := readFrame(t, ctx, conn, func(frame map[string]json.RawMessage) bool {
+		return string(frame["type"]) == `"response"` && string(frame["id"]) == `"c1"`
+	})
+	if string(response["ok"]) != "true" {
+		t.Fatalf("command response = %v, want ok:true", response)
+	}
+	if _, ok := response["data"]; !ok {
+		t.Errorf("command response carries no data: %v", response)
+	}
+
+	// The protocol-level ping is answered with a pong frame.
+	writeFrame(t, ctx, conn, `{"type":"ping"}`)
+	readFrame(t, ctx, conn, hasType("pong"))
+
+	// An unknown session answers with the taxonomy code, not with a dropped frame. The id
+	// must still be schema-valid: the hub rejects a malformed sessionId as bad_request
+	// before the command ever reaches the supervisor, which is a different case.
+	writeFrame(t, ctx, conn, `{"type":"command","id":"c2","sessionId":"s_ffffffffffffffff","op":"session.abort"}`)
+	failure := readFrame(t, ctx, conn, func(frame map[string]json.RawMessage) bool {
+		return string(frame["type"]) == `"response"` && string(frame["id"]) == `"c2"`
+	})
+	if string(failure["ok"]) != "false" {
+		t.Fatalf("unknown-session response = %v, want ok:false", failure)
+	}
+	var envelope struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(failure["error"], &envelope.Error); err != nil {
+		t.Fatalf("error frame %s: %v", failure["error"], err)
+	}
+	if envelope.Error.Code != sessions.CodeSessionNotFound {
+		t.Errorf("error code = %q, want %q", envelope.Error.Code, sessions.CodeSessionNotFound)
+	}
+
+	stopServer()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Serve: %v (stderr %s)", err, stderr.String())
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatalf("Serve did not return after cancellation (stderr %s)", stderr.String())
+	}
+}
+
+// hasType matches one server frame by its type.
+func hasType(want string) func(map[string]json.RawMessage) bool {
+	return func(frame map[string]json.RawMessage) bool {
+		return string(frame["type"]) == `"`+want+`"`
+	}
+}
+
+// writeFrame sends one JSON frame to the hub.
+func writeFrame(t *testing.T, ctx context.Context, conn *websocket.Conn, frame string) {
+	t.Helper()
+	if err := conn.Write(ctx, websocket.MessageText, []byte(frame)); err != nil {
+		t.Fatalf("write %s: %v", frame, err)
+	}
+}
+
+// readFrame reads frames until one satisfies want, so a test does not depend on how many
+// replay or heartbeat frames arrive first.
+func readFrame(t *testing.T, ctx context.Context, conn *websocket.Conn, want func(map[string]json.RawMessage) bool) map[string]json.RawMessage {
+	t.Helper()
+	for {
+		_, data, err := conn.Read(ctx)
+		if err != nil {
+			t.Fatalf("read frame: %v", err)
+		}
+		var frame map[string]json.RawMessage
+		if err := json.Unmarshal(data, &frame); err != nil {
+			t.Fatalf("frame %s is not a JSON object: %v", data, err)
+		}
+		if want(frame) {
+			return frame
+		}
+	}
 }
