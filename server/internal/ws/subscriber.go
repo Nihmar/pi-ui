@@ -93,13 +93,18 @@ func (s *subscription) sendLocked(h *hub, ev Event, advance bool) {
 
 // beginReplay opens the replay sequence on this subscription and keeps holding,
 // so live events that arrive from now on are buffered.
+//
+// The buffer already collected is deliberately kept: a subscription is created
+// holding, so events published between its registration and this call are in it,
+// and the ring snapshot (or the durable replay) was taken before at least some of
+// them — clearing the buffer here would drop those events without a trace. An
+// event the replay does cover again is dropped by the seq dedup in sendLocked
+// instead, which is the case this buffer is not needed for.
 func (s *subscription) beginReplay(h *hub, direction string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.holding = true
-	s.pending = nil
-	s.overflow = false
 	s.sendLocked(h, h.localEvent(EventReplayBegin, s.sessionID, replayBeginPayload(direction)), false)
 }
 

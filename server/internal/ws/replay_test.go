@@ -338,3 +338,51 @@ func TestEachSessionHasItsOwnReplayWindow(t *testing.T) {
 		t.Fatalf("replay.end = %v, want no truncation: the quiet session lost nothing", payload)
 	}
 }
+
+// TestBeginReplayKeepsEventsBufferedBeforeIt pins the invariant behind the replay
+// buffer. A subscription is created holding, so a live event published between its
+// registration and the replay's first frame is buffered — and the ring snapshot (or
+// the durable replay) the replay is served from was taken before that event. beginReplay
+// therefore must not clear the buffer: an event the replay does deliver again is dropped
+// by the seq dedup in sendLocked, so clearing it only ever loses events nobody replays.
+func TestBeginReplayKeepsEventsBufferedBeforeIt(t *testing.T) {
+	const sessionID = "s_cccccccccccccccc"
+	ts := newTestHub(t, nil)
+
+	// A connection needs no writer for this test: the frames stay in its queue.
+	conn := &connection{hub: ts.hub, ctx: context.Background(), send: make(chan []byte, 8)}
+	sub := newSubscription(conn, sessionID)
+
+	live := Event{Type: "pi.message_update", SessionID: sessionID, Payload: json.RawMessage(`{"live":true}`)}
+	ts.hub.stamp(&live)
+	sub.deliverLive(ts.hub, live)
+
+	// The replay itself delivers nothing: the buffered event is the whole point.
+	sub.beginReplay(ts.hub, "seq")
+	sub.endReplay(ts.hub, 0, true, false)
+
+	var frames []string
+	beginIndex, liveIndex := -1, -1
+	for len(conn.send) > 0 {
+		var frame struct {
+			Type    string          `json:"type"`
+			Payload json.RawMessage `json:"payload"`
+		}
+		if err := json.Unmarshal(<-conn.send, &frame); err != nil {
+			t.Fatalf("queued frame is not JSON: %v", err)
+		}
+		frames = append(frames, frame.Type)
+		switch {
+		case frame.Type == EventReplayBegin:
+			beginIndex = len(frames) - 1
+		case frame.Type == "pi.message_update" && string(frame.Payload) == `{"live":true}`:
+			liveIndex = len(frames) - 1
+		}
+	}
+	if liveIndex < 0 {
+		t.Fatalf("the buffered live event never reached the subscriber (frames: %v)", frames)
+	}
+	if liveIndex < beginIndex {
+		t.Fatalf("the live event arrived before %s (frames: %v)", EventReplayBegin, frames)
+	}
+}
