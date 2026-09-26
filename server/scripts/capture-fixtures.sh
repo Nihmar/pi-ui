@@ -5,9 +5,11 @@
 # record per line, preceded by a single `#` header naming the exact command, the pi
 # version, the capture date and whether the file is a real capture. pi runs offline
 # (--offline --no-extensions, no model server, no network), and the script reads each
-# capture until the expected record appears instead of sleeping, so the procedure is
-# deterministic: only the header date and pi's per-run session id/timestamps differ
-# between two captures of the same fixture. stderr is never part of a fixture.
+# capture until the expected record appears instead of sleeping, so two captures of the
+# same fixture differ only in the header date and in pi's per-run ids (a session id, an
+# extension-UI request id, a timestamp). get_commands additionally mirrors the host's
+# installed skills and inline extensions, so its payload is an example of the record
+# shape rather than a fixed list. stderr is never part of a fixture.
 #
 # Usage: server/scripts/capture-fixtures.sh          (uses `pi` from PATH)
 #        PI_BIN=/path/to/pi server/scripts/capture-fixtures.sh
@@ -15,7 +17,10 @@ set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 fixtures_dir="$repo_root/server/test/fixtures"
-bridge="$repo_root/bridge/pi-ui-bridge.ts"
+# Captures run from the repository root with a repo-relative bridge path, so the argv
+# that ends up in a fixture header is exactly what a reader can retype anywhere.
+cd "$repo_root"
+bridge="bridge/pi-ui-bridge.ts"
 pi_bin="${PI_BIN:-pi}"
 
 if ! command -v "$pi_bin" >/dev/null 2>&1; then
@@ -95,8 +100,10 @@ write_fixture "$fixtures_dir/get_state.jsonl" \
 	"printf '%s\\n' '$state_command' | $(pi_cmd "${pi_args[@]}")" \
 	"$work/get_state.records"
 
-# get_commands: with --no-extensions no extension, prompt template or skill registers
-# a command, so the list is empty; that is the deterministic capture of the shape.
+# get_commands: the registered command list. --no-extensions still loads the user's
+# inline (top-level) extensions and installed skills from ~/.pi/agent/npm, so the list
+# reflects this host: the fixture freezes the record shape and an example payload, not a
+# host-independent empty list.
 commands_command='{"id":"commands-1","type":"get_commands"}'
 capture "$work/get_commands.records" '*"type":"response"*' "$commands_command" "${pi_args[@]}"
 write_fixture "$fixtures_dir/get_commands.jsonl" \
