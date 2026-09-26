@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 )
 
@@ -72,6 +73,10 @@ func (a *api) createSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, statusFor(code), code, err.Error())
 		return
 	}
+	created := a.auditEvent(r, audit.ActionSessionCreate, audit.OutcomeOK)
+	created.SessionID = info.ID
+	created.Target = info.ID
+	a.record(created)
 	writeJSON(w, http.StatusCreated, info)
 }
 
@@ -98,6 +103,10 @@ func (a *api) stopSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, statusFor(code), code, err.Error())
 		return
 	}
+	stopped := a.auditEvent(r, audit.ActionSessionStop, audit.OutcomeOK)
+	stopped.SessionID = id
+	stopped.Target = id
+	a.record(stopped)
 	if info, ok := a.supervisor.Get(id); ok {
 		writeJSON(w, http.StatusAccepted, info)
 		return

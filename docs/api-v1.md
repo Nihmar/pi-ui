@@ -161,6 +161,35 @@ the failure is one `unauthorized`, and the attempt is audited.
 - REST commands: 120/min/token (burst 30); `prompt` 30/min/session.
 - Audit events: `auth.pair`, `auth.denied`, `device.revoke`.
 
+## Audit
+
+```
+GET /api/v1/audit?since=<RFC3339>&action=<name>&deviceId=<id>&sessionId=<id>&limit=<n>
+```
+
+Scope `admin`. Returns `SrvAuditResponse`: the newest entries first, and
+`truncated:true` when more rows matched than the page returned (`limit` defaults to
+100, at most 1000). An unknown query parameter is ignored, so a newer client never
+breaks an older server.
+
+| Field | Meaning |
+|---|---|
+| `id`, `at` | row id and when the server observed the action |
+| `action` | dotted name (`auth.pair`, `auth.denied`, `device.revoke`, `session.create`, `session.stop`, `session.prompt`, `session.steer`, `session.follow_up`, `session.abort`, `session.rename`, …). The vocabulary grows without a schema change; a client renders an unknown action generically. |
+| `outcome` | `ok` (it happened), `denied` (a policy decision: the credential or the scope refused it before anything ran) or `error` (attempted and failed) |
+| `actorDeviceId`, `actorName`, `actorScope` | who acted; the name is copied at the time, so a rename does not rewrite history |
+| `sessionId`, `target` | what it acted on |
+| `remoteAddr` | peer host, never a forwarded header |
+| `details` | structured context (`op`, `method`, `path`, `reason`, counts). Never tokens, provider secrets or conversation content. |
+
+The trail is append-only in the state database and is pruned by retention (30 days by
+default, opportunistically on write, at most hourly). A failing audit store is logged;
+it never turns the action it describes into an error, and a row nobody can decode is
+returned with empty `details` instead of failing the page.
+
+`auth.denied` is recorded for a refused credential, for a missing scope on REST and on
+the WebSocket handshake, and for a frame above the connection's scope.
+
 ## Server
 
 ### `GET /health`

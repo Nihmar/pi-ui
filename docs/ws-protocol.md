@@ -100,7 +100,8 @@ new handshake. It gates the frames:
 A frame above the connection's scope is answered with
 `response{ok:false,error:{code:"forbidden_scope"}}` correlated by its id (the
 connection stays up; the frame never reaches a handler). Admin scope is accepted and
-stored but no frame needs it yet.
+stored but no frame needs it yet. Dispatched commands and scope denials are recorded in
+the audit trail (`docs/api-v1.md`, "Audit"), as is a refused handshake.
 
 ### Revocation
 

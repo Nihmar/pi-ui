@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 )
 
 // Event is one entry of the fan-out stream: either a verbatim child record
@@ -51,15 +53,16 @@ const (
 // Options{} is a valid spike configuration. The slices and the map are copied:
 // mutating them afterwards does not affect a running hub.
 type Options struct {
-	Token         string        // bearer token; empty => loopback-only handshake
-	Authorizer    Authorizer    // device-aware handshake; nil => the Token rules apply
-	AllowHosts    []string      // extra Host values accepted
-	AllowOrigins  []string      // extra Origin values accepted
-	ReplayEvents  int           // ring size (default 2000)
-	ReplayWindow  time.Duration // ring age (default 15m)
-	Heartbeat     time.Duration // server ping interval (default 30s)
-	WriteTimeout  time.Duration // per-frame write deadline (default 10s)
-	SendBuffer    int           // per-subscriber queue (default 512)
+	Token         string         // bearer token; empty => loopback-only handshake
+	Authorizer    Authorizer     // device-aware handshake; nil => the Token rules apply
+	Audit         audit.Recorder // trail; nil keeps no trail
+	AllowHosts    []string       // extra Host values accepted
+	AllowOrigins  []string       // extra Origin values accepted
+	ReplayEvents  int            // ring size (default 2000)
+	ReplayWindow  time.Duration  // ring age (default 15m)
+	Heartbeat     time.Duration  // server ping interval (default 30s)
+	WriteTimeout  time.Duration  // per-frame write deadline (default 10s)
+	SendBuffer    int            // per-subscriber queue (default 512)
 	ServerVersion string
 	PiVersion     string
 	Features      []string

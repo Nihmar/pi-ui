@@ -9,6 +9,155 @@ import "reflect"
 import "regexp"
 import "unicode/utf8"
 
+// One row of the audit trail: who did what, to what, with which outcome. It is
+// append-only, kept for the configured retention and readable only with the admin
+// scope.
+type SrvAuditEntry struct {
+	// Dotted action name. The known vocabulary is auth.pair, auth.denied,
+	// device.revoke, session.create, session.stop, session.delete, session.prompt,
+	// session.steer, session.follow_up, session.abort, session.bash, terminal.open,
+	// terminal.close, file.write, file.delete, git.write, mcp.update, updates.apply,
+	// settings.update, drain.start, drain.resume, path.escape.blocked and
+	// rate.limited; a new action needs no schema change, and a client renders an
+	// unknown action generically.
+	Action string `json:"action" yaml:"action" mapstructure:"action"`
+
+	// Device that caused the action, when the request carried a device token. Empty
+	// for the loopback bootstrap and for failures that never reached a credential.
+	ActorDeviceId *string `json:"actorDeviceId,omitempty,omitzero" yaml:"actorDeviceId,omitempty" mapstructure:"actorDeviceId,omitempty"`
+
+	// Device name at the time of the action, copied so a later rename does not
+	// rewrite history.
+	ActorName *string `json:"actorName,omitempty,omitzero" yaml:"actorName,omitempty" mapstructure:"actorName,omitempty"`
+
+	// Scope the actor was authenticated with, when there was one.
+	ActorScope *SrvScope `json:"actorScope,omitempty,omitzero" yaml:"actorScope,omitempty" mapstructure:"actorScope,omitempty"`
+
+	// When the server observed the action, UTC.
+	At SrvTimestamp `json:"at" yaml:"at" mapstructure:"at"`
+
+	// Structured context of the action (reason, op, method, path, counts). Open map:
+	// a new detail never breaks a reader. Never carries provider secrets, tokens or
+	// conversation content.
+	Details SrvAuditEntryDetails `json:"details,omitempty,omitzero" yaml:"details,omitempty" mapstructure:"details,omitempty"`
+
+	// Monotonic row id, the pagination and ordering key; it is not security-relevant
+	// and never reused.
+	Id int `json:"id" yaml:"id" mapstructure:"id"`
+
+	// Outcome corresponds to the JSON schema field "outcome".
+	Outcome SrvAuditOutcome `json:"outcome" yaml:"outcome" mapstructure:"outcome"`
+
+	// Peer address of the request (host only, never a forwarded header), so a denial
+	// can be traced to where it came from.
+	RemoteAddr *string `json:"remoteAddr,omitempty,omitzero" yaml:"remoteAddr,omitempty" mapstructure:"remoteAddr,omitempty"`
+
+	// Server session id the action concerned, when it concerned one.
+	SessionId *string `json:"sessionId,omitempty,omitzero" yaml:"sessionId,omitempty" mapstructure:"sessionId,omitempty"`
+
+	// What the action acted on when that is not a session: a path, a device id, a
+	// component name. Bounded in length so a hostile value cannot bloat the trail.
+	Target *string `json:"target,omitempty,omitzero" yaml:"target,omitempty" mapstructure:"target,omitempty"`
+}
+
+// Structured context of the action (reason, op, method, path, counts). Open map: a
+// new detail never breaks a reader. Never carries provider secrets, tokens or
+// conversation content.
+type SrvAuditEntryDetails map[string]interface{}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SrvAuditEntry) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["action"]; raw != nil && !ok {
+		return fmt.Errorf("field action in SrvAuditEntry: required")
+	}
+	if _, ok := raw["at"]; raw != nil && !ok {
+		return fmt.Errorf("field at in SrvAuditEntry: required")
+	}
+	if _, ok := raw["id"]; raw != nil && !ok {
+		return fmt.Errorf("field id in SrvAuditEntry: required")
+	}
+	if _, ok := raw["outcome"]; raw != nil && !ok {
+		return fmt.Errorf("field outcome in SrvAuditEntry: required")
+	}
+	type Plain SrvAuditEntry
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if utf8.RuneCountInString(string(plain.Action)) < 1 {
+		return fmt.Errorf("field %s length: must be >= %d", "action", 1)
+	}
+	if 1 > plain.Id {
+		return fmt.Errorf("field %s: must be >= %v", "id", 1)
+	}
+	*j = SrvAuditEntry(plain)
+	return nil
+}
+
+type SrvAuditOutcome string
+
+const SrvAuditOutcomeDenied SrvAuditOutcome = "denied"
+const SrvAuditOutcomeError SrvAuditOutcome = "error"
+const SrvAuditOutcomeOk SrvAuditOutcome = "ok"
+
+var enumValues_SrvAuditOutcome = []interface{}{
+	"ok",
+	"denied",
+	"error",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SrvAuditOutcome) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_SrvAuditOutcome {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_SrvAuditOutcome, v)
+	}
+	*j = SrvAuditOutcome(v)
+	return nil
+}
+
+// GET /api/v1/audit response, admin scope: the newest entries first.
+type SrvAuditResponse struct {
+	// Entries corresponds to the JSON schema field "entries".
+	Entries []SrvAuditEntry `json:"entries" yaml:"entries" mapstructure:"entries"`
+
+	// True when more rows matched than the requested limit returned, so a viewer
+	// knows to raise the limit or narrow the filters.
+	Truncated *bool `json:"truncated,omitempty,omitzero" yaml:"truncated,omitempty" mapstructure:"truncated,omitempty"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SrvAuditResponse) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["entries"]; raw != nil && !ok {
+		return fmt.Errorf("field entries in SrvAuditResponse: required")
+	}
+	type Plain SrvAuditResponse
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = SrvAuditResponse(plain)
+	return nil
+}
+
 // One paired device as GET /api/v1/auth/devices reports it. Never carries the
 // token or its hash; revocation is the only mutating operation and it takes effect
 // immediately, closing the device's WebSockets too.

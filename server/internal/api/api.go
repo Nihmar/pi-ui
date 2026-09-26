@@ -5,6 +5,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -28,6 +29,9 @@ type Options struct {
 	// revoke). When Auth is nil and this is set, the router authenticates bearer
 	// tokens with it; when both are nil the router fails closed.
 	AuthService AuthService
+	// Audit records what happened and serves GET /audit. Nil means no trail and a
+	// 501 on the endpoint: auditing is a capability, not a precondition.
+	Audit AuditService
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -88,6 +92,7 @@ func NewRouter(o Options) http.Handler {
 		info:        o.Info,
 		auth:        o.Auth,
 		authService: o.AuthService,
+		audit:       o.Audit,
 		pairSchema:  compilePairSchema(),
 	}
 	switch {
@@ -121,6 +126,9 @@ func NewRouter(o Options) http.Handler {
 	mux.HandleFunc("GET /api/v1/auth/devices", a.authorized(ScopeAdmin, a.listDevices))
 	mux.HandleFunc("DELETE /api/v1/auth/devices/{id}", a.authorized(ScopeAdmin, a.revokeDevice))
 
+	// The trail is admin-only: it names devices, sessions and outcomes.
+	mux.HandleFunc("GET /api/v1/audit", a.authorized(ScopeAdmin, a.listAudit))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -132,6 +140,7 @@ func NewRouter(o Options) http.Handler {
 		"/api/v1/auth/refresh",
 		"/api/v1/auth/devices",
 		"/api/v1/auth/devices/{id}",
+		"/api/v1/audit",
 	} {
 		mux.HandleFunc(path, methodNotAllowed)
 	}
@@ -152,6 +161,7 @@ type api struct {
 	info        ServerInfo
 	auth        Authenticator
 	authService AuthService
+	audit       AuditService
 	pairSchema  *jsonschema.Schema
 }
 
@@ -161,10 +171,17 @@ func (a *api) authorized(required Scope, fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		scope, deviceID, err := authenticate(a.auth, r)
 		if err != nil {
+			// A refused credential is exactly what a review looks for first.
+			ev := a.auditEvent(r, audit.ActionAuthDenied, audit.OutcomeDenied)
+			ev.Details = map[string]any{"method": r.Method, "path": r.URL.Path, "reason": "credentials"}
+			a.record(ev)
 			writeError(w, http.StatusUnauthorized, codeOr(err, sessions.CodeUnauthorized), err.Error())
 			return
 		}
 		if !scope.allows(required) {
+			ev := a.auditEvent(r, audit.ActionAuthDenied, audit.OutcomeDenied)
+			ev.Details = map[string]any{"method": r.Method, "path": r.URL.Path, "required": string(required)}
+			a.record(ev)
 			writeError(w, http.StatusForbidden, sessions.CodeForbiddenScope,
 				"this endpoint needs the "+string(required)+" scope")
 			return

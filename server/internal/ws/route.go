@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	"github.com/coder/websocket"
+
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 )
 
 // serveConn runs the hello handshake and then the read loop of one accepted
@@ -178,6 +180,7 @@ func (h *hub) handleCommand(c *connection, frame inbound) {
 	if !c.who.scope.allows(ScopeOperator) {
 		// A read-only connection still gets the terminal answer the protocol promises
 		// for its id: it learns why, and nothing is dispatched.
+		h.auditDenied(c, frame.SessionID, frame.Op, "scope")
 		c.enqueue(marshalErrorResponse(frame.ID, codeForbiddenScope, "this connection is read-only"))
 		return
 	}
@@ -191,10 +194,12 @@ func (h *hub) handleCommand(c *connection, frame inbound) {
 	h.spawnHandler(func() {
 		data, err := handler.Handle(c.ctx, cmd)
 		if err != nil {
+			h.auditCommand(c, cmd, audit.OutcomeError)
 			code, message := codeOf(err)
 			c.enqueue(marshalErrorResponse(cmd.ID, code, message))
 			return
 		}
+		h.auditCommand(c, cmd, audit.OutcomeOK)
 		c.enqueue(marshalHandlerData(cmd.ID, data))
 	})
 }
@@ -209,6 +214,7 @@ func (h *hub) handleUIResponse(c *connection, frame inbound) {
 	if !c.who.scope.allows(ScopeOperator) {
 		// Answering a dialog drives the run, so a viewer cannot do it; the dialog id
 		// correlates the refusal, and the dialog itself stays open for a real operator.
+		h.auditDenied(c, frame.SessionID, "ui_response", "scope")
 		c.enqueue(marshalErrorResponse(frame.ID, codeForbiddenScope, "this connection is read-only"))
 		return
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/auth"
 	"github.com/Nihmar/pi-ui/server/internal/protocol/gen"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
@@ -56,9 +57,23 @@ func (a *api) pair(w http.ResponseWriter, r *http.Request) {
 		Password:   deref(body.Password),
 	}, clientIP(r))
 	if err != nil {
+		denied := a.auditEvent(r, audit.ActionAuthDenied, audit.OutcomeDenied)
+		denied.Details = map[string]any{"method": r.Method, "path": "/api/v1/auth/pair", "reason": authCode(err)}
+		a.record(denied)
 		writeAuthError(w, err)
 		return
 	}
+	paired := audit.Event{
+		Action:        audit.ActionAuthPair,
+		Outcome:       audit.OutcomeOK,
+		ActorDeviceID: result.Device.ID,
+		ActorName:     result.Device.Name,
+		ActorScope:    string(result.Device.Scope),
+		Target:        result.Device.ID,
+		RemoteAddr:    clientIP(r),
+		Details:       map[string]any{"platform": result.Device.Platform},
+	}
+	a.record(paired)
 	writeJSON(w, http.StatusCreated, pairResponse(result, a.info))
 }
 
@@ -112,10 +127,14 @@ func (a *api) revokeDevice(w http.ResponseWriter, r *http.Request) {
 			"device pairing is not configured on this server")
 		return
 	}
-	if err := service.Revoke(r.PathValue("id")); err != nil {
+	deviceID := r.PathValue("id")
+	if err := service.Revoke(deviceID); err != nil {
 		writeAuthError(w, err)
 		return
 	}
+	revoked := a.auditEvent(r, audit.ActionDeviceRevoke, audit.OutcomeOK)
+	revoked.Target = deviceID
+	a.record(revoked)
 	// 204: the device list is what a client re-reads; there is nothing to return.
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -182,6 +201,14 @@ func writeAuthError(w http.ResponseWriter, err error) {
 	}
 	code := codeOr(err, sessions.CodeUnauthorized)
 	writeError(w, statusFor(code), code, authMessage(err))
+}
+
+// authCode names the failure family for the trail. It is the same set the client sees,
+// because the trail is admin-only and the reason a pairing failed is exactly what an
+// operator wants to read there.
+func authCode(err error) string {
+	code := codeOr(err, sessions.CodeUnauthorized)
+	return code
 }
 
 // authMessage is the client-facing message of an auth failure.

@@ -206,6 +206,81 @@
       },
       "required": ["devices"],
       "description": "GET /api/v1/auth/devices response, admin scope. Sorted by creation time so the first paired device reads first."
+    },
+    "SrvAuditOutcome": {
+      "type": "string",
+      "enum": ["ok", "denied", "error"],
+      "description": "How an audited action ended: ok (it happened), denied (it was refused before doing anything, the credential or the scope did not allow it) or error (it was attempted and failed). The distinction matters for a review: denied is a policy decision, error is an incident."
+    },
+    "SrvAuditEntry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Monotonic row id, the pagination and ordering key; it is not security-relevant and never reused."
+        },
+        "at": {
+          "$ref": "#/$defs/SrvTimestamp",
+          "description": "When the server observed the action, UTC."
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dotted action name. The known vocabulary is auth.pair, auth.denied, device.revoke, session.create, session.stop, session.delete, session.prompt, session.steer, session.follow_up, session.abort, session.bash, terminal.open, terminal.close, file.write, file.delete, git.write, mcp.update, updates.apply, settings.update, drain.start, drain.resume, path.escape.blocked and rate.limited; a new action needs no schema change, and a client renders an unknown action generically."
+        },
+        "outcome": {
+          "$ref": "#/$defs/SrvAuditOutcome"
+        },
+        "actorDeviceId": {
+          "type": "string",
+          "description": "Device that caused the action, when the request carried a device token. Empty for the loopback bootstrap and for failures that never reached a credential."
+        },
+        "actorName": {
+          "type": "string",
+          "description": "Device name at the time of the action, copied so a later rename does not rewrite history."
+        },
+        "actorScope": {
+          "$ref": "#/$defs/SrvScope",
+          "description": "Scope the actor was authenticated with, when there was one."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Server session id the action concerned, when it concerned one."
+        },
+        "target": {
+          "type": "string",
+          "description": "What the action acted on when that is not a session: a path, a device id, a component name. Bounded in length so a hostile value cannot bloat the trail."
+        },
+        "remoteAddr": {
+          "type": "string",
+          "description": "Peer address of the request (host only, never a forwarded header), so a denial can be traced to where it came from."
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Structured context of the action (reason, op, method, path, counts). Open map: a new detail never breaks a reader. Never carries provider secrets, tokens or conversation content."
+        }
+      },
+      "required": ["id", "at", "action", "outcome"],
+      "description": "One row of the audit trail: who did what, to what, with which outcome. It is append-only, kept for the configured retention and readable only with the admin scope."
+    },
+    "SrvAuditResponse": {
+      "type": "object",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SrvAuditEntry"
+          }
+        },
+        "truncated": {
+          "type": "boolean",
+          "description": "True when more rows matched than the requested limit returned, so a viewer knows to raise the limit or narrow the filters."
+        }
+      },
+      "required": ["entries"],
+      "description": "GET /api/v1/audit response, admin scope: the newest entries first."
     }
   }
 }

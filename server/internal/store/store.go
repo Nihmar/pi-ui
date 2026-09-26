@@ -10,9 +10,11 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver: keeps CGO_ENABLED=0
 )
 
-// migrations are applied in order and never edited: a schema change appends a
-// string and the applied prefix is tracked in PRAGMA user_version. A migration runs
-// in one transaction, so a crash leaves the database at a known version.
+// migrations are applied in order, **append-only**: a schema change appends a string,
+// and an existing migration is never edited or reordered. A database at user_version N
+// applies migrations[N] next, so reordering would make an up-to-date file try to
+// recreate what it already has. A migration runs in one transaction, so a crash leaves
+// the database at a known version.
 var migrations = []string{
 	// 1: device identity and the admin password.
 	`CREATE TABLE devices (
@@ -45,6 +47,26 @@ var migrations = []string{
 		expires_at_ms INTEGER NOT NULL
 	);
 	CREATE INDEX idx_invites_expires ON pairing_invites (expires_at_ms);`,
+	// 3: the audit trail (internal/audit). Append-only, pruned by retention; the
+	// indexes are the ones the reader filters on (newest first, one action, one
+	// actor, one session).
+	`CREATE TABLE audit (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		at_ms           INTEGER NOT NULL,
+		action          TEXT NOT NULL,
+		outcome         TEXT NOT NULL,
+		actor_device_id TEXT NOT NULL DEFAULT '',
+		actor_name      TEXT NOT NULL DEFAULT '',
+		actor_scope     TEXT NOT NULL DEFAULT '',
+		session_id      TEXT NOT NULL DEFAULT '',
+		target          TEXT NOT NULL DEFAULT '',
+		remote_addr     TEXT NOT NULL DEFAULT '',
+		details         BLOB
+	);
+	CREATE INDEX idx_audit_at ON audit (at_ms DESC, id DESC);
+	CREATE INDEX idx_audit_action ON audit (action, at_ms DESC);
+	CREATE INDEX idx_audit_actor ON audit (actor_device_id, at_ms DESC);
+	CREATE INDEX idx_audit_session ON audit (session_id, at_ms DESC);`,
 }
 
 // DB is an open state database.

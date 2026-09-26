@@ -78,6 +78,7 @@ func TestLifecycle_SIGTERMReapsAllChildrenWithinTwoSeconds(t *testing.T) {
 	cmd := exec.Command(serverBinary(t), "serve",
 		"--addr", "127.0.0.1:0",
 		"--pi", wrapper,
+		"--state-dir", t.TempDir(),
 		"--session", first+":one",
 		"--session", second+":two",
 	)

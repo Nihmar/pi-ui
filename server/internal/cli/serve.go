@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Nihmar/pi-ui/server/internal/api"
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -67,6 +68,10 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}
 	defer stateDB.Close()
 
+	// The trail lives in the same state database, pruned by retention; both transports
+	// write to it and only an admin can read it back.
+	auditLog := audit.New(stateDB.Audit(), audit.Options{Logger: logger})
+
 	// One authenticator for both transports: REST and the WebSocket handshake answer
 	// the same question about the same request, whether that is a device token or the
 	// static-token compatibility mode.
@@ -81,6 +86,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	// handler, dialog handler and replay source, which is the whole cross-package seam.
 	hub := ws.New(ws.Options{
 		Authorizer:    restToWS{auth: authenticator},
+		Audit:         auditLog,
 		AllowHosts:    cfg.allowHosts,
 		AllowOrigins:  cfg.allowOrigins,
 		ReplayEvents:  cfg.replayEvents,
@@ -124,6 +130,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		},
 	}
 	options.Auth = authenticator
+	options.Audit = auditLog
 	if cfg.token == "" {
 		// Pairing endpoints only exist in device mode; --token keeps the static-token
 		// compatibility mode of the spike.

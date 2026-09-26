@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/coder/websocket"
+
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 )
 
 // ServeHTTP implements http.Handler for the /ws/v1 endpoint: refuse the request,
@@ -31,6 +33,12 @@ func (h *hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	who, err := h.authorize(r)
 	if err != nil {
+		h.record(audit.Event{
+			Action:     audit.ActionAuthDenied,
+			Outcome:    audit.OutcomeDenied,
+			RemoteAddr: peerHost(r.RemoteAddr),
+			Details:    map[string]any{"method": r.Method, "path": r.URL.Path, "reason": "handshake"},
+		})
 		denyUnauthorized(w, err)
 		return
 	}
