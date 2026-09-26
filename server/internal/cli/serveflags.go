@@ -85,6 +85,7 @@ type serveConfig struct {
 	wrapUpPrompt  string
 	sessionFlags  []string
 	roots         []string
+	sessionDirs   []string
 }
 
 // rootFlag collects the repeatable --root flag: the workspaces a client may browse.
@@ -212,6 +213,7 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("rate-refresh", "", "token rotations per device per minute, 0 = off (default 10)")
 	fs.String("rate-ws", "", "WebSocket connects per token per minute, 0 = off (default 10)")
 	fs.String("rate-prompt", "", "prompts per session per minute, 0 = off (default 30)")
+	fs.String("session-dirs", "", "comma-separated directories holding pi session JSONL, for the message search")
 	fs.String("idle-timeout", "", "wrap up a session after this much silence, 0 = off (default 1h)")
 	fs.String("wrap-up-budget", "", "time the handoff turn gets before the session stops (default 1m)")
 	fs.String("wrap-up-prompt", "", "what an idle session is asked before it stops (PIUI_WRAP_UP_PROMPT)")
@@ -238,6 +240,7 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 		stateDir:     resolve(fs, "state-dir", envStateDir, ""),
 		sessionFlags: sessionArgs,
 		roots:        rootArgs,
+		sessionDirs:  splitList(resolve(fs, "session-dirs", "", "")),
 	}
 
 	var err error
@@ -324,6 +327,7 @@ func writeServeUsage(w io.Writer) {
 		"  --pi \"pi\"                  pi executable (PIUI_PI)\n"+
 		"  --session <cwd>[:<name>]   session to start at boot, repeatable\n"+
 		"  --root <path>              workspace a client may browse, repeatable\n"+
+		"  --session-dirs LIST        directories of pi session JSONL for the message search\n"+
 		"  --bridge <path>            pi-ui-bridge extension loaded by every child (PIUI_BRIDGE)\n"+
 		"  --token <token>            bearer token clients must send (PIUI_TOKEN)\n"+
 		"  --log-level <level>        debug, info, warn or error (PIUI_LOG_LEVEL)\n"+

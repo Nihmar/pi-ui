@@ -9,6 +9,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/fs"
 	"github.com/Nihmar/pi-ui/server/internal/git"
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
+	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -45,6 +46,8 @@ type Options struct {
 	FS *fs.Service
 	// Git drives repositories inside those workspaces. Nil answers 501 too.
 	Git *git.Service
+	// Search looks for text in those workspaces and in pi's session files.
+	Search *search.Service
 }
 
 // Authenticator decides who is talking and with which scope: the Phase 3 seam behind which
@@ -110,6 +113,7 @@ func NewRouter(o Options) http.Handler {
 		refreshRateLimit: o.RefreshRateLimit,
 		files:            o.FS,
 		git:              o.Git,
+		search:           o.Search,
 		pairSchema:       compilePairSchema(),
 	}
 	switch {
@@ -161,6 +165,9 @@ func NewRouter(o Options) http.Handler {
 	mux.HandleFunc("POST /api/v1/git/stage", a.authorized(ScopeOperator, a.gitStage))
 	mux.HandleFunc("POST /api/v1/git/commit", a.authorized(ScopeOperator, a.gitCommit))
 
+	// Search reads what is already there: viewer, like the other read surfaces.
+	mux.HandleFunc("GET /api/v1/search", a.authorized(ScopeViewer, a.searchAll))
+
 	// Method fallbacks: without them the mux answers 405/404 in text/plain.
 	for _, path := range []string{
 		"/api/v1/health",
@@ -198,6 +205,7 @@ type api struct {
 	refreshRateLimit *ratelimit.Limiter
 	files            *fs.Service
 	git              *git.Service
+	search           *search.Service
 	pairSchema       *jsonschema.Schema
 }
 

@@ -273,3 +273,29 @@ A git failure keeps git's own words: `not a git repository`, `nothing to commit`
 the like come back as a `bad_request` whose message is the stderr, because that is
 the part a user can act on. Without a workspace configured these endpoints answer
 `501 unsupported`.
+
+## Search
+
+`viewer`, like every other read. Two halves, selected with `scope` (default both):
+`files` runs ripgrep inside a workspace directory, `messages` scans the pi session
+JSONL files the server was pointed at with `--session-dirs`. The session files are
+allowed on their own — they live outside the workspaces by design — and a query with
+no workspace configured is a `501 unsupported` rather than an empty answer.
+
+```
+GET /api/v1/search?q=<text>&scope=files,messages&cwd=<dir>&limit=50&case=sensitive
+```
+
+```json
+{"hits":[
+  {"kind":"file","path":"/srv/projects/app/main.go","rel":"main.go","rootId":"app",
+   "line":3,"column":6,"text":"func helloWorld() {}"},
+  {"kind":"message","path":"/home/u/.pi/agent/sessions/…jsonl","text":"…the RpcBridge…",
+   "sessionId":"01a0dccc","role":"user","at":"2026-09-26T12:00:00.000Z"}
+]}
+```
+
+A query shorter than two characters is a `bad_request` (a one-letter search would
+walk every tree for nothing), a directory outside the workspaces is a `path_escape`,
+and ripgrep finding nothing is an empty `hits` array, not an error. A host without
+ripgrep answers `unsupported` when the file half is asked for.

@@ -15,6 +15,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/audit"
 	"github.com/Nihmar/pi-ui/server/internal/fs"
 	"github.com/Nihmar/pi-ui/server/internal/ratelimit"
+	"github.com/Nihmar/pi-ui/server/internal/search"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -135,6 +136,21 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			Limits:    cfg.limits(),
 		},
 	}
+	if len(cfg.roots) > 0 || len(cfg.sessionDirs) > 0 {
+		// The message search does not need a workspace, but the file half does: a
+		// server with only session dirs answers file queries with a path_escape.
+		files, err := fs.New(fs.Config{Roots: searchRoots(cfg.roots, cfg.sessionDirs)})
+		if err != nil {
+			return err
+		}
+		options.FS = files
+		found, err := search.New(search.Config{FS: files, SessionDirs: cfg.sessionDirs})
+		if err != nil {
+			return err
+		}
+		options.Search = found
+	}
+
 	if len(cfg.roots) > 0 {
 		// The workspaces are the only host directories a client may reach; a server
 		// started without one exposes no filesystem at all (a 501, never a guess).
@@ -286,4 +302,15 @@ func (c serveConfig) limits() map[string]any {
 		"dialogTimeoutSec": int(c.dialogTimeout.Seconds()),
 		"heartbeatSec":     int(c.heartbeat.Seconds()),
 	}
+}
+
+// searchRoots never invents a workspace a client could browse: a server configured
+// only with session dirs still needs the filesystem service behind the search, so it
+// is built over those directories and nothing else. /tmp as a root would be a hole,
+// not a default.
+func searchRoots(roots, sessionDirs []string) []string {
+	if len(roots) > 0 {
+		return roots
+	}
+	return sessionDirs
 }
