@@ -158,7 +158,9 @@ request with a forged `RemoteAddr`, because the test host has no second interfac
 - Resolution: `fc1e03b` (*sessions: keep an unparseable child line readable on the
   wire*). An unparseable line now travels as `pi.unknown` with
   `{"raw":"<line>"}` as payload, which the hub can frame, so the client recovers
-  the child's bytes exactly and a replay re-emits the same `pi.unknown`.
+  the child's bytes exactly — from `raw`, or from `rawBase64` when the line is not
+  valid UTF-8 (follow-up to review finding S3) — and a replay re-emits the same
+  `pi.unknown`.
 - Pinned by `TestPipeline_InvalidJSONRecordIsSurfacedNotSwallowed`, which now
   asserts exactly one `pi.unknown` frame whose payload is valid JSON and whose
   `raw` field round-trips the line, that no `server.error{internal}` appears, and

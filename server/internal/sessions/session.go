@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Nihmar/pi-ui/server/internal/rpc"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
@@ -225,12 +227,18 @@ func (s *session) handleRecord(record rpc.Record) {
 // recordPayload is the wire payload of one pi.* event: the child's record bytes verbatim
 // when they are valid JSON, or {"raw":"<line>"} when they are not. The hub refuses an
 // event payload that is not valid JSON, and a malformed line must stay readable on the
-// wire instead of surfacing as a connection-scoped server.error.
+// wire instead of surfacing as a connection-scoped server.error. Bytes that are not valid
+// UTF-8 cannot survive a JSON string, so they are also carried base64-encoded in rawBase64
+// (see rawLinePayload): the record is recoverable exactly, not approximated to U+FFFD.
 func recordPayload(record rpc.Record) json.RawMessage {
 	if json.Valid(record.Raw) {
 		return record.Raw
 	}
-	return mustJSON(rawLinePayload{Raw: string(record.Raw)})
+	payload := rawLinePayload{Raw: string(record.Raw)}
+	if !utf8.Valid(record.Raw) {
+		payload.RawBase64 = base64.StdEncoding.EncodeToString(record.Raw)
+	}
+	return mustJSON(payload)
 }
 
 // Record types that say whether a session is working. Only the types the spike documents

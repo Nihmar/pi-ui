@@ -127,6 +127,12 @@ is a new map entry, not a hub change.
 A client must ignore an unknown event name: that is what lets the server ship new pi
 events without a protocol bump.
 
+A child line that is not valid JSON cannot travel byte for byte, so it becomes
+`pi.unknown` with payload `{"raw":"<line>"}` — readable on the wire instead of a
+connection-scoped `server.error`. When the line is not valid UTF-8 the payload also
+carries `rawBase64` with the exact bytes, because a JSON string would replace every
+invalid byte with `U+FFFD`; a client that needs the record reconstructs it from there.
+
 - `seq` is assigned by the hub from one global counter (starting at 1), so one number
   orders every stream a client sees. It is deliberately **not** per session: a session
   stream may have gaps, and a cursor is only ever compared against the same session's

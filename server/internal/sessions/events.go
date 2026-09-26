@@ -41,10 +41,13 @@ const (
 )
 
 // rawLinePayload is the body of a pi.unknown event whose record is not valid JSON: the
-// child's line as a JSON string, so the hub can frame it and a client can still recover
-// the bytes it received (`raw` round-trips them exactly).
+// child's line, so the hub can frame it and a client can still show what arrived. A line
+// that is not valid UTF-8 cannot round-trip through a JSON string — encoding/json replaces
+// the invalid bytes with U+FFFD — so those bytes are also carried base64-encoded: `raw`
+// stays the readable approximation, `rawBase64` is the exact record.
 type rawLinePayload struct {
-	Raw string `json:"raw"`
+	Raw       string `json:"raw"`
+	RawBase64 string `json:"rawBase64,omitempty"`
 }
 
 // exitPayload is the body of server.exited and server.crashed: the exit status of the

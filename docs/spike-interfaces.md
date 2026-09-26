@@ -254,7 +254,9 @@ Rules:
 - Start: spawn through `rpc.Bridge`, then `get_state` to confirm readiness; `server.spawned`
   is published immediately, `server.ready` after `get_state` returns.
 - Every non-response record from the child is published as `pi.<record.type>` with the
-  record as `payload` (verbatim bytes, unknown types tolerated).
+  record as `payload` (verbatim bytes, unknown types tolerated). A line that is not valid
+  JSON becomes `pi.unknown` with `{"raw":"<line>"}` (plus `rawBase64` when the line is not
+  valid UTF-8, so the bytes stay recoverable exactly).
 - `extension_ui_request` records with `method` in `select|confirm|input|editor` are routed
   as WS `request` frames (not events); `notify|setStatus|setWidget|setTitle|set_editor_text`
   are published as `ext.notify|ext.status|ext.widget|ext.title|ext.editor_text` events with
