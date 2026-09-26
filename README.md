@@ -79,5 +79,9 @@ server/bin/pi-ui measure [--sessions 8] [--pi <path>|--fake-pi <path>] \
 
 - [`docs/spike-interfaces.md`](docs/spike-interfaces.md) — the frozen Phase 1 interface contract.
 - [`docs/ws-protocol.md`](docs/ws-protocol.md) — WebSocket v1 handshake, frames, replay and error codes.
+- [`docs/spike-report.md`](docs/spike-report.md) — the acceptance measurements C1–C9 with their raw samples.
+- [`docs/adr/0007-go-spike-decision.md`](docs/adr/0007-go-spike-decision.md) — why the Go server stands.
+- [`docs/verification-report.md`](docs/verification-report.md) — adversarial verification of framing and shutdown.
+- [`docs/review-notes.md`](docs/review-notes.md) — Phase 1 code review: findings, severity and status.
 - [`schemas/`](schemas) — JSON Schema for the wire surface (`core.json`, `pi.json`, `ws.json`).
 - [`AGENTS.md`](AGENTS.md) — repository conventions, boundaries and definition of done.
