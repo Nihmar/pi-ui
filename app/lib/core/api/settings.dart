@@ -11,6 +11,7 @@ class SettingDefinition {
     required this.kind,
     required this.description,
     this.defaultValue,
+    this.allowed = const [],
   });
 
   /// The dotted key (`git.write`, `ui.theme`).
@@ -25,6 +26,9 @@ class SettingDefinition {
   /// The value in force when nothing is stored.
   final Object? defaultValue;
 
+  /// The values an enum accepts, empty for every other kind.
+  final List<String> allowed;
+
   /// Reads one catalogue row.
   factory SettingDefinition.fromJson(Object? value) {
     final json = asMap(value) ?? const <String, dynamic>{};
@@ -33,6 +37,10 @@ class SettingDefinition {
       kind: str(json['kind'], fallback: 'string'),
       description: str(json['description']),
       defaultValue: json['default'],
+      allowed: [
+        for (final entry in asList(json['allowed']))
+          if (entry is String) entry,
+      ],
     );
   }
 }

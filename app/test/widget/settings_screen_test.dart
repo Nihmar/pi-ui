@@ -24,6 +24,7 @@ const _settings = ServerSettings(
       kind: 'enum',
       description: 'Theme every client shows.',
       defaultValue: 'system',
+      allowed: ['system', 'dark', 'light'],
     ),
   ],
 );
@@ -88,6 +89,28 @@ void main() {
     expect(toggle.value, isTrue);
     // The two changed keys offer a way back to their default.
     expect(find.byTooltip('Back to the default'), findsNWidgets(2));
+  });
+
+  testWidgets('the enum editor offers every value the server allows', (
+    tester,
+  ) async {
+    await pumpSettings(tester);
+
+    // A dropdown that only knows the current value is not a choice: the catalogue is what
+    // makes an enum editable, so the widget is asked for what it would offer.
+    final dropdown = tester.widget<DropdownButton<Object?>>(
+      find.byType(DropdownButton<Object?>),
+    );
+    expect(dropdown.items?.map((item) => item.value).toList(), [
+      'system',
+      'dark',
+      'light',
+    ]);
+    expect(
+      dropdown.value,
+      'dark',
+      reason: 'the current value is the selection',
+    );
   });
 
   testWidgets('an operator reads the policy without switches', (tester) async {

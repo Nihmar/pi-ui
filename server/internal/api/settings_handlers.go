@@ -23,12 +23,14 @@ type settingsBody struct {
 	Known    []settingsEntry            `json:"known"`
 }
 
-// settingsEntry is one catalogue row.
+// settingsEntry is one catalogue row. `allowed` is what makes an enum editable: without
+// it a client can only offer the current value and the default, which is not a choice.
 type settingsEntry struct {
 	Key         string          `json:"key"`
 	Kind        string          `json:"kind"`
 	Default     json.RawMessage `json:"default"`
 	Description string          `json:"description"`
+	Allowed     []string        `json:"allowed,omitempty"`
 }
 
 // getSettings answers GET /api/v1/settings.
@@ -50,6 +52,7 @@ func (a *api) getSettings(w http.ResponseWriter, _ *http.Request) {
 			Kind:        string(definition.Kind),
 			Default:     definition.Default,
 			Description: definition.Description,
+			Allowed:     definition.Allowed,
 		})
 	}
 	writeJSON(w, http.StatusOK, body)

@@ -320,7 +320,7 @@ rather than a value stored under a name nothing reads.
 
 | Method | Path | Scope | Notes |
 |---|---|---|---|
-| GET | `/api/v1/settings` | viewer | `{values, defaults, known:[{key,kind,default,description}]}` |
+| GET | `/api/v1/settings` | viewer | `{values, defaults, known:[{key,kind,default,description,allowed?}]}` — `allowed` lists the values of an enum, which is what makes one editable |
 | PATCH | `/api/v1/settings` | admin | a partial map, `{"git.write":true,"terminal.maxSessions":8}` → `{applied, values}` |
 | DELETE | `/api/v1/settings/{key}` | admin | back to the default → `{reset, values}` |
 

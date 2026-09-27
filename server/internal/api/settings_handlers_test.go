@@ -58,9 +58,10 @@ func TestSettingsAreReadableAndDefaulted(t *testing.T) {
 		Values   map[string]json.RawMessage `json:"values"`
 		Defaults map[string]json.RawMessage `json:"defaults"`
 		Known    []struct {
-			Key         string `json:"key"`
-			Kind        string `json:"kind"`
-			Description string `json:"description"`
+			Key         string   `json:"key"`
+			Kind        string   `json:"kind"`
+			Description string   `json:"description"`
+			Allowed     []string `json:"allowed"`
 		} `json:"known"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
@@ -75,6 +76,9 @@ func TestSettingsAreReadableAndDefaulted(t *testing.T) {
 	for _, entry := range body.Known {
 		if entry.Kind == "" || entry.Description == "" {
 			t.Fatalf("a catalogue row must explain itself: %+v", entry)
+		}
+		if entry.Kind == "enum" && len(entry.Allowed) == 0 {
+			t.Fatalf("an enum without its values is not editable: %+v", entry)
 		}
 	}
 }

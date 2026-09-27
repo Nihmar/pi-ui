@@ -19,6 +19,7 @@ void main() {
             'kind': 'enum',
             'default': 'system',
             'description': 'Theme every client shows.',
+            'allowed': ['system', 'dark', 'light'],
           },
         ],
       });
@@ -29,6 +30,8 @@ void main() {
       expect(settings.defaults['ui.theme'], 'system');
       expect(settings.known, hasLength(2));
       expect(settings.known.first.kind, 'bool');
+      expect(settings.known.first.allowed, isEmpty);
+      expect(settings.known.last.allowed, ['system', 'dark', 'light']);
       expect(settings.known.first.description, isNotEmpty);
       expect(settings.isDefault('ui.theme'), isFalse);
       expect(settings.isDefault('git.write'), isFalse);

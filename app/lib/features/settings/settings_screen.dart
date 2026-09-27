@@ -314,15 +314,18 @@ class _SettingRowState extends ConsumerState<_SettingRow> {
     };
   }
 
-  /// The options of an enum: the current value and the default, which are the two the
-  /// client can be sure the server accepts for a key it does not know the list of.
+  /// The options of an enum: what the catalogue allows, plus the current value when the
+  /// server did not list it (an older server, a hand-edited database).
   List<Object?> _enumOptions(Object? value) {
-    final options = <Object?>{
-      value,
-      widget.settings.defaults[widget.definition.key],
-    };
+    final options = <Object?>[...widget.definition.allowed];
+    if (value != null && !options.contains(value)) {
+      options.add(value);
+    }
+    if (options.isEmpty) {
+      options.add(widget.settings.defaults[widget.definition.key]);
+    }
     options.removeWhere((option) => option == null);
-    return options.toList();
+    return options;
   }
 }
 
