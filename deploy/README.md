@@ -130,6 +130,24 @@ The containerised deployment therefore ships without `--isolate`: one container 
 server, sessions as children of it, which is the same trust boundary the plan describes for
 a single-user host.
 
+## The AppImage
+
+`packaging/linux/appimage.sh <bundle-dir> <output-dir> <version>` turns a Flutter Linux
+release bundle into one file that runs on a distribution with none of the libraries the
+bundle needs: the bundle goes into `usr/`, `AppRun` puts its `lib/` in front of the loader's
+search path, and a desktop entry and a 256×256 icon make it a proper application.
+
+```bash
+cd app && flutter build linux --release
+bash ../packaging/linux/appimage.sh build/linux/x64/release/bundle ../dist 0.1.1
+./dist/piui_0.1.1_linux_x86_64.AppImage
+```
+
+It needs no installation and no root: the file is the application. The release workflow
+builds one next to the tarball, with a `.sha256` in the same place. `appimagetool` is fetched
+at build time and runs with `APPIMAGE_EXTRACT_AND_RUN`, because a container or a CI runner
+has no FUSE.
+
 ## Backups
 
 The state database is the only thing that must be kept: `$PIUI_STATE_DIR/state.db` (devices,
@@ -145,6 +163,7 @@ A tag (`v0.1.0`) runs `.github/workflows/release.yml`, which builds and attaches
 | `pi-ui_<version>_linux_{amd64,arm64}.tar.gz` | the static server binary, with `LICENSE` |
 | `pi-ui_<version>_windows_amd64.tar.gz` | the same for Windows |
 | `piui_<version>_linux_x64.tar.gz` | the Linux client (Flutter release bundle) |
+| `piui_<version>_linux_x86_64.AppImage` | the same client as one file: `chmod +x` and run it |
 | `piui_<version>_android.tar.gz` | `piui-debug-signed.apk` — signed with the template's debug key, because a release key is the operator's to hold |
 | `piui_<version>_windows_x64.zip` | the Windows client |
 

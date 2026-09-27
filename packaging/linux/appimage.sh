@@ -23,7 +23,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "${work}"' EXIT
 
 appdir="${work}/piui.AppDir"
-mkdir -p "${appdir}/usr/bin" "${appdir}/usr/lib" "${appdir}/usr/share/applications" \
+# The bundle keeps its own layout under usr/ (the executable beside its data/ and lib/,
+# which is what the Flutter runner expects); only what a desktop needs is added.
+mkdir -p "${appdir}/usr/share/applications" \
          "${appdir}/usr/share/icons/hicolor/256x256/apps"
 
 # The Flutter bundle goes into usr/: the executable with its data, its libs and its plugins,
