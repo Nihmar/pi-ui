@@ -8,7 +8,7 @@ import (
 func TestWrapBuildsTheContainerInvocation(t *testing.T) {
 	isolation, err := NewIsolation("pi-ui:local", "docker",
 		[]string{"/opt/pi-ui-bridge", "/run/pi-ui", "/home/u/.pi/agent:/home/u/.pi/agent"},
-		"1000:1000")
+		"1000:1000", "host")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestWrapIsIdentityWithoutIsolation(t *testing.T) {
 
 func TestWrapKeepsTheWorkingDirectoryFirst(t *testing.T) {
 	isolation, err := NewIsolation("pi-ui:local", "docker",
-		[]string{"/work", "/elsewhere"}, "")
+		[]string{"/work", "/elsewhere"}, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,10 +84,13 @@ func TestWrapKeepsTheWorkingDirectoryFirst(t *testing.T) {
 }
 
 func TestIsolationNeedsAnImage(t *testing.T) {
-	if _, err := NewIsolation("", "", nil, ""); err == nil {
+	if _, err := NewIsolation("", "", nil, "", ""); err == nil {
 		t.Fatal("an isolation without an image is a mistake")
 	}
-	isolation, err := NewIsolation("pi-ui:local", "", nil, "")
+	if _, err := NewIsolation("pi-ui:local", "", nil, "", "sneaky"); err == nil {
+		t.Fatal("an unknown network mode must be refused, not passed on")
+	}
+	isolation, err := NewIsolation("pi-ui:local", "", nil, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,6 +99,28 @@ func TestIsolationNeedsAnImage(t *testing.T) {
 	}
 	if !strings.Contains(isolation.User, ":") {
 		t.Fatalf("user = %q", isolation.User)
+	}
+	// Host by default: a session usually talks to a model server on the machine, and those
+	// bind loopback.
+	if isolation.Network != "host" {
+		t.Fatalf("network = %q", isolation.Network)
+	}
+}
+
+func TestTheNetworkModeReachesTheCommandLine(t *testing.T) {
+	for _, mode := range []string{"host", "none", "bridge"} {
+		isolation, err := NewIsolation("pi-ui:local", "docker", nil, "1000:1000", mode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		argv := isolation.Wrap([]string{"pi"}, "/work", nil)
+		joined := strings.Join(argv, " ")
+		if !strings.Contains(joined, "--network "+mode) {
+			t.Fatalf("%s: %v", mode, argv)
+		}
+		if !strings.Contains(isolation.Describe(), mode) {
+			t.Fatalf("%s is not in %q", mode, isolation.Describe())
+		}
 	}
 }
 

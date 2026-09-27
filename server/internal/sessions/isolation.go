@@ -27,10 +27,16 @@ type Isolation struct {
 	Mounts []string
 	// User is the uid:gid the container runs as (default: this process's).
 	User string
+	// Network is the container's network mode (default "host").
+	//
+	// Host is the default on purpose: a session usually talks to a model server running on
+	// the machine (llama.cpp, Ollama, a local proxy), and those bind loopback. `none` is for
+	// a session that should reach nothing at all.
+	Network string
 }
 
 // NewIsolation validates an isolation configuration.
-func NewIsolation(image, docker string, mounts []string, user string) (*Isolation, error) {
+func NewIsolation(image, docker string, mounts []string, user, network string) (*Isolation, error) {
 	if strings.TrimSpace(image) == "" {
 		return nil, fmt.Errorf("isolation needs an image")
 	}
@@ -39,6 +45,14 @@ func NewIsolation(image, docker string, mounts []string, user string) (*Isolatio
 	}
 	if user == "" {
 		user = defaultIsolationUser()
+	}
+	if network == "" {
+		network = "host"
+	}
+	switch network {
+	case "host", "none", "bridge":
+	default:
+		return nil, fmt.Errorf("isolation: %q is not a network mode (host, bridge or none)", network)
 	}
 	clean := make([]string, 0, len(mounts))
 	for _, mount := range mounts {
@@ -53,7 +67,7 @@ func NewIsolation(image, docker string, mounts []string, user string) (*Isolatio
 		}
 		clean = append(clean, entry)
 	}
-	return &Isolation{Image: image, Docker: docker, Mounts: clean, User: user}, nil
+	return &Isolation{Image: image, Docker: docker, Mounts: clean, User: user, Network: network}, nil
 }
 
 // Wrap turns the pi argv of one child into the container invocation that runs it.
@@ -70,6 +84,9 @@ func (i *Isolation) Wrap(argv []string, cwd string, env []string) []string {
 		i.Docker, "run", "--rm", "-i", "--init",
 		"--user", i.User,
 	)
+	if i.Network != "" {
+		wrapped = append(wrapped, "--network", i.Network)
+	}
 	// The working directory first, so a `--mount` the operator adds can never shadow it.
 	if cwd != "" {
 		wrapped = append(wrapped, "--workdir", cwd, "--mount", "type=bind,src="+cwd+",dst="+cwd)
@@ -96,7 +113,8 @@ func (i *Isolation) Describe() string {
 	if i == nil {
 		return "host"
 	}
-	return fmt.Sprintf("container %s (%d mount(s), user %s)", i.Image, len(i.Mounts), i.User)
+	return fmt.Sprintf("container %s (%d mount(s), user %s, network %s)",
+		i.Image, len(i.Mounts), i.User, i.Network)
 }
 
 // NeedsRuntimeMount reports whether the runtime directory must be mounted for one child:

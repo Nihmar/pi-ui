@@ -63,40 +63,41 @@ const (
 
 // serveConfig is the resolved configuration of one `pi-ui serve`.
 type serveConfig struct {
-	addr          string
-	pi            string
-	bridge        string
-	token         string
-	logLevel      string
-	maxSessions   int
-	replayEvents  int
-	replayWindow  time.Duration
-	dialogTimeout time.Duration
-	heartbeat     time.Duration
-	allowHosts    []string
-	allowOrigins  []string
-	stateDir      string
-	rateRest      int
-	rateRefresh   int
-	rateWS        int
-	ratePrompt    int
-	idleTimeout   time.Duration
-	wrapUpBudget  time.Duration
-	wrapUpPrompt  string
-	sessionFlags  []string
-	roots         []string
-	sessionDirs   []string
-	mcpConfig     string
-	tlsCert       string
-	tlsKey        string
-	allowIPs      []string
-	isolateImage  string
-	isolateDocker string
-	isolateUser   string
-	isolateMounts []string
-	updateCommand string
-	piVersion     string
-	terminals     int
+	addr           string
+	pi             string
+	bridge         string
+	token          string
+	logLevel       string
+	maxSessions    int
+	replayEvents   int
+	replayWindow   time.Duration
+	dialogTimeout  time.Duration
+	heartbeat      time.Duration
+	allowHosts     []string
+	allowOrigins   []string
+	stateDir       string
+	rateRest       int
+	rateRefresh    int
+	rateWS         int
+	ratePrompt     int
+	idleTimeout    time.Duration
+	wrapUpBudget   time.Duration
+	wrapUpPrompt   string
+	sessionFlags   []string
+	roots          []string
+	sessionDirs    []string
+	mcpConfig      string
+	tlsCert        string
+	tlsKey         string
+	allowIPs       []string
+	isolateImage   string
+	isolateDocker  string
+	isolateUser    string
+	isolateNetwork string
+	isolateMounts  []string
+	updateCommand  string
+	piVersion      string
+	terminals      int
 }
 
 // rootFlag collects the repeatable --root flag: the workspaces a client may browse.
@@ -234,6 +235,7 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("isolate", "", "run every session in a container of this image (empty = on the host)")
 	fs.String("isolate-docker", "", "container CLI to use with --isolate (default docker)")
 	fs.String("isolate-user", "", "uid:gid the containers run as (default this process's)")
+	fs.String("isolate-network", "", "network mode for isolated sessions: host, bridge or none (default host)")
 	fs.String("pi-version", "", "version of the pi binary this server runs, for the update panel (PIUI_PI_VERSION)")
 	fs.String("idle-timeout", "", "wrap up a session after this much silence, 0 = off (default 1h)")
 	fs.String("wrap-up-budget", "", "time the handoff turn gets before the session stops (default 1m)")
@@ -253,27 +255,28 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	}
 
 	cfg := serveConfig{
-		addr:          resolve(fs, "addr", envAddr, defaultAddr),
-		pi:            resolve(fs, "pi", envPi, defaultPi),
-		bridge:        resolve(fs, "bridge", envBridge, ""),
-		token:         resolve(fs, "token", envToken, ""),
-		logLevel:      resolve(fs, "log-level", envLogLevel, defaultLogLevel),
-		allowHosts:    splitList(resolve(fs, "allow-hosts", envAllowHosts, "")),
-		allowOrigins:  splitList(resolve(fs, "allow-origins", envAllowOrigins, "")),
-		stateDir:      resolve(fs, "state-dir", envStateDir, ""),
-		sessionFlags:  sessionArgs,
-		roots:         rootArgs,
-		sessionDirs:   splitList(resolve(fs, "session-dirs", "", "")),
-		mcpConfig:     resolve(fs, "mcp-config", "PIUI_MCP_CONFIG", ""),
-		updateCommand: resolve(fs, "update-command", "PIUI_UPDATE_COMMAND", ""),
-		tlsCert:       resolve(fs, "tls-cert", "PIUI_TLS_CERT", ""),
-		tlsKey:        resolve(fs, "tls-key", "PIUI_TLS_KEY", ""),
-		allowIPs:      splitList(resolve(fs, "allow-ips", "PIUI_ALLOW_IPS", "")),
-		isolateImage:  resolve(fs, "isolate", "PIUI_ISOLATE", ""),
-		isolateDocker: resolve(fs, "isolate-docker", "PIUI_ISOLATE_DOCKER", ""),
-		isolateUser:   resolve(fs, "isolate-user", "PIUI_ISOLATE_USER", ""),
-		isolateMounts: isolateMountArgs,
-		piVersion:     resolve(fs, "pi-version", "PIUI_PI_VERSION", ""),
+		addr:           resolve(fs, "addr", envAddr, defaultAddr),
+		pi:             resolve(fs, "pi", envPi, defaultPi),
+		bridge:         resolve(fs, "bridge", envBridge, ""),
+		token:          resolve(fs, "token", envToken, ""),
+		logLevel:       resolve(fs, "log-level", envLogLevel, defaultLogLevel),
+		allowHosts:     splitList(resolve(fs, "allow-hosts", envAllowHosts, "")),
+		allowOrigins:   splitList(resolve(fs, "allow-origins", envAllowOrigins, "")),
+		stateDir:       resolve(fs, "state-dir", envStateDir, ""),
+		sessionFlags:   sessionArgs,
+		roots:          rootArgs,
+		sessionDirs:    splitList(resolve(fs, "session-dirs", "", "")),
+		mcpConfig:      resolve(fs, "mcp-config", "PIUI_MCP_CONFIG", ""),
+		updateCommand:  resolve(fs, "update-command", "PIUI_UPDATE_COMMAND", ""),
+		tlsCert:        resolve(fs, "tls-cert", "PIUI_TLS_CERT", ""),
+		tlsKey:         resolve(fs, "tls-key", "PIUI_TLS_KEY", ""),
+		allowIPs:       splitList(resolve(fs, "allow-ips", "PIUI_ALLOW_IPS", "")),
+		isolateImage:   resolve(fs, "isolate", "PIUI_ISOLATE", ""),
+		isolateDocker:  resolve(fs, "isolate-docker", "PIUI_ISOLATE_DOCKER", ""),
+		isolateUser:    resolve(fs, "isolate-user", "PIUI_ISOLATE_USER", ""),
+		isolateNetwork: resolve(fs, "isolate-network", "PIUI_ISOLATE_NETWORK", ""),
+		isolateMounts:  isolateMountArgs,
+		piVersion:      resolve(fs, "pi-version", "PIUI_PI_VERSION", ""),
 	}
 
 	var err error
@@ -369,6 +372,7 @@ func writeServeUsage(w io.Writer) {
 		"  --tls-cert, --tls-key      terminate TLS with this certificate and key\n"+
 		"  --allow-ips LIST           peer addresses or CIDR blocks allowed to connect\n"+
 		"  --isolate IMAGE            run every session inside a container\n"+
+		"  --isolate-network MODE     host, bridge or none for those containers (default host)\n"+
 		"  --session-dirs LIST        directories of pi session JSONL for the message search\n"+
 		"  --bridge <path>            pi-ui-bridge extension loaded by every child (PIUI_BRIDGE)\n"+
 		"  --token <token>            bearer token clients must send (PIUI_TOKEN)\n"+

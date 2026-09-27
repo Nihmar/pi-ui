@@ -102,10 +102,33 @@ runtime file holding the bridge configuration, and `~/.pi/agent` mounted, and wi
 session's environment passed as `--env`. Nothing else of the host is reachable: a session
 sees the project it was given and the credentials it needs.
 
-What it does not do: give the container its own network namespace (the session talks to the
-same provider endpoints as the host), or isolate the server itself, which still runs on the
-host and still owns the sockets. `--isolate-mount host:container` adds a path when a project
-needs one, and `--isolate-docker` points at another CLI (podman, for instance).
+The network mode is `host` by default, and that is deliberate: a session usually talks to a
+model server on the machine (llama.cpp, Ollama, a local proxy) and those bind loopback.
+`--isolate-network bridge` isolates it, `none` lets it reach nothing at all.
+
+`--isolate-mount host:container` adds a path when a project needs one, and `--isolate-docker`
+points at another CLI (podman, for instance).
+
+### Where `--isolate` works, and where it does not
+
+**On the host, where the paths exist.** The sibling containers mount the session's working
+directory, the bridge extension, the runtime directory holding the bridge configuration and
+`~/.pi/agent` — all by their host paths. That is the case `--isolate` is built for, and the
+server being a static binary makes it the common one.
+
+**Not from inside the container above.** A session container spawned by the server container
+would have to mount paths that only exist *inside* the server container — the runtime
+directory is the usual casualty — and the mount fails. The server says so instead of failing
+one mount at a time (it warns when it sees `/.dockerenv`), and there are two honest ways out:
+
+- run the server on the host (`./pi-ui serve --isolate pi-ui:local …`) with the project
+  directories bind-mounted same-path, which is exactly what the container does;
+- or move the state and runtime directories onto named volumes mounted at the same path in
+  both kinds of container, which is a change to this compose file rather than to the server.
+
+The containerised deployment therefore ships without `--isolate`: one container for the
+server, sessions as children of it, which is the same trust boundary the plan describes for
+a single-user host.
 
 ## Backups
 

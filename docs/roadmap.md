@@ -85,10 +85,12 @@ Delivered: TLS termination with the certificate fingerprint reported and pinned
 (`--allow-ips`, audited), the scope model and revocation, audit, path confinement, rate
 limits, `docs/security.md`, and container-per-session isolation (`--isolate <image>`).
 
-**Missing:** the container shares the host's network namespace (a session reaches the same
-provider endpoints), and the server itself still runs on the host. The plan's remaining item
-is putting *the server* in the container as the only supported deployment; `deploy/` has the
-image, so the work is a network-namespace mode and its documentation.
+The network mode of an isolated session is a flag (`--isolate-network host|bridge|none`,
+`host` by default so a session reaches a model server on the machine), and where isolation
+works is documented rather than implied: on the host, where the paths it mounts exist. A
+containerised server cannot spawn session containers that mount paths living only inside it,
+so `deploy/` ships without `--isolate` and says why — the honest boundary, not a gap waiting
+for code.
 
 ## Phase 8 — Distribution ✅
 

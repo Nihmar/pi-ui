@@ -53,6 +53,16 @@ const (
 // A cancelled context (SIGINT/SIGTERM) is a clean stop, not a failure: Serve stops accepting
 // requests, closes the hub, shades the sessions down and returns nil once every child is
 // reaped, so a supervisor sees a successful exit.
+// inContainer reports whether this process runs inside a container, which changes what
+// `--isolate` can mount. It is a hint for a warning, never a decision.
+func inContainer() bool {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	_, err := os.Stat("/run/.containerenv")
+	return err == nil
+}
+
 // mcpPath is where the MCP configuration lives: what the flag said, else the state
 // directory, because a deployment that has one has somewhere to keep it. A server with
 // neither has no MCP surface at all (a 501), which is the honest answer.
@@ -186,7 +196,15 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		if home, err := os.UserHomeDir(); err == nil {
 			mounts = append(mounts, filepath.Join(home, ".pi", "agent"))
 		}
-		built, err := sessions.NewIsolation(cfg.isolateImage, cfg.isolateDocker, mounts, cfg.isolateUser)
+		if inContainer() {
+			// A sibling container cannot bind a path that only exists inside this one (the
+			// runtime directory holding the bridge config is the usual casualty), so the
+			// mounts would fail one by one. Say it once, clearly.
+			logger.Warn("pi-ui: --isolate from inside a container needs the paths it mounts to exist on the host; " +
+				"run the server on the host, or mount the state and runtime directories as shared volumes")
+		}
+		built, err := sessions.NewIsolation(
+			cfg.isolateImage, cfg.isolateDocker, mounts, cfg.isolateUser, cfg.isolateNetwork)
 		if err != nil {
 			return err
 		}

@@ -67,9 +67,12 @@ client's cooperation.
 - **A hostile host.** The server runs with the operator's privileges and so do the children
   and the bridge extension; a user who can start a server can already run code there.
   `--isolate <image>` runs each session in its own container instead (every path mounted
-  same-path, the working directory first, the pi configuration and the bridge reachable,
-  the container disposable), which bounds a session to what it was mounted — but the server
-  itself still runs on the host, and the container shares its network namespace.
+  same-path, the working directory first, the pi configuration and the bridge reachable, the
+  container disposable), which bounds a session to what it was mounted. The network mode is
+  `host` by default so a session can reach a model server on the machine; `bridge` and `none`
+  are one flag away. The server itself still runs with the operator's privileges, and a
+  container spawned *by* a containerised server cannot reuse its mounts — `deploy/README.md`
+  says which deployment isolates and which does not.
 - **A hostile `pi` or provider.** The server forwards what the child says, including a
   malformed line (`pi.unknown`), and never interprets it as instructions to itself.
 - **Traffic analysis on plain HTTP.** Without TLS, everything but the credentials is
