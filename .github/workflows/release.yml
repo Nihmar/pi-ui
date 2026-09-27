@@ -152,11 +152,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.target }}
+          # Every archive the jobs above produced, AppImage included: the release job only
+          # sees what is uploaded here.
           path: |
             dist/*.tar.gz
             dist/*.tar.gz.sha256
             dist/*.zip
             dist/*.zip.sha256
+            dist/*.AppImage
+            dist/*.AppImage.sha256
 
   release:
     name: GitHub release
