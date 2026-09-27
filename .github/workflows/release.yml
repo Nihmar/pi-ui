@@ -58,7 +58,9 @@ jobs:
             -o "../dist/${name}/pi-ui${extension}" ./cmd/pi-ui
           cp ../LICENSE "../dist/${name}/LICENSE"
           tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
-          sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
+          # From inside dist, so the checksum names the file a user downloads rather than
+          # the path this job happened to build in.
+          (cd ../dist && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -102,7 +104,9 @@ jobs:
           mkdir -p "../dist/${name}"
           cp -r build/linux/x64/release/bundle/* "../dist/${name}/"
           tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
-          sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
+          # From inside dist, so the checksum names the file a user downloads rather than
+          # the path this job happened to build in.
+          (cd ../dist && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
 
       # The APK carries the template's debug signature: a release key needs the operator's
       # keystore, and an artifact that says what it is beats one that pretends
@@ -118,7 +122,9 @@ jobs:
           # rather than calling it unsigned (it is not) or pretending it is a release key.
           cp build/app/outputs/flutter-apk/app-release.apk "../dist/${name}/piui-debug-signed.apk"
           tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
-          sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
+          # From inside dist, so the checksum names the file a user downloads rather than
+          # the path this job happened to build in.
+          (cd ../dist && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
 
       - name: Build for Windows
         if: matrix.target == 'windows'
