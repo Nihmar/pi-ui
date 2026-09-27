@@ -25,6 +25,8 @@ the workspaces an operator allows:
 | Background tasks | `internal/tasks` | `/tasks`, `/tasks/{id}/stop` |
 | Server policy | `internal/settings` | `/settings` (admin), `server.settings.changed` |
 | Drain | `internal/api` | `/drain/start\|resume` |
+| TLS and pinning | `internal/tls`, `internal/cli` | `--tls-cert`/`--tls-key`, the `tls` block in `/server` |
+| Peer allowlist | `internal/cli` | `--allow-ips` (addressed or CIDR, checked before any handler) |
 
 The confinement rule is one implementation (`internal/fs`): a path is decided on its
 resolved form, so a symlink inside a root cannot point outside it, and every capability
@@ -79,6 +81,7 @@ invitations) in one SQLite file, `$PIUI_STATE_DIR/state.db`
 ./bin/pi-ui auth set-password          # the admin credential and recovery path
 ./bin/pi-ui pair --url http://<host>:8787   # code, deep link and a scannable QR
 ./bin/pi-ui status                     # devices, password, pending invitations
+./bin/pi-ui tls fingerprint --cert cert.pem   # what the app compares when it pins
 ```
 
 `pair` mints a single-use invitation that expires after ten minutes; a running
