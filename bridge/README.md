@@ -86,9 +86,11 @@ validates the configuration (`GET/PUT /api/v1/mcp`) and writes its **path** into
 `mcpConfig`, and this extension connects to the servers it names. A change therefore
 takes effect at the next spawn, and the server never runs a tool server itself.
 
-- **Transport**: stdio, one child process per enabled server. A remote (`url`) entry is
-  accepted by the configuration and reported on stderr as unsupported by this version
-  rather than silently ignored.
+- **Transport**: two, decided by the entry. A `command` gets one child process and JSON-RPC
+  over stdio; a `url` is spoken to over HTTP (the specification's Streamable HTTP: one POST
+  per message, an answer as JSON or as a `text/event-stream`, the session id the server hands
+  out kept and sent back). Sampling and logging pushed by a server are not consumed: this
+  client calls tools and reads their answers.
 - **Tools**: `initialize` → `notifications/initialized` → `tools/list`, and each tool is
   registered with the MCP server's own JSON Schema wrapped rather than rebuilt, so no
   keyword is lost.
@@ -96,9 +98,10 @@ takes effect at the next spawn, and the server never runs a tool server itself.
   on stderr and skipped; its tools simply are not there, and a session still starts. A
   tool that reports `isError` throws, because that is pi's tool contract for a failed
   call, and a request that gets no answer in 60 s fails instead of hanging a turn.
-- **Tests**: `npm test` runs the Node test runner against a real child process that
-  speaks the protocol (start, handshake, listing, a call, a failure, a shutdown), so the
-  client is exercised end to end without an MCP server installed.
+- **Tests**: `npm test` runs the Node test runner against a real child process and a real
+  HTTP listener that speak the protocol (start, handshake, listing, a call, a failure, a
+  shutdown, an SSE answer, a refused server), so both transports are exercised end to end
+  without an MCP server installed.
 
 ### Degradation rules
 

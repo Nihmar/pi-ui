@@ -12,7 +12,7 @@
 import { readFileSync } from "node:fs";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { readMcpDocument, registerMcpServers, type McpConnection } from "./mcp.ts";
+import { readMcpDocument, registerMcpServers, type McpToolSource } from "./mcp.ts";
 import {
   GOAL_HELP,
   nextRound,
@@ -233,7 +233,7 @@ export default function (pi: ExtensionAPI): void {
   // the first turn: `pi.registerTool` in an async handler is what the extension API
   // documents as "close session-scoped resources from an idempotent session_shutdown
   // handler", which is the other half of this pair.
-  let mcpConnections: readonly McpConnection[] = [];
+  let mcpConnections: readonly McpToolSource[] = [];
 
   pi.on("session_start", (_event, ctx: ExtensionContext) => {
     ctx.ui.notify(READY_NOTIFY, "info");

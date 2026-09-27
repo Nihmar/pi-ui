@@ -10,15 +10,16 @@
  * server, and pi is the process that owns the model and its tools. The server stores
  * and validates the configuration; the child speaks the protocol.
  *
- * Transport: stdio, one child process per enabled server. A remote (`url`) entry is
- * accepted by the configuration but not connected here yet — it is reported on stderr and
- * skipped, which is what "degrade with a clear message" means for a transport this
- * version does not implement.
+ * Transport: stdio for a `command` entry (one child process per server) and HTTP for a
+ * `url` entry (see `mcp_http.ts`). Both speak the same handshake, list the same tools and
+ * register them the same way; the configuration decides which one a server gets.
  *
  * Nothing here ever writes to stdout: that stream is the RPC protocol.
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+
+import { McpHttpConnection } from "./mcp_http.ts";
 import { readFileSync } from "node:fs";
 import { Unsafe, type TSchema } from "typebox";
 import type {
@@ -56,8 +57,20 @@ export interface McpDocument {
   readonly servers?: Readonly<Record<string, McpServer>>;
 }
 
+/** What a connection has to do, whichever transport it uses. */
+export interface McpToolSource {
+  /** The server's name, as the configuration lists it. */
+  readonly name: string;
+  /** Performs the handshake and returns the server's tools. */
+  initialize(): Promise<McpTool[]>;
+  /** Calls one tool and returns its content blocks. */
+  callTool(name: string, args: unknown): Promise<McpCallResult>;
+  /** Releases the connection. Idempotent. */
+  close(): Promise<void>;
+}
+
 /** A tool as `tools/list` reports it. */
-interface McpTool {
+export interface McpTool {
   readonly name: string;
   readonly description?: string;
   readonly inputSchema?: unknown;
@@ -72,7 +85,7 @@ interface McpContent {
 }
 
 /** The result of `tools/call`. */
-interface McpCallResult {
+export interface McpCallResult {
   readonly content?: readonly McpContent[];
   readonly isError?: boolean;
 }
@@ -95,21 +108,14 @@ export function readMcpDocument(path: string | undefined): McpDocument {
   }
 }
 
-/** The enabled stdio servers of a document, in a stable order. */
-export function stdioServers(
+/** The enabled servers of a document, in a stable order. */
+export function enabledServers(
   document: McpDocument,
 ): Array<{ name: string; server: McpServer }> {
   const entries = Object.entries(document.servers ?? {});
-  const enabled = entries.filter(([, server]) => server.enabled !== false);
-  const usable = enabled.filter(([, server]) => (server.command ?? "") !== "");
-  for (const [name, server] of enabled) {
-    if ((server.command ?? "") === "" && (server.url ?? "") !== "") {
-      process.stderr.write(
-        `pi-ui-bridge: MCP server ${name} is remote (${server.url}); this version connects to stdio servers only\n`,
-      );
-    }
-  }
-  return usable
+  return entries
+    .filter(([, server]) => server.enabled !== false)
+    .filter(([, server]) => (server.command ?? "") !== "" || (server.url ?? "") !== "")
     .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
     .map(([name, server]) => ({ name, server }));
 }
@@ -132,7 +138,7 @@ interface JsonRpcMessage {
  * settles on the matching response, a notification is written and forgotten, and a
  * server that dies rejects everything in flight instead of hanging a tool call.
  */
-export class McpConnection {
+export class McpConnection implements McpToolSource {
   /** The server's name, as the configuration lists it. */
   readonly name: string;
 
@@ -349,12 +355,26 @@ export async function registerMcpServers(
   pi: ExtensionAPI,
   document: McpDocument,
   stderr: (line: string) => void = (line) => process.stderr.write(`${line}\n`),
-): Promise<McpConnection[]> {
-  const connections: McpConnection[] = [];
-  for (const { name, server } of stdioServers(document)) {
-    const connection = new McpConnection(name, stderr);
+): Promise<McpToolSource[]> {
+  const connections: McpToolSource[] = [];
+  for (const { name, server } of enabledServers(document)) {
+    const stderrOf = (line: string) => stderr(`pi-ui-bridge: ${name}: ${line}`);
+    let connection: McpToolSource;
+    if ((server.url ?? "") !== "") {
+      connection = new McpHttpConnection(name, server.url ?? "", server.headers, stderrOf);
+    } else {
+      const stdio = new McpConnection(name, stderrOf);
+      try {
+        stdio.start(server);
+      } catch (error) {
+        stderr(`pi-ui-bridge: MCP server ${name} could not start: ${String(error)}`);
+        continue;
+      }
+      connection = stdio;
+    }
     try {
-      connection.start(server);
+      // The same handshake over either transport: stdio and HTTP differ in how bytes travel,
+      // not in what a client does with them.
       const tools = await connection.initialize();
       for (const tool of tools) {
         pi.registerTool(mcpToolDefinition(connection, tool));
@@ -371,7 +391,7 @@ export async function registerMcpServers(
 
 /** The pi tool definition of one MCP tool. */
 export function mcpToolDefinition(
-  connection: McpConnection,
+  connection: McpToolSource,
   tool: McpTool,
 ): ToolDefinition<TSchema, unknown> {
   return {

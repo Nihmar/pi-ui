@@ -117,6 +117,8 @@ The natural next steps, in the order they pay off:
 2. ~~A VT emulator for the terminal~~ — delivered (`app/lib/features/terminal/vt.dart`, drawn by
    `terminal_view.dart`). What is left of it is the long tail: DEC special graphics, mouse
    reporting and the rarer line-drawing modes.
-3. **The MCP client's remote transport** — `url` entries are validated, reported as
-   unsupported and skipped; stdio works.
+3. ~~The MCP client's remote transport~~ — delivered (`bridge/mcp_http.ts`): a `url` entry is
+   spoken to over Streamable HTTP, with the session id kept and answers read from JSON or
+   from an event stream. What it does not consume is what a server *pushes* (sampling,
+   logging) — this client calls tools.
 4. **Server-in-container** (Phase 7's gap) and its network mode.

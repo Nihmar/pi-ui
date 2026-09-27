@@ -9,17 +9,19 @@
 
 import { strict as assert } from "node:assert";
 import { mkdtempSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import type { ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TSchema } from "typebox";
 
+import { McpHttpConnection, parseSse } from "../mcp_http.ts";
 import {
   McpConnection,
+  enabledServers,
   readMcpDocument,
   registerMcpServers,
-  stdioServers,
   toolResult,
 } from "../mcp.ts";
 
@@ -74,7 +76,7 @@ after(async () => {
   await connection?.close();
 });
 
-test("a document names its enabled stdio servers", () => {
+test("a document names its enabled servers, whatever their transport", () => {
   const path = writeDocument({
     version: 1,
     servers: {
@@ -85,12 +87,10 @@ test("a document names its enabled stdio servers", () => {
   });
 
   const document = readMcpDocument(path);
-  const servers = stdioServers(document);
-  assert.deepEqual(
-    servers.map((entry) => entry.name),
-    ["b"],
-    "disabled and remote entries are not started",
-  );
+  const servers: Array<{ name: string }> = enabledServers(document);
+  // A disabled entry is skipped; `b` (stdio) and `remote` (HTTP) are both offered, because
+  // the transport is the connection's business and not the document's.
+  assert.deepEqual(servers.map((entry) => entry.name), ["b", "remote"]);
 });
 
 test("a missing or broken configuration is empty, never a throw", () => {
@@ -154,4 +154,127 @@ test("registering connects the servers and names the tools after them", async ()
   } finally {
     await Promise.all(connections.map((entry) => entry.close()));
   }
+});
+
+/**
+ * The remote transport: a real HTTP server that speaks the Streamable HTTP flavour, once as
+ * one JSON object and once as a server-sent event stream, because those are the two shapes a
+ * server may answer with.
+ */
+test("a remote server is spoken to over HTTP, and its session id is kept", async () => {
+  const requests: Array<{ method: string; session: string | undefined; body: Record<string, unknown> }> = [];
+  const server = createServer((request, response) => {
+    let body = "";
+    request.on("data", (chunk) => (body += chunk));
+    request.on("end", () => {
+      const message = body === "" ? {} : JSON.parse(body);
+      requests.push({
+        method: String(message.method ?? request.method),
+        session: request.headers["mcp-session-id"] as string | undefined,
+        body: message,
+      });
+      if (message.id === undefined) {
+        response.writeHead(202).end();
+        return;
+      }
+      const answer = (result: unknown) => ({ jsonrpc: "2.0", id: message.id, result });
+      if (message.method === "initialize") {
+        response.writeHead(200, {
+          "content-type": "application/json",
+          "mcp-session-id": "sess-1",
+        });
+        response.end(JSON.stringify(answer({ protocolVersion: "2024-11-05" })));
+        return;
+      }
+      if (message.method === "tools/list") {
+        // The stream flavour: notifications first, then the answer, which is what a real
+        // server does while it is starting something up.
+        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.write(`event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", method: "notifications/message" })}\n\n`);
+        response.write(
+          `event: message\ndata: ${JSON.stringify(
+            answer({ tools: [{ name: "echo", description: "Echo", inputSchema: { type: "object" } }] }),
+          )}\n\n`,
+        );
+        response.end();
+        return;
+      }
+      if (message.method === "tools/call") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify(answer({ content: [{ type: "text", text: "remote echo" }] })));
+        return;
+      }
+      response.writeHead(404).end();
+    });
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("the test server did not bind a port");
+  }
+  const url = `http://127.0.0.1:${address.port}/mcp`;
+
+  try {
+    const connection = new McpHttpConnection("remote", url, { authorization: "Bearer test" }, () => {});
+    const tools = await connection.initialize();
+    assert.equal(tools[0]?.name, "echo", "the tool list came out of an SSE stream");
+
+    const result = toolResult(await connection.callTool("echo", { text: "hi" }));
+    assert.deepEqual(result.content, [{ type: "text", text: "remote echo" }]);
+
+    // The session id the server handed out travels on every later request.
+    const listed = requests.find((entry) => entry.body.method === "tools/list");
+    const called = requests.find((entry) => entry.body.method === "tools/call");
+    assert.equal(listed?.session, "sess-1");
+    assert.equal(called?.session, "sess-1");
+    // The notification has no id and no answer to wait for.
+    const initialized = requests.find((entry) => entry.body.method === "notifications/initialized");
+    assert.ok(initialized);
+
+    await connection.close();
+    await connection.close();
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("a server that refuses is reported, not thrown at the session", async () => {
+  const server = createServer((_request, response) => {
+    response.writeHead(500, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: { code: -32603, message: "no" } }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("the test server did not bind a port");
+  }
+
+  try {
+    const connection = new McpHttpConnection("broken", `http://127.0.0.1:${address.port}/mcp`, undefined, () => {});
+    await assert.rejects(() => connection.initialize(), /500/);
+    await connection.close();
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("an SSE body is parsed into its events", () => {
+  const events = parseSse(
+    [
+      ": a comment",
+      "event: message",
+      "data: {\"a\":1}",
+      "",
+      "data: first",
+      "data: second",
+      "",
+      "",
+    ].join("\n"),
+  );
+  assert.deepEqual(events, [
+    { event: "message", data: "{\"a\":1}" },
+    { data: "first\nsecond" },
+  ]);
+  assert.deepEqual(parseSse(""), []);
 });
