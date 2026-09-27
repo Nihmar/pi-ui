@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/errors.dart';
 import '../../../core/api/providers.dart';
@@ -13,6 +14,7 @@ import '../../../core/theme/theme_tokens.dart';
 import '../../../widgets/context_bar.dart';
 import '../../../widgets/info_chip.dart';
 import '../../../widgets/status_badge.dart';
+import '../../../core/router.dart';
 import '../../git/git_panel.dart';
 import 'model_picker.dart';
 
@@ -199,6 +201,7 @@ class _SessionMenu extends ConsumerWidget {
           const PopupMenuItem(value: 'stop', child: Text('Stop session')),
         const PopupMenuItem(value: 'rename', child: Text('Rename…')),
         const PopupMenuItem(value: 'git', child: Text('Git…')),
+        const PopupMenuItem(value: 'terminal', child: Text('Terminal…')),
         const PopupMenuItem(value: 'compact', child: Text('Compact context')),
         const PopupMenuDivider(),
         const PopupMenuItem(
@@ -226,6 +229,10 @@ class _SessionMenu extends ConsumerWidget {
         case 'git':
           if (context.mounted) {
             unawaited(showGitPanel(context, session.cwd));
+          }
+        case 'terminal':
+          if (context.mounted) {
+            context.go(Routes.terminal(session.cwd));
           }
         case 'compact':
           await actions.compact(session.id);

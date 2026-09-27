@@ -10,6 +10,7 @@ import '../features/sessions/session_detail_screen.dart';
 import '../features/sessions/session_list_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shell/adaptive_shell.dart';
+import '../features/terminal/terminal_screen.dart';
 import '../features/splash_screen.dart';
 import 'api/providers.dart';
 
@@ -46,6 +47,10 @@ abstract final class Routes {
   /// One file, opened in its own route (the phone layout).
   static String filePath(String path) =>
       '$files/view?path=${Uri.encodeComponent(path)}';
+
+  /// A terminal in one host directory.
+  static String terminal(String directory) =>
+      '/terminal?dir=${Uri.encodeComponent(directory)}';
 
   /// The pairing form for one server.
   static String pairWith(String baseUrl) =>
@@ -86,6 +91,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.splash,
         builder: (context, state) => const SplashScreen(),
+      ),
+      // The terminal is its own full-screen route on purpose: a shell needs the room,
+      // and it is not a branch of the shell's navigation.
+      GoRoute(
+        path: '/terminal',
+        builder: (context, state) =>
+            TerminalScreen(directory: state.uri.queryParameters['dir'] ?? ''),
       ),
       GoRoute(
         path: Routes.onboarding,
