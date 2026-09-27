@@ -15,6 +15,7 @@ import 'files.dart';
 import 'git.dart';
 import 'models.dart';
 import 'search.dart';
+import 'settings.dart';
 import 'profile.dart';
 import 'session_actions.dart';
 import 'session_stream.dart';
@@ -265,24 +266,31 @@ final sessionActionsProvider = Provider<SessionActions?>((ref) {
 ///
 /// A failed read is not an error the app shows: it keeps its defaults, because a server
 /// that cannot answer must not change how the app looks.
-final serverSettingsProvider = FutureProvider<Map<String, dynamic>>((
-  ref,
-) async {
+final serverSettingsProvider = FutureProvider<ServerSettings>((ref) async {
   final client = ref.watch(clientProvider);
   if (client == null) {
-    return const <String, dynamic>{};
+    return const ServerSettings();
   }
   try {
     return await client.settings();
   } on PiuiException {
-    return const <String, dynamic>{};
+    return const ServerSettings();
   }
+});
+
+/// The update panel's report, loaded when the screen asks for it.
+final updatesProvider = FutureProvider<UpdateReport>((ref) async {
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    return const UpdateReport();
+  }
+  return client.updates();
 });
 
 /// The theme every client of this server shows, from `ui.theme`.
 final themeModeProvider = Provider<ThemeMode>((ref) {
   final settings = ref.watch(serverSettingsProvider).value;
-  return themeModeFrom(settings?['ui.theme']);
+  return themeModeFrom(settings?.values['ui.theme']);
 });
 
 /// Maps the `ui.theme` value onto a [ThemeMode]: an unknown value follows the system,

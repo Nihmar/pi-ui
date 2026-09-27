@@ -6,6 +6,7 @@ import 'errors.dart';
 import 'files.dart';
 import 'git.dart';
 import 'search.dart';
+import 'settings.dart';
 import 'http.dart';
 import 'json.dart';
 import 'profile.dart';
@@ -213,17 +214,58 @@ class PiUiClient {
     return decoded(response, SearchHit.listFrom);
   });
 
-  /// GET /settings — the server's own policy, as the effective values.
+  /// GET /settings — the server's own policy: values, defaults and the catalogue.
   ///
   /// It is a read for any device (`viewer`): the app follows the theme the deployment
   /// chose, and only an admin changes it.
-  Future<Map<String, dynamic>> settings() => guarded(() async {
+  Future<ServerSettings> settings() => guarded(() async {
     final response = await _dio.get<dynamic>('/settings');
-    return decoded(
-      response,
-      (body) => asMap(body['values']) ?? const <String, dynamic>{},
-    );
+    return decoded(response, ServerSettings.fromJson);
   });
+
+  /// PATCH /settings — changes several values at once (admin).
+  ///
+  /// A value the server refuses fails the whole call: the server validates the batch
+  /// before it writes anything, so a client never ends up with half a change.
+  Future<ServerSettings> patchSettings(Map<String, Object?> changes) =>
+      guarded(() async {
+        final response = await _dio.patch<dynamic>('/settings', data: changes);
+        return decoded(
+          response,
+          (body) => ServerSettings(
+            values: asMap(body['values']) ?? const {},
+            defaults: const {},
+            known: const [],
+          ),
+        );
+      });
+
+  /// DELETE /settings/{key} — back to the default (admin).
+  Future<void> resetSetting(String key) => guarded(() async {
+    final response = await _dio.delete<dynamic>('/settings/$key');
+    if ((response.statusCode ?? 0) >= 300) {
+      decoded(response, (body) => body);
+    }
+  });
+
+  /// GET /updates — what this deployment runs and what is published (admin).
+  Future<UpdateReport> updates() => guarded(() async {
+    final response = await _dio.get<dynamic>('/updates');
+    return decoded(response, UpdateReport.fromJson);
+  });
+
+  /// POST /updates/apply — starts the operator's update script as a task (admin).
+  ///
+  /// It answers `409 managed_mode` on a deployment that manages its own updates, which is
+  /// why the panel hides the button when `managed` is true.
+  Future<Map<String, dynamic>> applyUpdate(List<String> components) =>
+      guarded(() async {
+        final response = await _dio.post<dynamic>(
+          '/updates/apply',
+          data: {if (components.isNotEmpty) 'components': components},
+        );
+        return decoded(response, (body) => body);
+      });
 
   /// GET /auth/devices — the paired devices (admin scope).
   Future<List<DeviceInfo>> devices() => guarded(() async {

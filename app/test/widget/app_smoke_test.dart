@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piui/core/api/dto.dart';
 import 'package:piui/core/api/profile.dart';
+import 'package:piui/core/api/settings.dart';
 import 'package:piui/core/api/providers.dart';
 import 'package:piui/core/app.dart';
 import 'package:piui/core/models/session.dart';
@@ -34,7 +35,9 @@ Future<void> pumpApp(
         ),
         socketProvider.overrideWithValue(null),
         sessionsProvider.overrideWith((ref) => Stream.value(sessions)),
-        serverSettingsProvider.overrideWith((ref) async => const {}),
+        serverSettingsProvider.overrideWith(
+          (ref) async => const ServerSettings(),
+        ),
       ],
       child: const PiuiApp(),
     ),
@@ -82,7 +85,10 @@ void main() {
             (ref) => Stream.value(const <SessionModel>[]),
           ),
           serverSettingsProvider.overrideWith(
-            (ref) async => const {'ui.theme': 'dark'},
+            (ref) async => const ServerSettings(
+              values: {'ui.theme': 'dark'},
+              defaults: {'ui.theme': 'system'},
+            ),
           ),
         ],
         child: const PiuiApp(),
