@@ -95,10 +95,11 @@ func TestLifecycle_SIGTERMReapsAllChildrenWithinTwoSeconds(t *testing.T) {
 		}
 	})
 
+	// Two sessions means at least two children; a child that exited early is respawned by
+	// the supervisor (Phase 3), so the directory legitimately holds more pid files than
+	// sessions. What this test is about is the shutdown: every child that ever ran is gone
+	// within the budget.
 	pids := waitPIDs(t, pidDir, 2)
-	if len(pids) != 2 {
-		t.Fatalf("children = %v, want two pids", pids)
-	}
 
 	sent := time.Now()
 	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
@@ -115,9 +116,15 @@ func TestLifecycle_SIGTERMReapsAllChildrenWithinTwoSeconds(t *testing.T) {
 		t.Fatalf("server did not exit within 2s of SIGTERM\nstderr:\n%s", stderr.String())
 	}
 
-	reaped := waitPIDsGone(time.Now().Add(2*time.Second), pids...)
+	// The final list, not the snapshot: a respawn between the snapshot and the signal is
+	// still a child the server owns and must reap.
+	everyone := readPIDs(t, pidDir)
+	reaped := waitPIDsGone(time.Now().Add(2*time.Second), everyone...)
 	if reaped < 0 {
-		t.Fatalf("children %v were still alive 2s after SIGTERM\nstderr:\n%s", pids, stderr.String())
+		t.Fatalf("children %v were still alive 2s after SIGTERM\nstderr:\n%s", everyone, stderr.String())
+	}
+	if len(everyone) < len(pids) {
+		t.Fatalf("pid files disappeared from %s: %v → %v", pidDir, pids, everyone)
 	}
 	if elapsed := time.Since(sent); elapsed > 2*time.Second {
 		t.Fatalf("children were reaped after %s, want ≤ 2s", elapsed)
