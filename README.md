@@ -44,7 +44,7 @@ filesystem, git, task or terminal surface at all (a `501`, never a guess).
 | `bridge/` | `pi-ui-bridge` extension (TypeScript sources, loaded by pi via jiti) |
 | `packages/piui-markdown/` | Shared markdown/editor engine (vendored from Niman, MIT) |
 | `schemas/` | JSON Schema, the source of truth for every DTO and event |
-| `docs/` | ADRs, protocol documents and the spike report |
+| `docs/` | ADRs, protocol documents, the spike report, [security model](docs/security.md) and [roadmap](docs/roadmap.md) |
 | `deploy/` | The reference deployment: Docker image + Compose, a hardened systemd unit, and the network matrix (LAN/VPN/HTTPS) |
 | `packaging/` | The Arch `PKGBUILD` and the Inno Setup script for Windows |
 
