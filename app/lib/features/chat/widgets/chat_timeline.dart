@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/l10n/l10n.dart';
 import '../../../core/models/chat_entry.dart';
 import '../../../core/theme/theme_tokens.dart';
 import '../../../widgets/empty_state.dart';
@@ -69,10 +70,10 @@ class _ChatTimelineState extends State<ChatTimeline> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     if (widget.entries.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.chat_bubble_outline,
-        title: 'No messages yet',
-        message: 'Send a prompt to start the conversation.',
+        title: context.l10n.chatEmptyTitle,
+        message: context.l10n.chatEmptyMessage,
       );
     }
     return ListView.separated(

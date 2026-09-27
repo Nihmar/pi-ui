@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
+
 import 'package:piui/core/api/providers.dart';
 import 'package:piui/core/api/search.dart';
-import 'package:piui/core/theme/app_theme.dart';
 import 'package:piui/features/search/search_screen.dart';
 
 /// Pumps the search screen with results from a table keyed by the query.
@@ -24,7 +26,7 @@ Future<void> pumpSearch(
           return results[request.query.trim()] ?? const <SearchHit>[];
         }),
       ],
-      child: MaterialApp(theme: AppTheme.dark(), home: const SearchScreen()),
+      child: testApp(home: const SearchScreen()),
     ),
   );
   await tester.pumpAndSettle();

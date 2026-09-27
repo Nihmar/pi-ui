@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/providers.dart';
 import '../../core/api/search.dart';
 import '../../core/format.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/router.dart';
 import '../../core/theme/theme_tokens.dart';
 import '../../widgets/empty_state.dart';
@@ -58,10 +59,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final results = ref.watch(searchResultsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search'),
+        title: Text(context.l10n.searchTitle),
         actions: [
           IconButton(
-            tooltip: 'Search now',
+            tooltip: context.l10n.searchNow,
             onPressed: () => ref
                 .read(searchRequestProvider.notifier)
                 .setQuery(_controller.text),
@@ -85,10 +86,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onChanged: _onChanged,
               onSubmitted: (value) =>
                   ref.read(searchRequestProvider.notifier).setQuery(value),
-              decoration: const InputDecoration(
-                labelText: 'Search',
-                hintText: 'a word, a path or a message',
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                labelText: context.l10n.search,
+                hintText: context.l10n.searchHint,
+                prefixIcon: const Icon(Icons.search),
               ),
             ),
           ),
@@ -97,7 +98,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             children: [
               for (final scope in const ['files', 'messages'])
                 FilterChip(
-                  label: Text(scope),
+                  label: Text(
+                    scope == 'files'
+                        ? context.l10n.searchScopeFiles
+                        : context.l10n.searchScopeMessages,
+                  ),
                   selected: request.scope.contains(scope),
                   onSelected: (_) => ref
                       .read(searchRequestProvider.notifier)
@@ -108,27 +113,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           SizedBox(height: tokens.spaceSm),
           Expanded(
             child: request.query.trim().length < 2
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.search,
-                    title: 'Search the host',
-                    message:
-                        'Type at least two characters. Files come from the '
-                        'workspaces, messages from the pi sessions the server '
-                        'was pointed at.',
+                    title: context.l10n.searchIntroTitle,
+                    message: context.l10n.searchIntroMessage,
                   )
                 : results.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (error, _) => EmptyState(
                       icon: Icons.error_outline,
-                      title: 'The search failed',
+                      title: context.l10n.searchFailedTitle,
                       message: '$error',
                     ),
                     data: (hits) => hits.isEmpty
-                        ? const EmptyState(
+                        ? EmptyState(
                             icon: Icons.search_off,
-                            title: 'No match',
-                            message: 'Nothing in those scopes matches.',
+                            title: context.l10n.searchNoMatchTitle,
+                            message: context.l10n.searchNoMatchMessage,
                           )
                         : _Results(hits: hits),
                   ),

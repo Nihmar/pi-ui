@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
+
 import 'package:piui/core/api/git.dart';
 import 'package:piui/core/api/providers.dart';
 import 'package:piui/core/models/chat_entry.dart';
-import 'package:piui/core/theme/app_theme.dart';
 import 'package:piui/features/git/git_panel.dart';
 
 /// A repository with one staged and one untracked path.
@@ -45,8 +47,7 @@ Future<void> pumpPanel(
           );
         }),
       ],
-      child: MaterialApp(
-        theme: AppTheme.dark(),
+      child: testApp(
         home: const Scaffold(body: GitPanel(directory: '/srv/app')),
       ),
     ),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/app_localizations.dart';
 import 'api/providers.dart';
+import 'l10n/l10n.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 
@@ -17,15 +19,22 @@ class PiuiApp extends ConsumerWidget {
     ref
       ..watch(foregroundProvider)
       ..watch(sessionWatcherProvider);
-    // The theme is the deployment's choice (`ui.theme`), not a per-device setting: a
-    // server meant to look a certain way says so once.
+    // The theme and the language are the deployment's choice (`ui.theme`, `ui.language`),
+    // not per-device settings: a server meant to look and read a certain way says so once.
     final themeMode = ref.watch(themeModeProvider);
+    final locale = localeForLanguage(
+      ref.watch(serverSettingsProvider).value?.values['ui.language'],
+      AppLocalizations.supportedLocales,
+    );
     return MaterialApp.router(
-      title: 'pi-ui',
+      onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
+      locale: locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: router,
     );
   }

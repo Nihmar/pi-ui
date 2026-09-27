@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
+
 import 'package:piui/core/api/dto.dart';
 import 'package:piui/core/api/profile.dart';
 import 'package:piui/core/api/providers.dart';
 import 'package:piui/core/api/settings.dart';
-import 'package:piui/core/theme/app_theme.dart';
 import 'package:piui/features/settings/settings_screen.dart';
 
 /// A server with two settings, one changed from its default.
@@ -46,7 +48,7 @@ Future<void> pumpSettings(
         serverSettingsProvider.overrideWith((ref) async => _settings),
         updatesProvider.overrideWith((ref) async => report),
       ],
-      child: MaterialApp(theme: AppTheme.dark(), home: const SettingsScreen()),
+      child: testApp(home: const SettingsScreen()),
     ),
   );
   await tester.pumpAndSettle();

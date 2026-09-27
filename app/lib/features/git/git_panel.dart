@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/errors.dart';
 import '../../core/api/git.dart';
 import '../../core/api/providers.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/format.dart';
 import '../../core/theme/breakpoints.dart';
 import '../../core/theme/theme_tokens.dart';
@@ -79,8 +80,7 @@ class _GitPanelState extends ConsumerState<GitPanel> {
     } on PiuiException catch (error) {
       setState(() {
         _error = error.code == ErrorCodes.featureDisabled
-            ? 'Writing is turned off on this server: an admin has to enable '
-                  '"git.write" in the settings.'
+            ? context.l10n.gitWriteDisabled
             : error.message;
       });
     } finally {
@@ -109,7 +109,12 @@ class _GitPanelState extends ConsumerState<GitPanel> {
             children: [
               Icon(Icons.commit, size: 18, color: tokens.accent),
               SizedBox(width: tokens.spaceSm),
-              Expanded(child: Text('Git', style: theme.textTheme.titleMedium)),
+              Expanded(
+                child: Text(
+                  context.l10n.gitTitle,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
               if (status.value case final value?)
                 Text(
                   [
@@ -136,12 +141,12 @@ class _GitPanelState extends ConsumerState<GitPanel> {
             child: status.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Text(
-                'The repository could not be read: $error',
+                context.l10n.gitReadFailed('$error'),
                 style: theme.textTheme.bodySmall,
               ),
               data: (value) => value.clean
                   ? Text(
-                      'Nothing to commit: the working tree is clean.',
+                      context.l10n.gitNothingToCommit,
                       style: theme.textTheme.bodySmall,
                     )
                   : Row(
@@ -168,7 +173,7 @@ class _GitPanelState extends ConsumerState<GitPanel> {
                           flex: 4,
                           child: _selected == null
                               ? Text(
-                                  'Select a change to see its diff.',
+                                  context.l10n.gitSelectChange,
                                   style: theme.textTheme.bodySmall,
                                 )
                               : _Diff(
@@ -191,9 +196,9 @@ class _GitPanelState extends ConsumerState<GitPanel> {
               Expanded(
                 child: TextField(
                   controller: _message,
-                  decoration: const InputDecoration(
-                    labelText: 'Commit message',
-                    hintText: 'what changed',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.gitCommitMessage,
+                    hintText: context.l10n.gitCommitHint,
                   ),
                   onSubmitted: (_) => _commit(),
                 ),
@@ -202,7 +207,7 @@ class _GitPanelState extends ConsumerState<GitPanel> {
               FilledButton.icon(
                 onPressed: _busy ? null : _commit,
                 icon: const Icon(Icons.check, size: 16),
-                label: const Text('Commit'),
+                label: Text(context.l10n.gitCommit),
               ),
             ],
           ),
@@ -215,7 +220,7 @@ class _GitPanelState extends ConsumerState<GitPanel> {
   Future<void> _commit() async {
     final message = _message.text.trim();
     if (message.isEmpty) {
-      setState(() => _error = 'A commit needs a message.');
+      setState(() => _error = context.l10n.gitCommitNeedsMessage);
       return;
     }
     final client = ref.read(clientProvider);
@@ -283,7 +288,7 @@ class _Changes extends StatelessWidget {
                 ),
                 if (!change.staged)
                   IconButton(
-                    tooltip: 'Stage this path',
+                    tooltip: context.l10n.gitStage,
                     visualDensity: VisualDensity.compact,
                     onPressed: busy ? null : () => onStage(change),
                     icon: const Icon(Icons.add, size: 16),
@@ -311,12 +316,12 @@ class _Diff extends ConsumerWidget {
     return diff.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Text(
-        'The diff could not be read: $error',
+        context.l10n.gitDiffFailed('$error'),
         style: Theme.of(context).textTheme.bodySmall,
       ),
       data: (preview) => preview.lines.isEmpty
           ? Text(
-              'No textual change to show.',
+              context.l10n.gitNoTextualChange,
               style: Theme.of(context).textTheme.bodySmall,
             )
           : SingleChildScrollView(child: DiffView(diff: preview)),

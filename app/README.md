@@ -16,8 +16,16 @@ flutter run -d linux        # desktop
 flutter run -d <device>     # Android
 ```
 
-The theme follows the server's `ui.theme` setting, so a deployment meant to look a
-certain way says so once; a server that cannot answer leaves the app on its defaults.
+The theme follows the server's `ui.theme` setting and the language its `ui.language`, so a
+deployment meant to look and read a certain way says so once; a server that cannot answer
+leaves the app on its defaults, and a language this build does not ship falls back to the
+device.
+
+The text lives in `lib/l10n/app_en.arb` (the source language) and `app_it.arb`, generated
+into `AppLocalizations` by `flutter gen-l10n` (wired through `l10n.yaml`). A widget reads a
+string as `context.l10n.someKey`; a literal in a widget is a string nobody can translate.
+After adding a key, run `flutter gen-l10n` — the analyzer fails until the generated class
+knows it.
 
 The first launch asks for the server URL and a pairing code: on the server,
 `pi-ui status` prints the code and `pi-ui pair --url http://<host>:8787` renders a

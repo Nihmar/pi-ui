@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/providers.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/models/chat_entry.dart';
 import '../../../core/theme/theme_tokens.dart';
 
@@ -42,7 +43,9 @@ class QueueStrip extends ConsumerWidget {
               Icon(Icons.queue, size: 14, color: tokens.warning),
               SizedBox(width: tokens.spaceXs),
               Text(
-                '${queue.length} message${queue.length == 1 ? '' : 's'} waiting',
+                queue.length == 1
+                    ? context.l10n.queueWaitingOne
+                    : context.l10n.queueWaiting('${queue.length}'),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: tokens.warning,
                 ),
@@ -51,7 +54,7 @@ class QueueStrip extends ConsumerWidget {
               TextButton(
                 onPressed: () =>
                     ref.read(sessionActionsProvider)?.clearQueue(sessionId),
-                child: const Text('Clear'),
+                child: Text(context.l10n.queueClear),
               ),
             ],
           ),
@@ -75,7 +78,9 @@ class _QueueChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final theme = Theme.of(context);
-    final label = item.kind == 'steer' ? 'steer' : 'follow-up';
+    final label = item.kind == 'steer'
+        ? context.l10n.queueSteer
+        : context.l10n.queueFollowUp;
     return Container(
       constraints: const BoxConstraints(maxWidth: 420),
       padding: EdgeInsets.symmetric(

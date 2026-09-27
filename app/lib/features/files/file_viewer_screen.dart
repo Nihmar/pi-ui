@@ -5,6 +5,7 @@ import 'package:piui_markdown/piui_markdown.dart';
 import '../../core/api/files.dart';
 import '../../core/api/providers.dart';
 import '../../core/format.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/theme/markdown_theme.dart';
 import '../../core/theme/theme_tokens.dart';
 import '../../widgets/empty_state.dart';
@@ -28,7 +29,7 @@ class FileViewerScreen extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => EmptyState(
         icon: Icons.error_outline,
-        title: 'That file cannot be read',
+        title: context.l10n.fileFailedTitle,
         message: '$error',
       ),
       data: (file) => _FileBody(file: file, path: path),
@@ -79,7 +80,7 @@ class _FileBody extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Reload from the host',
+                    tooltip: context.l10n.reloadFromHost,
                     onPressed: () => ref.invalidate(fileContentProvider(path)),
                     icon: const Icon(Icons.refresh, size: 18),
                   ),
@@ -127,7 +128,7 @@ class _FileBody extends ConsumerWidget {
     if (text == null) {
       return EmptyState(
         icon: Icons.data_object,
-        title: 'Binary file',
+        title: context.l10n.binaryFileTitle,
         message:
             '${file.entry.name} is not valid UTF-8, so there is nothing to render. '
             'Its content travels as base64 when a viewer wants the bytes.',

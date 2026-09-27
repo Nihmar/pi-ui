@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n/l10n.dart';
 import '../../core/theme/breakpoints.dart';
 import '../../core/theme/theme_tokens.dart';
 
@@ -15,28 +16,22 @@ class AdaptiveShell extends StatelessWidget {
   /// The branch container the router hands the shell.
   final StatefulNavigationShell navigationShell;
 
+  /// The branch a destination opens, in the order the router declares them.
   static const _destinations = <_Destination>[
-    _Destination(
-      label: 'Sessions',
-      icon: Icons.forum_outlined,
-      selectedIcon: Icons.forum,
-    ),
-    _Destination(
-      label: 'Files',
-      icon: Icons.folder_outlined,
-      selectedIcon: Icons.folder,
-    ),
-    _Destination(
-      label: 'Search',
-      icon: Icons.search_outlined,
-      selectedIcon: Icons.search,
-    ),
-    _Destination(
-      label: 'Settings',
-      icon: Icons.settings_outlined,
-      selectedIcon: Icons.settings,
-    ),
+    _Destination(icon: Icons.forum_outlined, selectedIcon: Icons.forum),
+    _Destination(icon: Icons.folder_outlined, selectedIcon: Icons.folder),
+    _Destination(icon: Icons.search_outlined, selectedIcon: Icons.search),
+    _Destination(icon: Icons.settings_outlined, selectedIcon: Icons.settings),
   ];
+
+  /// The label of one destination: translated where it is rendered, because a `const` list
+  /// cannot hold a string that depends on the locale.
+  static String labelOf(BuildContext context, int index) => switch (index) {
+    0 => context.l10n.navSessions,
+    1 => context.l10n.navFiles,
+    2 => context.l10n.navSearch,
+    _ => context.l10n.navSettings,
+  };
 
   void _go(int index) {
     navigationShell.goBranch(
@@ -60,11 +55,11 @@ class AdaptiveShell extends StatelessWidget {
                 child: _Brand(),
               ),
               destinations: [
-                for (final destination in _destinations)
+                for (var index = 0; index < _destinations.length; index++)
                   NavigationRailDestination(
-                    icon: Icon(destination.icon),
-                    selectedIcon: Icon(destination.selectedIcon),
-                    label: Text(destination.label),
+                    icon: Icon(_destinations[index].icon),
+                    selectedIcon: Icon(_destinations[index].selectedIcon),
+                    label: Text(labelOf(context, index)),
                   ),
               ],
             ),
@@ -81,11 +76,11 @@ class AdaptiveShell extends StatelessWidget {
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: _go,
         destinations: [
-          for (final destination in _destinations)
+          for (var index = 0; index < _destinations.length; index++)
             NavigationDestination(
-              icon: Icon(destination.icon),
-              selectedIcon: Icon(destination.selectedIcon),
-              label: destination.label,
+              icon: Icon(_destinations[index].icon),
+              selectedIcon: Icon(_destinations[index].selectedIcon),
+              label: labelOf(context, index),
             ),
         ],
       ),
@@ -123,13 +118,8 @@ class _Brand extends StatelessWidget {
 
 /// One shell destination.
 class _Destination {
-  const _Destination({
-    required this.label,
-    required this.icon,
-    required this.selectedIcon,
-  });
+  const _Destination({required this.icon, required this.selectedIcon});
 
-  final String label;
   final IconData icon;
   final IconData selectedIcon;
 }

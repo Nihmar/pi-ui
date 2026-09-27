@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/errors.dart';
 import '../../../core/api/providers.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/breakpoints.dart';
 import '../../../core/theme/theme_tokens.dart';
 
@@ -54,12 +55,12 @@ class _NewSessionSheetState extends ConsumerState<NewSessionSheet> {
   Future<void> _create() async {
     final cwd = _cwd.text.trim();
     if (cwd.isEmpty) {
-      setState(() => _error = 'A working directory is required.');
+      setState(() => _error = context.l10n.workingDirectoryRequired);
       return;
     }
     final client = ref.read(clientProvider);
     if (client == null) {
-      setState(() => _error = 'Not connected to the server.');
+      setState(() => _error = context.l10n.chatNotConnected);
       return;
     }
     setState(() {
@@ -98,10 +99,13 @@ class _NewSessionSheetState extends ConsumerState<NewSessionSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('New session', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            context.l10n.newSession,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           SizedBox(height: tokens.spaceXs),
           Text(
-            'pi runs in a host directory; the client never reads provider secrets.',
+            context.l10n.newSessionHint,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           SizedBox(height: tokens.spaceLg),
@@ -110,8 +114,8 @@ class _NewSessionSheetState extends ConsumerState<NewSessionSheet> {
             autofocus: true,
             autocorrect: false,
             decoration: InputDecoration(
-              labelText: 'Working directory',
-              hintText: '/home/user/Projects/my-project',
+              labelText: context.l10n.workingDirectory,
+              hintText: context.l10n.workingDirectoryHint,
               errorText: _error,
               prefixIcon: const Icon(Icons.folder_outlined),
             ),
@@ -120,10 +124,10 @@ class _NewSessionSheetState extends ConsumerState<NewSessionSheet> {
           SizedBox(height: tokens.spaceMd),
           TextField(
             controller: _name,
-            decoration: const InputDecoration(
-              labelText: 'Name (optional)',
-              hintText: 'pi-ui',
-              prefixIcon: Icon(Icons.label_outline),
+            decoration: InputDecoration(
+              labelText: context.l10n.nameOptional,
+              hintText: context.l10n.nameHint,
+              prefixIcon: const Icon(Icons.label_outline),
             ),
             onSubmitted: (_) => _create(),
           ),
@@ -133,7 +137,7 @@ class _NewSessionSheetState extends ConsumerState<NewSessionSheet> {
               const Spacer(),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.cancel),
               ),
               SizedBox(width: tokens.spaceSm),
               FilledButton(
@@ -144,7 +148,7 @@ class _NewSessionSheetState extends ConsumerState<NewSessionSheet> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Create'),
+                    : Text(context.l10n.create),
               ),
             ],
           ),

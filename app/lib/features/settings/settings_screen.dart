@@ -6,6 +6,7 @@ import '../../core/api/errors.dart';
 import '../../core/api/providers.dart';
 import '../../core/api/settings.dart';
 import '../../core/format.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/theme/theme_tokens.dart';
 
 /// Settings: what this device is, what the server's policy says, and what is published.
@@ -22,10 +23,10 @@ class SettingsScreen extends ConsumerWidget {
     final tokens = context.tokens;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(context.l10n.settingsTitle),
         actions: [
           IconButton(
-            tooltip: 'Reload',
+            tooltip: context.l10n.reload,
             onPressed: () {
               ref
                 ..invalidate(serverSettingsProvider)
@@ -109,15 +110,14 @@ class _PolicySection extends ConsumerWidget {
     final settings = ref.watch(serverSettingsProvider);
     final profile = ref.watch(profileProvider).value;
     final admin = profile?.scope.covers(DeviceScope.admin) ?? false;
+    final l10n = context.l10n;
     return _Section(
-      title: 'Server policy',
+      title: l10n.settingsPolicySection,
       children: [
         if (settings.value?.isEmpty ?? true)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'This server has no settings: it was started without a state directory.',
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(l10n.settingsNoSettings),
           )
         else
           settings.when(
@@ -125,7 +125,7 @@ class _PolicySection extends ConsumerWidget {
               padding: EdgeInsets.all(12),
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (error, _) => Text('The settings could not be read: $error'),
+            error: (error, _) => Text(l10n.settingsReadFailed('$error')),
             data: (value) => Column(
               children: [
                 for (final definition in value.known)
@@ -136,10 +136,9 @@ class _PolicySection extends ConsumerWidget {
                   ),
                 if (!admin)
                   Padding(
-                    padding: EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      'Changing these needs an admin device; this one is a '
-                      '${profile?.scope.name ?? 'viewer'}.',
+                      l10n.settingsAdminHint(profile?.scope.name ?? 'viewer'),
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
@@ -238,7 +237,7 @@ class _SettingRowState extends ConsumerState<_SettingRow> {
                         if (changed) ...[
                           SizedBox(width: tokens.spaceXs),
                           Text(
-                            'changed',
+                            context.l10n.settingsChanged,
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: tokens.accent,
                             ),
@@ -257,7 +256,7 @@ class _SettingRowState extends ConsumerState<_SettingRow> {
               _editor(context, value),
               if (widget.admin && changed)
                 IconButton(
-                  tooltip: 'Back to the default',
+                  tooltip: context.l10n.settingsResetTooltip,
                   onPressed: _reset,
                   icon: const Icon(Icons.settings_backup_restore, size: 18),
                 ),
@@ -343,15 +342,16 @@ class _UpdatesSection extends ConsumerWidget {
     if (!admin) {
       return const SizedBox.shrink();
     }
+    final l10n = context.l10n;
     return _Section(
-      title: 'Updates',
+      title: l10n.settingsUpdatesSection,
       children: [
         report.when(
           loading: () => const Padding(
             padding: EdgeInsets.all(12),
             child: Center(child: CircularProgressIndicator()),
           ),
-          error: (error, _) => Text('The versions could not be read: $error'),
+          error: (error, _) => Text(l10n.updatesReadFailed('$error')),
           data: (value) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -370,13 +370,19 @@ class _UpdatesSection extends ConsumerWidget {
                             ),
                             Text(
                               component.isUnknown
-                                  ? 'installed ${component.current} · not checked (${component.error})'
-                                  : 'installed ${component.current} · latest ${component.latest}',
+                                  ? l10n.updatesInstalledUnknown(
+                                      component.current,
+                                      '${component.error}',
+                                    )
+                                  : l10n.updatesInstalledLatest(
+                                      component.current,
+                                      component.latest ?? '?',
+                                    ),
                               style: theme.textTheme.labelSmall,
                             ),
                             if (component.checkedAt case final at?)
                               Text(
-                                'checked ${relativeTime(at)}',
+                                l10n.updatesChecked(relativeTime(at)),
                                 style: theme.textTheme.labelSmall,
                               ),
                           ],
@@ -384,7 +390,7 @@ class _UpdatesSection extends ConsumerWidget {
                       ),
                       if (component.updateAvailable)
                         Text(
-                          'update',
+                          l10n.updatesAvailable,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: tokens.accent,
                           ),
@@ -394,18 +400,14 @@ class _UpdatesSection extends ConsumerWidget {
                 ),
               SizedBox(height: tokens.spaceSm),
               if (value.managed)
-                Text(
-                  'This deployment manages its own updates: the server runs no script of '
-                  'its own.',
-                  style: theme.textTheme.labelSmall,
-                )
+                Text(l10n.updatesManagedNote, style: theme.textTheme.labelSmall)
               else
                 Align(
                   alignment: Alignment.centerLeft,
                   child: FilledButton.icon(
                     onPressed: () => _apply(context, ref),
                     icon: const Icon(Icons.system_update_alt, size: 16),
-                    label: const Text('Run the update'),
+                    label: Text(context.l10n.updatesApply),
                   ),
                 ),
             ],
@@ -422,6 +424,9 @@ class _UpdatesSection extends ConsumerWidget {
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
+    // The strings are read before the await: after it the widget may be gone, and the
+    // message would have nothing to come from.
+    final l10n = context.l10n;
     try {
       final task = await client.applyUpdate(const []);
       final id = task['id'];
@@ -429,8 +434,8 @@ class _UpdatesSection extends ConsumerWidget {
         SnackBar(
           content: Text(
             id is String
-                ? 'Update started: task $id. Its output is on the tasks endpoint.'
-                : 'Update started.',
+                ? l10n.updatesApplyStarted(id)
+                : l10n.updatesApplyStartedNoId,
           ),
         ),
       );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/errors.dart';
 import '../../core/api/providers.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/theme/theme_tokens.dart';
 
 /// Screens 3 and 4 of the mockup: type the pairing code, and confirm the
@@ -233,7 +234,7 @@ class _FingerprintDialog extends StatelessWidget {
         fingerprint.substring(index, (index + 2).clamp(0, fingerprint.length)),
     ].join(':').toUpperCase();
     return AlertDialog(
-      title: const Text('Trust this certificate?'),
+      title: Text(context.l10n.fingerprintTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +242,7 @@ class _FingerprintDialog extends StatelessWidget {
           Text(host, style: Theme.of(context).textTheme.titleSmall),
           SizedBox(height: tokens.spaceSm),
           Text(
-            'SHA-256 fingerprint',
+            context.l10n.fingerprintLabel,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           SizedBox(height: tokens.spaceXs),
@@ -251,8 +252,7 @@ class _FingerprintDialog extends StatelessWidget {
           ),
           SizedBox(height: tokens.spaceMd),
           Text(
-            'Compare it with `pi-ui tls fingerprint` on the server. If it ever '
-            'changes, this app refuses to connect instead of trusting it again.',
+            context.l10n.fingerprintNote,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -260,11 +260,11 @@ class _FingerprintDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Trust and continue'),
+          child: Text(context.l10n.fingerprintTrust),
         ),
       ],
     );

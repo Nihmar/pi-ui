@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/providers.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/models/chat_entry.dart';
 import '../../../core/theme/theme_tokens.dart';
 
@@ -113,7 +114,7 @@ class _DialogCardState extends ConsumerState<DialogCard> {
                 ),
               ),
               IconButton(
-                tooltip: 'Cancel the dialog',
+                tooltip: context.l10n.dialogCancel,
                 onPressed: () => _answer(cancelled: true),
                 icon: const Icon(Icons.close, size: 18),
               ),
@@ -150,12 +151,12 @@ class _DialogCardState extends ConsumerState<DialogCard> {
           children: [
             OutlinedButton(
               onPressed: () => _answer(confirmed: false),
-              child: const Text('Deny'),
+              child: Text(context.l10n.dialogDeny),
             ),
             SizedBox(width: tokens.spaceSm),
             FilledButton(
               onPressed: () => _answer(confirmed: true),
-              child: const Text('Approve'),
+              child: Text(context.l10n.dialogApprove),
             ),
           ],
         );
@@ -167,7 +168,8 @@ class _DialogCardState extends ConsumerState<DialogCard> {
                 controller: _input,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: request.placeholder ?? 'Type an answer',
+                  hintText:
+                      request.placeholder ?? context.l10n.dialogAnswerHint,
                 ),
                 onSubmitted: (value) => _answer(value: value),
               ),
@@ -175,7 +177,7 @@ class _DialogCardState extends ConsumerState<DialogCard> {
             SizedBox(width: tokens.spaceSm),
             FilledButton(
               onPressed: () => _answer(value: _input.text),
-              child: const Text('Send'),
+              child: Text(context.l10n.dialogSend),
             ),
           ],
         );
@@ -189,7 +191,7 @@ class _DialogCardState extends ConsumerState<DialogCard> {
               alignment: Alignment.centerRight,
               child: FilledButton(
                 onPressed: () => _answer(value: _input.text),
-                child: const Text('Save'),
+                child: Text(context.l10n.dialogSave),
               ),
             ),
           ],

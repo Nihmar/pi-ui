@@ -1,0 +1,302 @@
+{
+  "@@locale": "en",
+  "appTitle": "pi-ui",
+  "navSessions": "Sessions",
+  "navFiles": "Files",
+  "navSearch": "Search",
+  "navSettings": "Settings",
+  "retry": "Retry",
+  "reload": "Reload",
+  "cancel": "Cancel",
+  "close": "Close",
+  "save": "Save",
+  "send": "Send",
+  "delete": "Delete",
+  "refresh": "Refresh",
+  "search": "Search",
+  "selectASession": "Select a session",
+  "pickASessionHint": "Pick a session on the left, or start a new one.",
+  "noSessionsTitle": "No sessions yet",
+  "noSessionsMessage": "A session is one pi process in one working directory.",
+  "selectAFile": "Select a file",
+  "pickAFileHint": "Pick a file on the left to read it here.",
+  "noWorkspaceTitle": "No workspace",
+  "noWorkspaceMessage": "This server has no workspace to browse.",
+  "noWorkspaceFlagHint": "The server was started without --root, so it exposes no filesystem at all.",
+  "emptyDirectoryTitle": "Empty directory",
+  "emptyDirectoryMessage": "Nothing in here.",
+  "directoryFailedTitle": "That directory cannot be listed",
+  "fileFailedTitle": "That file cannot be read",
+  "binaryFileTitle": "Binary file",
+  "reloadFromHost": "Reload from the host",
+  "filesTitle": "Files",
+  "searchTitle": "Search",
+  "searchHint": "a word, a path or a message",
+  "searchScopeFiles": "files",
+  "searchScopeMessages": "messages",
+  "searchNow": "Search now",
+  "searchIntroTitle": "Search the host",
+  "searchIntroMessage": "Type at least two characters. Files come from the workspaces, messages from the pi sessions the server was pointed at.",
+  "searchNoMatchTitle": "No match",
+  "searchNoMatchMessage": "Nothing in those scopes matches.",
+  "searchFailedTitle": "The search failed",
+  "settingsTitle": "Settings",
+  "settingsDeviceSection": "This device",
+  "settingsPolicySection": "Server policy",
+  "settingsUpdatesSection": "Updates",
+  "settingsServerLabel": "Server",
+  "settingsDeviceLabel": "Device",
+  "settingsServerVersionLabel": "Server version",
+  "settingsPiVersionLabel": "pi version",
+  "settingsFeaturesLabel": "Features",
+  "settingsCertificateLabel": "Certificate",
+  "settingsConnectionLabel": "Connection",
+  "settingsNotPaired": "not paired",
+  "settingsUnknown": "unknown",
+  "settingsKeystoreNote": "The device token lives in the operating system keystore; the server keeps only its hash.",
+  "settingsNoSettings": "This server has no settings: it was started without a state directory.",
+  "settingsAdminHint": "Changing these needs an admin device; this one is a {scope}.",
+  "@settingsAdminHint": {
+    "placeholders": {
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsChanged": "changed",
+  "settingsResetTooltip": "Back to the default",
+  "settingsReadFailed": "The settings could not be read: {error}",
+  "@settingsReadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesManagedNote": "This deployment manages its own updates: the server runs no script of its own.",
+  "updatesApply": "Run the update",
+  "updatesApplyStarted": "Update started: task {id}. Its output is on the tasks endpoint.",
+  "@updatesApplyStarted": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesApplyStartedNoId": "Update started.",
+  "updatesInstalledLatest": "installed {current} · latest {latest}",
+  "@updatesInstalledLatest": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "latest": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesInstalledUnknown": "installed {current} · not checked ({error})",
+  "@updatesInstalledUnknown": {
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesChecked": "checked {when}",
+  "@updatesChecked": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesAvailable": "update",
+  "updatesReadFailed": "The versions could not be read: {error}",
+  "@updatesReadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionConnecting": "Connecting to the server…",
+  "connectionLost": "Connection lost: retrying…",
+  "connectionIdle": "Not connected.",
+  "connectionRetry": "Retry",
+  "sessionsTitle": "Sessions",
+  "newSession": "New session",
+  "newSessionHint": "pi runs in a host directory; the client never reads provider secrets.",
+  "workingDirectory": "Working directory",
+  "workingDirectoryHint": "/home/user/Projects/my-project",
+  "workingDirectoryRequired": "A working directory is required.",
+  "nameOptional": "Name (optional)",
+  "nameHint": "pi-ui",
+  "create": "Create",
+  "newSessionTooltip": "New session",
+  "stopSession": "Stop session",
+  "stopSessionTitle": "Stop this session?",
+  "stopSessionMessage": "pi in {cwd} is asked to shut down. The conversation stays on disk and the session can be resumed later.",
+  "stopSessionConfirm": "Stop",
+  "sessionsFailedTitle": "Could not load the sessions",
+  "noEventsYet": "no events yet",
+  "messagesCount": "{count} msgs",
+  "queuedCount": "{count} queued",
+  "sessionActions": "Session actions",
+  "rename": "Rename…",
+  "renameTitle": "Rename the session",
+  "clone": "Clone",
+  "export": "Export…",
+  "removeFromList": "Remove from list",
+  "chatNotConnected": "Not connected to the server.",
+  "composerHintIdle": "Message pi… (/ for commands)",
+  "composerHintStreaming": "Steer the run or leave a follow-up",
+  "composerHintOffline": "Reconnecting — the message waits, it is not lost",
+  "composerSend": "Send",
+  "composerSteer": "Steer",
+  "composerFollowUp": "Follow-up",
+  "composerQueue": "Queue",
+  "composerChooseMode": "Choose steer or follow-up",
+  "composerSteeringHint": "Session is streaming",
+  "composerSteerDetail": "delivered after the current tool calls",
+  "composerFollowUpDetail": "delivered when the run settles",
+  "composerCwdHint": "pi runs in the host directory shown above.",
+  "composerConnecting": "Connecting to the server…",
+  "composerReconnecting": "Reconnecting: the message is sent when the link is back",
+  "slashCompact": "Compact the context now",
+  "slashClear": "Start a fresh context",
+  "slashModel": "Switch the model",
+  "slashSkills": "Run a skill",
+  "slashTemplates": "Insert a prompt template",
+  "abort": "Abort",
+  "agentWorking": "The agent is working…",
+  "childExited": "Child exited with code {code} · {when}",
+  "compactContext": "Compact context",
+  "copyWorkingDirectory": "Copy the working directory",
+  "gitMenu": "Git…",
+  "terminalMenu": "Terminal…",
+  "queueWaiting": "{count} messages waiting",
+  "queueWaitingOne": "One message waiting",
+  "queueClear": "Clear",
+  "queueSteer": "steer",
+  "queueFollowUp": "follow-up",
+  "dialogDeny": "Deny",
+  "dialogApprove": "Approve",
+  "dialogSave": "Save",
+  "dialogCancel": "Cancel the dialog",
+  "dialogAnswerHint": "Type an answer",
+  "dialogSend": "Send",
+  "gitTitle": "Git",
+  "gitNothingToCommit": "Nothing to commit: the working tree is clean.",
+  "gitSelectChange": "Select a change to see its diff.",
+  "gitCommitMessage": "Commit message",
+  "gitCommitHint": "what changed",
+  "gitCommit": "Commit",
+  "gitCommitNeedsMessage": "A commit needs a message.",
+  "gitStage": "Stage this path",
+  "gitReadFailed": "The repository could not be read: {error}",
+  "gitDiffFailed": "The diff could not be read: {error}",
+  "gitNoTextualChange": "No textual change to show.",
+  "gitWriteDisabled": "Writing is turned off on this server: an admin has to enable \"git.write\" in the settings.",
+  "actionLater": "\"{action}\" lands in a later slice",
+  "connectTitle": "Connect to a server",
+  "connectIntro": "Point the app at the server that runs your pi sessions.",
+  "serverUrlLabel": "Server URL",
+  "serverUrlHint": "http://pi-ui.local:8787",
+  "serverReachable": "reachable",
+  "serverNotOk": "The server answered, but not with \"ok\".",
+  "testConnection": "Test connection",
+  "continueToPairing": "Continue to pairing",
+  "connectHelp": "The server needs a pairing code or your admin password: run `pi-ui pair` on it to mint one. Provider keys never leave the server.",
+  "pairTitle": "Pair with the server",
+  "pairInvitationNote": "The invitation is single use and expires after ten minutes.",
+  "pairDeviceNameLabel": "Device name",
+  "pairCodeLabel": "Pairing code",
+  "pairCodeHint": "4K9M27",
+  "pairPasswordLabel": "Admin password",
+  "pairSubmit": "Pair",
+  "pairUseCode": "Use a pairing code instead",
+  "pairUsePassword": "Pair with the admin password",
+  "pairAdminNote": "The password branch mints an admin device: it manages devices, settings, MCP and updates.",
+  "pairOperatorNote": "Pairing with a code grants operator: it drives sessions but cannot manage the server.",
+  "pairWrongCodeHint": "The code may be consumed, expired or wrong.",
+  "pairDeviceNameRequired": "Give this device a name.",
+  "pairPasswordRequired": "Type the admin password.",
+  "pairCodeRequired": "Type the pairing code the server printed.",
+  "fingerprintTitle": "Trust this certificate?",
+  "fingerprintLabel": "SHA-256 fingerprint",
+  "fingerprintNote": "Compare it with `pi-ui tls fingerprint` on the server. If it ever changes, this app refuses to connect instead of trusting it again.",
+  "fingerprintTrust": "Trust and continue",
+  "terminalTitle": "Terminal",
+  "terminalNoTerminal": "No terminal",
+  "terminalClear": "Clear the scrollback",
+  "terminalDropped": "The oldest output was dropped.",
+  "terminalReady": "The shell is ready. Type a command.",
+  "terminalHint": "a command, then enter",
+  "terminalSend": "Send",
+  "terminalClosed": "closed",
+  "@stopSessionMessage": {
+    "placeholders": {
+      "cwd": {
+        "type": "String"
+      }
+    }
+  },
+  "@messagesCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@queuedCount": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@childExited": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "@queueWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "@gitReadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@gitDiffFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@actionLater": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
+  "chatEmptyMessage": "Send a prompt to start the conversation.",
+  "chatEmptyTitle": "No messages yet"
+}

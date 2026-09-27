@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/files.dart';
 import '../../core/api/providers.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/router.dart';
 import '../../core/theme/breakpoints.dart';
 import '../../core/theme/theme_tokens.dart';
@@ -50,10 +51,10 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
     final roots = ref.watch(workspacesProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Files'),
+        title: Text(context.l10n.filesTitle),
         actions: [
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: context.l10n.refresh,
             onPressed: () {
               final path = _path;
               if (path != null) {
@@ -74,12 +75,10 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
         ),
         data: (list) {
           if (list.isEmpty) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.folder_off_outlined,
-              title: 'No workspace',
-              message:
-                  'The server was started without --root, so it exposes no '
-                  'filesystem at all.',
+              title: context.l10n.noWorkspaceTitle,
+              message: context.l10n.noWorkspaceFlagHint,
             );
           }
           // The first root is the default; a deep link may name another one.
@@ -100,11 +99,11 @@ class _FileBrowserScreenState extends ConsumerState<FileBrowserScreen> {
                   ),
                 ),
                 const VerticalDivider(width: 1),
-                const Expanded(
+                Expanded(
                   child: EmptyState(
                     icon: Icons.description_outlined,
-                    title: 'Select a file',
-                    message: 'Pick a file on the left to read it here.',
+                    title: context.l10n.selectAFile,
+                    message: context.l10n.pickAFileHint,
                   ),
                 ),
               ],
@@ -155,10 +154,10 @@ class _FileDetailScreenState extends ConsumerState<FileDetailScreen> {
           SizedBox(
             width: 380,
             child: roots.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.folder_off_outlined,
-                    title: 'No workspace',
-                    message: 'The server exposes no filesystem.',
+                    title: context.l10n.noWorkspaceTitle,
+                    message: context.l10n.noWorkspaceMessage,
                   )
                 : _Listing(
                     roots: roots,
@@ -256,15 +255,15 @@ class _Listing extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, _) => EmptyState(
               icon: Icons.error_outline,
-              title: 'That directory cannot be listed',
+              title: context.l10n.directoryFailedTitle,
               message: '$error',
             ),
             data: (entries) {
               if (entries.isEmpty) {
-                return const EmptyState(
+                return EmptyState(
                   icon: Icons.folder_open,
-                  title: 'Empty directory',
-                  message: 'Nothing in here.',
+                  title: context.l10n.emptyDirectoryTitle,
+                  message: context.l10n.emptyDirectoryMessage,
                 );
               }
               return ListView.builder(

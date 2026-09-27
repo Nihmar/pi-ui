@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/errors.dart';
 import '../../core/api/profile.dart';
 import '../../core/api/providers.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/router.dart';
 import '../../core/theme/theme_tokens.dart';
 
@@ -58,7 +59,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
       }
       setState(() {
         _reachable = healthy;
-        _error = healthy ? null : 'The server answered, but not with "ok".';
+        _error = healthy ? null : context.l10n.serverNotOk;
       });
     } on PiuiException catch (error) {
       if (!mounted) {
@@ -84,7 +85,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
     final tokens = context.tokens;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Connect to a server')),
+      appBar: AppBar(title: Text(context.l10n.connectTitle)),
       body: SafeArea(
         child: ListView(
           padding: EdgeInsets.all(tokens.spaceLg),
@@ -114,7 +115,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                   Text('pi-ui', style: theme.textTheme.titleMedium),
                   SizedBox(height: tokens.spaceXs),
                   Text(
-                    'Point the app at the server that runs your pi sessions.',
+                    context.l10n.connectIntro,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall,
                   ),
@@ -129,8 +130,8 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
               autocorrect: false,
               onSubmitted: (_) => _continue(),
               decoration: InputDecoration(
-                labelText: 'Server URL',
-                hintText: 'http://pi-ui.local:8787',
+                labelText: context.l10n.serverUrlLabel,
+                hintText: context.l10n.serverUrlHint,
                 errorText: _error,
                 prefixIcon: const Icon(Icons.dns_outlined),
               ),
@@ -141,7 +142,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                 alignment: Alignment.centerLeft,
                 child: Chip(
                   avatar: Icon(Icons.check, size: 16, color: tokens.success),
-                  label: const Text('reachable'),
+                  label: Text(context.l10n.serverReachable),
                 ),
               ),
             SizedBox(height: tokens.spaceMd),
@@ -154,20 +155,15 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.wifi_tethering),
-              label: const Text('Test connection'),
+              label: Text(context.l10n.testConnection),
             ),
             SizedBox(height: tokens.spaceSm),
             FilledButton(
               onPressed: _continue,
-              child: const Text('Continue to pairing'),
+              child: Text(context.l10n.continueToPairing),
             ),
             SizedBox(height: tokens.spaceLg),
-            Text(
-              'The server needs a pairing code or your admin password: run '
-              '`pi-ui pair` on it to mint one. Provider keys never leave the '
-              'server.',
-              style: theme.textTheme.bodySmall,
-            ),
+            Text(context.l10n.connectHelp, style: theme.textTheme.bodySmall),
           ],
         ),
       ),

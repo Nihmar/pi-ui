@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
+
 import 'package:piui/core/api/models.dart';
 import 'package:piui/core/api/providers.dart';
-import 'package:piui/core/theme/app_theme.dart';
 import 'package:piui/features/chat/widgets/model_picker.dart';
 
 /// Pumps the picker with a fixed model list: the socket is not what this test is about.
@@ -27,8 +29,7 @@ Future<void> pumpPicker(
         }),
       ],
       // The real theme, because the widgets read their colors from its tokens.
-      child: MaterialApp(
-        theme: AppTheme.dark(),
+      child: testApp(
         home: const Scaffold(body: ModelPicker(sessionId: 's_1')),
       ),
     ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/errors.dart';
 import '../../../core/api/providers.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/api/socket.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/breakpoints.dart';
@@ -40,12 +41,14 @@ class _ComposerState extends ConsumerState<Composer> {
 
   /// The pi commands the slash menu offers. They are pi's own commands, not a
   /// client vocabulary: an unknown one is still accepted by `prompt`.
+  /// The commands the slash menu offers, with their keys in the ARB: the list is built in
+  /// `build` because a label depends on the locale.
   static const _commands = [
-    ('/compact', 'Compact the context now'),
-    ('/clear', 'Start a fresh context'),
-    ('/model', 'Switch the model'),
-    ('/skills', 'Run a skill'),
-    ('/templates', 'Insert a prompt template'),
+    '/compact',
+    '/clear',
+    '/model',
+    '/skills',
+    '/templates',
   ];
 
   @override
@@ -111,10 +114,10 @@ class _ComposerState extends ConsumerState<Composer> {
                   maxLines: 6,
                   decoration: InputDecoration(
                     hintText: offline
-                        ? 'Reconnecting — the message waits, it is not lost'
+                        ? context.l10n.composerHintOffline
                         : streaming
-                        ? 'Steer the run or leave a follow-up'
-                        : 'Message pi… (/ for commands)',
+                        ? context.l10n.composerHintStreaming
+                        : context.l10n.composerHintIdle,
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -138,20 +141,23 @@ class _ComposerState extends ConsumerState<Composer> {
                 Flexible(
                   child: Text(
                     status == SocketStatus.connecting
-                        ? 'Connecting to the server…'
-                        : 'Reconnecting: the message is sent when the link is back',
+                        ? context.l10n.composerConnecting
+                        : context.l10n.composerReconnecting,
                     style: theme.textTheme.labelSmall,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ] else if (streaming) ...[
-                Text('Session is streaming', style: theme.textTheme.labelSmall),
+                Text(
+                  context.l10n.composerSteeringHint,
+                  style: theme.textTheme.labelSmall,
+                ),
                 SizedBox(width: tokens.spaceSm),
                 Flexible(
                   child: Text(
                     effectiveMode == ComposerMode.steer
-                        ? 'delivered after the current tool calls'
-                        : 'delivered when the run settles',
+                        ? context.l10n.composerSteerDetail
+                        : context.l10n.composerFollowUpDetail,
                     style: theme.textTheme.labelSmall,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -159,7 +165,7 @@ class _ComposerState extends ConsumerState<Composer> {
               ] else
                 Flexible(
                   child: Text(
-                    'pi runs in the host directory shown above.',
+                    context.l10n.composerCwdHint,
                     style: theme.textTheme.labelSmall,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -172,14 +178,14 @@ class _ComposerState extends ConsumerState<Composer> {
   }
 
   /// The slash suggestions for the current text, empty when not completing.
-  List<(String, String)> _slashMatches() {
+  List<String> _slashMatches() {
     final text = _controller.text;
     if (!text.startsWith('/') || text.contains(' ')) {
       return const [];
     }
     return [
       for (final command in _commands)
-        if (command.$1.startsWith(text)) command,
+        if (command.startsWith(text)) command,
     ];
   }
 
@@ -257,11 +263,13 @@ class _SendButton extends StatelessWidget {
       return FilledButton.icon(
         onPressed: onSend,
         icon: const Icon(Icons.arrow_upward, size: 16),
-        label: const Text('Send'),
+        label: Text(context.l10n.composerSend),
       );
     }
 
-    final label = mode == ComposerMode.steer ? 'Steer' : 'Follow-up';
+    final label = mode == ComposerMode.steer
+        ? context.l10n.composerSteer
+        : context.l10n.composerFollowUp;
     // A phone has no room for the two-button segmented control: the primary
     // button sends with the current mode and the caret switches the mode.
     if (context.isCompact) {
@@ -270,12 +278,12 @@ class _SendButton extends StatelessWidget {
           MenuItemButton(
             onPressed: () => onMode(ComposerMode.steer),
             leadingIcon: const Icon(Icons.bolt, size: 16),
-            child: const Text('Steer'),
+            child: Text(context.l10n.composerSteer),
           ),
           MenuItemButton(
             onPressed: () => onMode(ComposerMode.followUp),
             leadingIcon: const Icon(Icons.subdirectory_arrow_right, size: 16),
-            child: const Text('Follow-up'),
+            child: Text(context.l10n.composerFollowUp),
           ),
         ],
         builder: (context, controller, _) => Row(
@@ -283,7 +291,7 @@ class _SendButton extends StatelessWidget {
           children: [
             FilledButton(onPressed: onSend, child: Text(label)),
             IconButton(
-              tooltip: 'Choose steer or follow-up',
+              tooltip: context.l10n.composerChooseMode,
               visualDensity: VisualDensity.compact,
               onPressed: () =>
                   controller.isOpen ? controller.close() : controller.open(),
@@ -298,11 +306,14 @@ class _SendButton extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SegmentedButton<ComposerMode>(
-          segments: const [
-            ButtonSegment(value: ComposerMode.steer, label: Text('Steer')),
+          segments: [
+            ButtonSegment(
+              value: ComposerMode.steer,
+              label: Text(context.l10n.composerSteer),
+            ),
             ButtonSegment(
               value: ComposerMode.followUp,
-              label: Text('Follow-up'),
+              label: Text(context.l10n.composerFollowUp),
             ),
           ],
           selected: {mode},
@@ -319,17 +330,27 @@ class _SendButton extends StatelessWidget {
         FilledButton.icon(
           onPressed: onSend,
           icon: const Icon(Icons.arrow_upward, size: 16),
-          label: const Text('Queue'),
+          label: Text(context.l10n.composerQueue),
         ),
       ],
     );
   }
 }
 
+/// The sentence of one slash command, translated.
+String _describeCommand(BuildContext context, String command) =>
+    switch (command) {
+      '/compact' => context.l10n.slashCompact,
+      '/clear' => context.l10n.slashClear,
+      '/model' => context.l10n.slashModel,
+      '/skills' => context.l10n.slashSkills,
+      _ => context.l10n.slashTemplates,
+    };
+
 class _SlashMenu extends StatelessWidget {
   const _SlashMenu({required this.matches, required this.onPick});
 
-  final List<(String, String)> matches;
+  final List<String> matches;
   final ValueChanged<String> onPick;
 
   @override
@@ -348,9 +369,9 @@ class _SlashMenu extends StatelessWidget {
             ListTile(
               dense: true,
               leading: const Icon(Icons.terminal, size: 16),
-              title: Text(command.$1),
-              subtitle: Text(command.$2),
-              onTap: () => onPick(command.$1),
+              title: Text(command),
+              subtitle: Text(_describeCommand(context, command)),
+              onTap: () => onPick(command),
             ),
         ],
       ),

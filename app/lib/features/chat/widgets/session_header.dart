@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/errors.dart';
 import '../../../core/api/providers.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/api/session_stats.dart';
 import '../../../core/format.dart';
 import '../../../core/models/session.dart';
@@ -193,20 +194,26 @@ class _SessionMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<String>(
-      tooltip: 'Session actions',
+      tooltip: context.l10n.sessionActions,
       icon: const Icon(Icons.more_vert),
       onSelected: (value) => _onSelected(context, ref, value),
       itemBuilder: (context) => [
         if (session.status.isLive)
-          const PopupMenuItem(value: 'stop', child: Text('Stop session')),
-        const PopupMenuItem(value: 'rename', child: Text('Rename…')),
-        const PopupMenuItem(value: 'git', child: Text('Git…')),
-        const PopupMenuItem(value: 'terminal', child: Text('Terminal…')),
-        const PopupMenuItem(value: 'compact', child: Text('Compact context')),
+          PopupMenuItem(value: 'stop', child: Text(context.l10n.stopSession)),
+        PopupMenuItem(value: 'rename', child: Text(context.l10n.rename)),
+        PopupMenuItem(value: 'git', child: Text(context.l10n.gitMenu)),
+        PopupMenuItem(
+          value: 'terminal',
+          child: Text(context.l10n.terminalMenu),
+        ),
+        PopupMenuItem(
+          value: 'compact',
+          child: Text(context.l10n.compactContext),
+        ),
         const PopupMenuDivider(),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'copy-cwd',
-          child: Text('Copy the working directory'),
+          child: Text(context.l10n.copyWorkingDirectory),
         ),
       ],
     );

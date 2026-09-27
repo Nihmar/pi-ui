@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/format.dart';
 import '../../../core/models/session.dart';
+import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/theme_tokens.dart';
 import '../../../widgets/context_bar.dart';
 import '../../../widgets/info_chip.dart';
@@ -114,19 +115,19 @@ class SessionCard extends StatelessWidget {
                   children: [
                     Text(
                       session.lastEventAt == null
-                          ? 'no events yet'
+                          ? context.l10n.noEventsYet
                           : relativeTime(session.lastEventAt!),
                       style: theme.textTheme.labelSmall,
                     ),
                     const Spacer(),
                     Text(
-                      '${session.messageCount} msgs',
+                      context.l10n.messagesCount('${session.messageCount}'),
                       style: theme.textTheme.labelSmall,
                     ),
                     if (session.pendingMessages > 0) ...[
                       SizedBox(width: tokens.spaceSm),
                       Text(
-                        '${session.pendingMessages} queued',
+                        context.l10n.queuedCount('${session.pendingMessages}'),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: tokens.warning,
                         ),
@@ -145,15 +146,15 @@ class SessionCard extends StatelessWidget {
   Widget _menu(BuildContext context) {
     final items = <PopupMenuEntry<String>>[
       if (session.status.isLive)
-        const PopupMenuItem(value: 'stop', child: Text('Stop session')),
-      const PopupMenuItem(value: 'rename', child: Text('Rename…')),
-      const PopupMenuItem(value: 'clone', child: Text('Clone')),
-      const PopupMenuItem(value: 'export', child: Text('Export…')),
+        PopupMenuItem(value: 'stop', child: Text(context.l10n.stopSession)),
+      PopupMenuItem(value: 'rename', child: Text(context.l10n.rename)),
+      PopupMenuItem(value: 'clone', child: Text(context.l10n.clone)),
+      PopupMenuItem(value: 'export', child: Text(context.l10n.export)),
       const PopupMenuDivider(),
-      const PopupMenuItem(value: 'remove', child: Text('Remove from list')),
+      PopupMenuItem(value: 'remove', child: Text(context.l10n.removeFromList)),
     ];
     return PopupMenuButton<String>(
-      tooltip: 'Session actions',
+      tooltip: context.l10n.sessionActions,
       icon: Icon(Icons.more_vert, size: 18, color: context.tokens.textMuted),
       itemBuilder: (context) => items,
       onSelected: (value) {

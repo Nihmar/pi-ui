@@ -1,0 +1,13 @@
+# The client's own text.
+#
+# English is the source language: the keys are written once, in `lib/l10n/app_en.arb`, and a
+# translation is an ARB next to it. The app follows `ui.language` from the server, so a
+# deployment that says "it" gets an Italian client without a build.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+# Generated into the package (not a synthetic one): the sources are committed-adjacent and
+# the analyzer sees them like any other file.
+synthetic-package: false
+nullable-getter: false

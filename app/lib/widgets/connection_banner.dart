@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api/providers.dart';
+import '../core/l10n/l10n.dart';
 import '../core/api/socket.dart';
 import '../core/theme/theme_tokens.dart';
 
@@ -25,9 +26,9 @@ class ConnectionBanner extends ConsumerWidget {
         ? tokens.textMuted
         : tokens.warning;
     final label = switch (status) {
-      SocketStatus.connecting => 'Connecting to the server…',
-      SocketStatus.reconnecting => 'Connection lost: retrying…',
-      SocketStatus.idle => 'Not connected.',
+      SocketStatus.connecting => context.l10n.connectionConnecting,
+      SocketStatus.reconnecting => context.l10n.connectionLost,
+      SocketStatus.idle => context.l10n.connectionIdle,
       SocketStatus.online => '',
     };
     return Material(
@@ -59,7 +60,7 @@ class ConnectionBanner extends ConsumerWidget {
             ),
             TextButton(
               onPressed: () => ref.read(socketProvider)?.reconnectNow(),
-              child: const Text('Retry'),
+              child: Text(context.l10n.connectionRetry),
             ),
           ],
         ),

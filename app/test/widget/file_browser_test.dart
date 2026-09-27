@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../support/test_app.dart';
+
 import 'package:piui/core/api/files.dart';
 import 'package:piui/core/api/providers.dart';
-import 'package:piui/core/theme/app_theme.dart';
 import 'package:piui/features/files/file_browser_screen.dart';
 import 'package:piui/features/files/file_viewer_screen.dart';
 
@@ -79,10 +81,7 @@ Future<void> pumpScreen(
         directoryProvider.overrideWith((ref, path) async => entriesOf(path)),
         fileContentProvider.overrideWith((ref, path) async => contentOf(path)),
       ],
-      child: MaterialApp(
-        theme: AppTheme.dark(),
-        home: Scaffold(body: screen),
-      ),
+      child: testApp(home: Scaffold(body: screen)),
     ),
   );
   await tester.pumpAndSettle();

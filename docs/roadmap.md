@@ -58,17 +58,25 @@ builds. `v0.1` is usable on a phone over a LAN and on the desktop.
 The `rpc-commands.md` matrix flows through `session.command.raw`: a new pi command needs no
 server change, which is the fidelity rule the plan asks for.
 
-## Phase 6 — App parity 🔶
+## Phase 6 — App parity ✅
 
 Delivered: file browser, git panel, global search, terminal, settings (catalogue-driven
-policy, admin editing, update panel), themes and models, dialogs.
+policy, admin editing, update panel), themes and models, dialogs, and the client's own
+translations: `flutter_localizations` with `lib/l10n/app_en.arb` (the source) and
+`app_it.arb`, generated into `lib/l10n/app_localizations.dart`, selected by the server's
+`ui.language` and falling back to the device for a language this build does not ship.
 
-**Missing: the app's own translations.** `ui.language` is stored and documented, and the
-server sends it, but the client ships English only: there is no `flutter_localizations`
-setup, no ARB files and no `l10n` calls. Doing it means extracting every user-facing string
-from ~15 screens and updating the widget tests that assert them — start with
-`app/pubspec.yaml` (`flutter_localizations`, `generate: true`), then
-`app/lib/core/l10n/` and one screen at a time.
+Strings live in the ARB files, not in widgets: every screen reads `context.l10n`, English is
+kept byte-identical so a sentence is still greppable, and
+`test/unit/l10n_test.dart` checks the choice of locale plus that the Italian file is a
+*translation* rather than a copy.
+
+**The residual is named rather than hidden**: two kinds of text are still English only —
+the sentences the **server** sends (it does not know a client's locale, and its messages are
+part of the API) and the **client-side fallbacks produced outside a widget** (the error
+sentences in `lib/core/api/errors.dart` and the status lines the timeline fold builds, such
+as "Compacting the context…"). Making those translatable means giving the fold and the
+error taxonomy a strings seam; a third locale would make it worth doing.
 
 ## Phase 7 — Security and networks 🔶
 
