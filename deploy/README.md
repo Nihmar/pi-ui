@@ -89,3 +89,23 @@ certificate, which is the one it saw. Allow only the proxy: `--allow-ips 127.0.0
 The state database is the only thing that must be kept: `$PIUI_STATE_DIR/state.db` (devices,
 settings, audit). Conversations are pi's own session JSONL under `~/.pi/agent/sessions`, and
 the workspaces are the host's — the server never owns either.
+
+## Releases
+
+A tag (`v0.1.0`) runs `.github/workflows/release.yml`, which builds and attaches:
+
+| Artifact | What it is |
+|---|---|
+| `pi-ui_<version>_linux_{amd64,arm64}.tar.gz` | the static server binary, with `LICENSE` |
+| `pi-ui_<version>_windows_amd64.tar.gz` | the same for Windows |
+| `piui_<version>_linux_x64.tar.gz` | the Linux client (Flutter release bundle) |
+| `piui_<version>_android.tar.gz` | `piui-unsigned.apk` — signing needs the operator's keystore |
+| `piui_<version>_windows_x64.zip` | the Windows client |
+
+Every archive has a `.sha256` next to it (`sha256sum -c <file>.sha256`).
+
+`packaging/PKGBUILD` builds the server for Arch (`makepkg -si`), and
+`packaging/windows/pi-ui.iss` is the Inno Setup script for a Windows installer
+(`iscc /DAppVersion=<version> /DSourceRoot=<dist> packaging/windows/pi-ui.iss`). Both are
+unsigned: the plan's Phase 8 keeps signing for later, and a self-signed installer only
+teaches users to click through warnings.

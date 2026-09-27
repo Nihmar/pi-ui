@@ -45,6 +45,7 @@ filesystem, git, task or terminal surface at all (a `501`, never a guess).
 | `schemas/` | JSON Schema, the source of truth for every DTO and event |
 | `docs/` | ADRs, protocol documents and the spike report |
 | `deploy/` | The reference deployment: Docker image + Compose, a hardened systemd unit, and the network matrix (LAN/VPN/HTTPS) |
+| `packaging/` | The Arch `PKGBUILD` and the Inno Setup script for Windows |
 
 ## Build and run the server
 

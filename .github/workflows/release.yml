@@ -1,0 +1,177 @@
+name: Release
+
+# A tag is a release: the workflow builds every deliverable the plan names, attaches the
+# checksums and creates the GitHub release. It is deliberately the only workflow that
+# uploads anything, so "where did this artifact come from" has one answer.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to stamp into the binaries (e.g. v0.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  server:
+    name: server (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Build
+        working-directory: server
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+          # The tag is the version; a manual run says what it wants.
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          name="pi-ui_${VERSION}_${GOOS}_${GOARCH}"
+          extension=""
+          if [ "${GOOS}" = "windows" ]; then extension=".exe"; fi
+          go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7}" \
+            -o "../dist/${name}/pi-ui${extension}" ./cmd/pi-ui
+          cp ../LICENSE "../dist/${name}/LICENSE"
+          tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
+          sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.tar.gz*
+
+  app:
+    name: app (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: linux }
+          - { os: ubuntu-latest, target: android }
+          - { os: windows-latest, target: windows }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Install the dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build for Linux
+        if: matrix.target == 'linux'
+        working-directory: app
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev libsecret-1-dev
+          flutter build linux --release
+          name="piui_${GITHUB_REF_NAME}_linux_x64"
+          mkdir -p "../dist/${name}"
+          cp -r build/linux/x64/release/bundle/* "../dist/${name}/"
+          tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
+          sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
+
+      # The APK is unsigned on purpose: signing needs the operator's keystore, and a
+      # release build that is signed with a throw-away key is a worse default than one
+      # that says it is unsigned (deploy/README.md).
+      - name: Build for Android
+        if: matrix.target == 'android'
+        working-directory: app
+        run: |
+          flutter build apk --release
+          name="piui_${GITHUB_REF_NAME}_android"
+          mkdir -p "../dist/${name}"
+          cp build/app/outputs/flutter-apk/app-release.apk "../dist/${name}/piui-unsigned.apk"
+          tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
+          sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
+
+      - name: Build for Windows
+        if: matrix.target == 'windows'
+        working-directory: app
+        run: |
+          flutter build windows --release
+          $name = "piui_$env:GITHUB_REF_NAME" + "_windows_x64"
+          New-Item -ItemType Directory -Force -Path "../dist/$name" | Out-Null
+          Copy-Item -Recurse "build/windows/x64/runner/Release/*" "../dist/$name/"
+          Compress-Archive -Path "../dist/$name" -DestinationPath "../dist/$name.zip"
+          $hash = (Get-FileHash "../dist/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File -Encoding ascii "../dist/$name.zip.sha256"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.zip
+            dist/*.zip.sha256
+
+  release:
+    name: GitHub release
+    needs: [server, app]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish
+        # `gh` is preinstalled on the runner and authenticated by the workflow token, and
+        # it writes the release body from a file so the notes are reviewable in the diff.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then tag="${{ github.event.inputs.version }}"; fi
+          notes="$(mktemp)"
+          {
+            echo "## pi-ui ${tag}"
+            echo
+            echo "Server binaries (linux amd64/arm64, windows amd64) and the client"
+            echo "(Linux bundle, unsigned Android APK, Windows zip)."
+            echo
+            echo "Verify a download with its \`.sha256\` file: \`sha256sum -c <file>.sha256\`."
+            echo
+            echo "The server is a static binary: \`pi-ui serve --root <dir>\` and pair a device"
+            echo "(\`pi-ui pair --url http://<host>:8787\`). See \`deploy/README.md\` for the"
+            echo "network matrix and TLS."
+          } > "${notes}"
+          gh release create "${tag}" --title "pi-ui ${tag}" --notes-file "${notes}" dist/**/* \
+            || gh release upload "${tag}" dist/**/* --clobber

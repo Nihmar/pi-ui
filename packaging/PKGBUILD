@@ -1,0 +1,35 @@
+# Arch Linux package for the pi-ui server (AUR).
+#
+# The server is a static Go binary; `pi` itself is an npm package and belongs to the user
+# who runs the sessions, so it is a runtime dependency of the *host*, not of this package.
+pkgname=pi-ui
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Server companion for the pi coding agent: sessions, files, git, terminals"
+arch=('x86_64' 'aarch64')
+url="https://github.com/Nihmar/pi-ui"
+license=('MIT')
+depends=('ripgrep')
+optdepends=('nodejs>=22.19: pi itself, which every session runs'
+            'git: the git panel and the version control surface')
+makedepends=('go>=1.27')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/Nihmar/pi-ui/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "pi-ui-${pkgver}/server"
+  # The version and the commit are stamped into GET /server and the start-up log line.
+  CGO_ENABLED=0 go build -trimpath \
+    -ldflags "-s -w -X main.version=${pkgver} -X main.commit=packaging" \
+    -o "${pkgname}" ./cmd/pi-ui
+}
+
+package() {
+  cd "pi-ui-${pkgver}"
+  install -Dm0755 "server/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
+  install -Dm0644 bridge/pi-ui-bridge.ts "${pkgdir}/usr/share/pi-ui/pi-ui-bridge.ts"
+  install -Dm0644 docs/api-v1.md "${pkgdir}/usr/share/doc/${pkgname}/api-v1.md"
+  install -Dm0644 docs/security.md "${pkgdir}/usr/share/doc/${pkgname}/security.md"
+  install -Dm0644 deploy/systemd/pi-ui.service "${pkgdir}/usr/lib/systemd/system/pi-ui@.service"
+  install -Dm0644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
