@@ -171,7 +171,6 @@ jobs:
             tag="${GITHUB_REF_NAME}"
           fi
           version="${tag#v}"
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then tag="${{ github.event.inputs.version }}"; fi
           notes="$(mktemp)"
           {
             echo "## pi-ui ${tag}"
