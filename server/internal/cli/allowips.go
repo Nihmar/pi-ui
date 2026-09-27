@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 )
 
 // ipAllowList refuses a request whose peer is not on the list.
@@ -71,12 +73,25 @@ func (l *ipAllowList) allows(remoteAddr string) bool {
 
 // middleware wraps one handler, answering 403 to a peer outside the list. The refusal is
 // the taxonomy's forbidden_scope: the request was understood and refused by policy.
-func (l *ipAllowList) middleware(next http.Handler) http.Handler {
+//
+// A refusal is recorded: it is the one denial that happens before a credential exists, so
+// without this entry the trail would show a gap exactly where somebody was probing the
+// server from the wrong network.
+func (l *ipAllowList) middleware(next http.Handler, recorder audit.Recorder) http.Handler {
 	if l == nil || (len(l.nets) == 0 && len(l.ips) == 0) {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !l.allows(r.RemoteAddr) {
+			if recorder != nil {
+				recorder.Record(audit.Event{
+					Action:     audit.ActionAuthDenied,
+					Outcome:    audit.OutcomeDenied,
+					RemoteAddr: peerHost(r.RemoteAddr),
+					Target:     r.URL.Path,
+					Details:    map[string]any{"reason": "allow_ips", "method": r.Method},
+				})
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte(`{"error":{"code":"forbidden_scope","message":"this peer address is not allowed"}}`))
@@ -84,6 +99,15 @@ func (l *ipAllowList) middleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// peerHost strips the port from a peer address, for the trail.
+func peerHost(remoteAddr string) string {
+	host, _, found := strings.Cut(remoteAddr, ":")
+	if !found {
+		return remoteAddr
+	}
+	return host
 }
 
 // errNoPeers is what the flag parser reports for a list that parsed to nothing usable.

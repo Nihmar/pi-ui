@@ -268,7 +268,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	router := allowList.middleware(api.NewRouter(options))
+	router := allowList.middleware(api.NewRouter(options), auditLog)
 
 	listener, err := net.Listen("tcp", cfg.addr)
 	if err != nil {

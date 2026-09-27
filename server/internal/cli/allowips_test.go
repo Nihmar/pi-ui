@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Nihmar/pi-ui/server/internal/audit"
 )
 
 // serve records that a request reached the handler.
@@ -57,7 +59,7 @@ func TestTheMiddlewareAnswersForbiddenWithoutReachingTheHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 	reached := false
-	handler := list.middleware(allowListHandler(&reached))
+	handler := list.middleware(allowListHandler(&reached), nil)
 
 	allowed := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
 	allowed.RemoteAddr = "127.0.0.1:4444"
@@ -88,10 +90,54 @@ func TestNoAllowListMeansNoWrapping(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if list.middleware(allowListHandler(new(bool))) == nil {
+	if list.middleware(allowListHandler(new(bool)), nil) == nil {
 		t.Fatal("the middleware always returns a handler")
 	}
 	if errNoPeers == nil {
 		t.Fatal("the sentinel exists for a caller that wants to branch on it")
+	}
+}
+
+// recordingTrail collects the audit events a test is interested in.
+type recordingTrail struct {
+	events []audit.Event
+}
+
+// Record implements audit.Recorder.
+func (t *recordingTrail) Record(event audit.Event) { t.events = append(t.events, event) }
+
+func TestARefusedPeerIsRecorded(t *testing.T) {
+	list, err := newIPAllowList([]string{"192.0.2.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	trail := &recordingTrail{}
+	handler := list.middleware(allowListHandler(new(bool)), trail)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/server", nil)
+	request.RemoteAddr = "198.51.100.9:4444"
+	handler.ServeHTTP(httptest.NewRecorder(), request)
+
+	if len(trail.events) != 1 {
+		t.Fatalf("events = %+v", trail.events)
+	}
+	event := trail.events[0]
+	if event.Action != audit.ActionAuthDenied || event.Outcome != audit.OutcomeDenied {
+		t.Fatalf("event = %+v", event)
+	}
+	if event.RemoteAddr != "198.51.100.9" || event.Target != "/api/v1/server" {
+		t.Fatalf("event = %+v", event)
+	}
+	if event.Details["reason"] != "allow_ips" {
+		t.Fatalf("details = %+v", event.Details)
+	}
+
+	// An allowed peer leaves no trace: the trail is for refusals, not for traffic.
+	trail.events = nil
+	allowed := httptest.NewRequest(http.MethodGet, "/api/v1/server", nil)
+	allowed.RemoteAddr = "192.0.2.1:4444"
+	handler.ServeHTTP(httptest.NewRecorder(), allowed)
+	if len(trail.events) != 0 {
+		t.Fatalf("an allowed request was recorded: %+v", trail.events)
 	}
 }
