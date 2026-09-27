@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -82,6 +84,18 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       });
       return;
     }
+    // A program that asks a question gets its answer written back to the shell, which is the
+    // only channel this client has into the PTY.
+    _screen.onResponse = (reply) {
+      final id = _terminalId;
+      if (id != null && !_closed) {
+        unawaited(
+          socket
+              .inputTerminal(id, utf8.encode(reply))
+              .catchError((Object _) {}),
+        );
+      }
+    };
     _subscription = socket.terminals.listen(_onFrame);
     try {
       final size = _paneSize();
@@ -149,6 +163,39 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         _scroll.jumpTo(_scroll.position.maxScrollExtent);
       }
     });
+  }
+
+  /// Sends one mouse report, when a program asked for them.
+  void _onMouse(MouseEventPointer pointer) {
+    final socket = _socket;
+    final id = _terminalId;
+    if (socket == null || id == null || _closed) {
+      return;
+    }
+    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+    final report = _screen.encodeMouse(
+      MouseEvent(
+        row: pointer.row,
+        column: pointer.column,
+        button: pointer.button,
+        action: pointer.action,
+        shift:
+            keys.contains(LogicalKeyboardKey.shiftLeft) ||
+            keys.contains(LogicalKeyboardKey.shiftRight),
+        alt:
+            keys.contains(LogicalKeyboardKey.altLeft) ||
+            keys.contains(LogicalKeyboardKey.altRight),
+        ctrl:
+            keys.contains(LogicalKeyboardKey.controlLeft) ||
+            keys.contains(LogicalKeyboardKey.controlRight),
+      ),
+    );
+    if (report == null) {
+      return;
+    }
+    unawaited(
+      socket.inputTerminal(id, utf8.encode(report)).catchError((Object _) {}),
+    );
   }
 
   Future<void> _send(String text) async {
@@ -240,6 +287,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                         child: TerminalView(
                           screen: _screen,
                           fontSize: _fontSize,
+                          onMouse: _onMouse,
                         ),
                       );
                     },

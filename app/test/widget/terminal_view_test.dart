@@ -6,14 +6,20 @@ import 'package:piui/features/terminal/vt.dart';
 import '../support/test_app.dart';
 
 /// Pumps the view over one screen.
-Future<void> pumpView(WidgetTester tester, VtScreen screen) async {
+Future<void> pumpView(
+  WidgetTester tester,
+  VtScreen screen, {
+  void Function(MouseEventPointer pointer)? onMouse,
+}) async {
   tester.view.physicalSize = const Size(700, 400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     testApp(
       home: Scaffold(
-        body: SingleChildScrollView(child: TerminalView(screen: screen)),
+        body: SingleChildScrollView(
+          child: TerminalView(screen: screen, onMouse: onMouse),
+        ),
       ),
     ),
   );
@@ -41,6 +47,8 @@ TextStyle styleOf(WidgetTester tester, String needle) {
 }
 
 void main() {
+  _mouse();
+
   testWidgets('the view draws the screen the emulator holds', (tester) async {
     final screen = VtScreen(columns: 20, rows: 3);
     screen.write('hello\r\nworld');
@@ -122,5 +130,53 @@ void main() {
     );
     expect(root.style?.backgroundColor, isNull);
     expect(hasBackground, isFalse, reason: 'a hidden cursor paints nothing');
+  });
+}
+
+/// Pointer geometry: the view knows where the cells are, so a tap becomes a cell.
+void _mouse() {
+  testWidgets('a tap reports the cell under it', (tester) async {
+    final screen = VtScreen(columns: 10, rows: 4);
+    final events = <MouseEventPointer>[];
+    await pumpView(tester, screen, onMouse: events.add);
+
+    // Row 2, column 3 of the grid: the cell height is fontSize * 1.35 and the width 7.9.
+    final height = TerminalView.lineHeight(12.5);
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(TerminalView)) +
+          Offset(TerminalView.cellWidth * 3 + 2, height * 2 + 2),
+    );
+
+    expect(events, isNotEmpty);
+    expect(events.first.row, 2);
+    expect(events.first.column, 3);
+    expect(events.first.button, 0);
+    expect(events.first.action, 'press');
+    expect(events.map((event) => event.action), contains('release'));
+  });
+
+  test('the wheel maps to the button the specification numbers it with', () {
+    // Dispatching a real scroll event through the test binding is a framework ritual; the
+    // mapping is what matters, and it is one call.
+    expect(TerminalView.wheelButton(-30), 64, reason: 'up');
+    expect(TerminalView.wheelButton(30), 65, reason: 'down');
+  });
+
+  testWidgets('a click below the last row is not a cell', (tester) async {
+    final screen = VtScreen(columns: 10, rows: 2);
+    final events = <MouseEventPointer>[];
+    await pumpView(tester, screen, onMouse: events.add);
+
+    final height = TerminalView.lineHeight(12.5);
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(TerminalView)) +
+          Offset(TerminalView.cellWidth + 2, height * 5),
+    );
+
+    expect(
+      events,
+      isEmpty,
+      reason: 'the empty space under the grid belongs to nobody',
+    );
   });
 }

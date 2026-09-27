@@ -117,8 +117,10 @@ The natural next steps, in the order they pay off:
 
 1. **App translations** (Phase 6's gap) — the only user-visible hole.
 2. ~~A VT emulator for the terminal~~ — delivered (`app/lib/features/terminal/vt.dart`, drawn by
-   `terminal_view.dart`). What is left of it is the long tail: DEC special graphics, mouse
-   reporting and the rarer line-drawing modes.
+   `terminal_view.dart`): the grid, the cursor, the scrollback, SGR and the palette, the
+   alternate screen, DEC special graphics, origin and auto-wrap modes, tab stops, the cursor
+   position report and mouse tracking in both encodings. What is left is genuinely niche
+   (DEC double-width lines, the sixel and ReGIS graphics extensions, printer passthrough).
 3. ~~The MCP client's remote transport~~ — delivered (`bridge/mcp_http.ts`): a `url` entry is
    spoken to over Streamable HTTP, with the session id kept and answers read from JSON or
    from an event stream. What it does not consume is what a server *pushes* (sampling,

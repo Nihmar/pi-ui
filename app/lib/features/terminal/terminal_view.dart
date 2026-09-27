@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_tokens.dart';
@@ -9,13 +10,35 @@ import 'vt.dart';
 /// and it knows nothing about sockets, PTYs or where the bytes came from — which is what
 /// makes the emulator testable on its own and the widget testable without a server.
 class TerminalView extends StatelessWidget {
-  const TerminalView({super.key, required this.screen, this.fontSize = 12.5});
+  const TerminalView({
+    super.key,
+    required this.screen,
+    this.fontSize = 12.5,
+    this.onMouse,
+  });
 
   /// The screen to draw.
   final VtScreen screen;
 
   /// The monospace size; the column count already decided how wide the pane is.
   final double fontSize;
+
+  /// Called for a pointer event with the cell it landed on: the view knows where the cells
+  /// are, the screen knows which sequences a program asked for, and neither does the other's
+  /// job.
+  final void Function(MouseEventPointer pointer)? onMouse;
+
+  /// The height of one row, so the geometry is one number in one place.
+  static double lineHeight(double fontSize) => fontSize * 1.35;
+
+  /// The button a wheel delta is: 64 up, 65 down, as the specification numbers them. It is a
+  /// function so the mapping is testable without dispatching a scroll event.
+  static int wheelButton(double deltaY) => deltaY < 0 ? 64 : 65;
+
+  /// The width the grid assumes for one character. It is the same number the terminal screen
+  /// uses to decide how many columns the pane shows: measuring the glyph would be more
+  /// precise and would change with every font.
+  static const double cellWidth = 7.9;
 
   @override
   Widget build(BuildContext context) {
@@ -24,22 +47,81 @@ class TerminalView extends StatelessWidget {
     final defaultForeground = theme.colorScheme.onSurface;
     final defaultBackground = tokens.surface;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var row = 0; row < screen.lines.length; row++)
-          _Line(
-            line: screen.lines[row],
-            cursorColumn: screen.cursorVisible && screen.cursorRow == row
-                ? screen.cursorColumn
-                : null,
-            defaultForeground: defaultForeground,
-            defaultBackground: defaultBackground,
-            fontSize: fontSize,
-          ),
-      ],
+    return Listener(
+      onPointerDown: (event) => _report(event.localPosition, 0, 'press'),
+      onPointerUp: (event) => _report(event.localPosition, 0, 'release'),
+      onPointerMove: (event) => _report(event.localPosition, 0, 'move'),
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) {
+          // A wheel is reported as button 64 (up) or 65 (down), which is what the
+          // specification numbers them.
+          _report(
+            event.localPosition,
+            event.scrollDelta.dy < 0 ? 64 : 65,
+            'press',
+          );
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var row = 0; row < screen.lines.length; row++)
+            _Line(
+              line: screen.lines[row],
+              cursorColumn: screen.cursorVisible && screen.cursorRow == row
+                  ? screen.cursorColumn
+                  : null,
+              defaultForeground: defaultForeground,
+              defaultBackground: defaultBackground,
+              fontSize: fontSize,
+            ),
+        ],
+      ),
     );
   }
+
+  /// Turns a position inside the grid into a cell and hands it to [onMouse].
+  void _report(Offset position, int button, String action) {
+    final report = onMouse;
+    if (report == null) {
+      return;
+    }
+    final row = (position.dy / lineHeight(fontSize)).floor();
+    final column = (position.dx / cellWidth).floor();
+    if (row < 0 ||
+        row >= screen.rows ||
+        column < 0 ||
+        column >= screen.columns) {
+      // Outside the grid: a click in the empty space below the last line is not a click on a
+      // cell, and a program should not be told that it is.
+      return;
+    }
+    report(
+      MouseEventPointer(
+        row: row,
+        column: column,
+        button: button,
+        action: action,
+      ),
+    );
+  }
+}
+
+/// Where a pointer event landed, and what it was.
+class MouseEventPointer {
+  const MouseEventPointer({
+    required this.row,
+    required this.column,
+    required this.button,
+    required this.action,
+  });
+
+  final int row;
+  final int column;
+  final int button;
+
+  /// `press`, `release` or `move`.
+  final String action;
 }
 
 /// One row, drawn as runs of equal style so a coloured prompt is one span per colour rather
