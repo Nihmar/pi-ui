@@ -14,6 +14,7 @@ import 'frames.dart';
 import 'files.dart';
 import 'git.dart';
 import 'models.dart';
+import 'search.dart';
 import 'profile.dart';
 import 'session_actions.dart';
 import 'session_stream.dart';
@@ -382,6 +383,62 @@ final streamingProvider = Provider.family<bool, String>(
   (ref, sessionId) =>
       ref.watch(chatStateProvider(sessionId)).value?.streaming ?? false,
 );
+
+/// The search a screen is asking for: the query and the halves.
+///
+/// A provider rather than widget state, because the results belong to the query: a screen
+/// that rebuilds does not resend the search, and a widget test can set the query without
+/// typing.
+final searchRequestProvider =
+    NotifierProvider<SearchRequestController, SearchRequest>(
+      SearchRequestController.new,
+    );
+
+/// Holds what the search screen is asking for.
+class SearchRequestController extends Notifier<SearchRequest> {
+  @override
+  SearchRequest build() =>
+      (query: '', scope: const ['files', 'messages'], cwd: null);
+
+  /// Sets the text; the screen debounces before calling this.
+  void setQuery(String query) =>
+      state = (query: query, scope: state.scope, cwd: state.cwd);
+
+  /// Adds or removes one half of the search.
+  void toggleScope(String scope) {
+    final next = [...state.scope];
+    next.contains(scope) ? next.remove(scope) : next.add(scope);
+    state = (
+      query: state.query,
+      // Both halves off is the same as both on: a search that looks nowhere is a
+      // mistake, not a choice.
+      scope: next.isEmpty ? const ['files', 'messages'] : next,
+      cwd: state.cwd,
+    );
+  }
+
+  /// Bounds the file half to one workspace directory.
+  void setDirectory(String? cwd) =>
+      state = (query: state.query, scope: state.scope, cwd: cwd);
+}
+
+/// The results of the current search.
+///
+/// A query shorter than two characters is not sent: the server refuses it, and a results
+/// list that flashes an error while somebody types their second letter is worse than one
+/// that waits.
+final searchResultsProvider = FutureProvider<List<SearchHit>>((ref) async {
+  final request = ref.watch(searchRequestProvider);
+  final query = request.query.trim();
+  if (query.length < 2) {
+    return const <SearchHit>[];
+  }
+  final client = ref.watch(clientProvider);
+  if (client == null) {
+    return const <SearchHit>[];
+  }
+  return client.search(query, scope: request.scope, cwd: request.cwd);
+});
 
 /// The workspaces this device may browse.
 ///

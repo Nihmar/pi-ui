@@ -5,6 +5,7 @@ import 'dto.dart';
 import 'errors.dart';
 import 'files.dart';
 import 'git.dart';
+import 'search.dart';
 import 'http.dart';
 import 'json.dart';
 import 'profile.dart';
@@ -189,6 +190,27 @@ class PiUiClient {
       data: {'dir': dir, 'message': message},
     );
     return decoded(response, GitCommit.fromJson);
+  });
+
+  /// GET /search — ripgrep over the workspaces and a scan of pi's sessions.
+  Future<List<SearchHit>> search(
+    String query, {
+    List<String> scope = const [],
+    String? cwd,
+    int limit = 50,
+    bool caseSensitive = false,
+  }) => guarded(() async {
+    final response = await _dio.get<dynamic>(
+      '/search',
+      queryParameters: {
+        'q': query,
+        if (scope.isNotEmpty) 'scope': scope.join(','),
+        'cwd': ?cwd,
+        'limit': '$limit',
+        if (caseSensitive) 'case': 'sensitive',
+      },
+    );
+    return decoded(response, SearchHit.listFrom);
   });
 
   /// GET /settings — the server's own policy, as the effective values.
