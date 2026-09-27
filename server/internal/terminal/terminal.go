@@ -219,9 +219,17 @@ func (m *Manager) Open(ctx context.Context, dir string, cols, rows uint16) (*Ses
 	m.sessions[sessionID] = session
 	m.mu.Unlock()
 
-	// The pump owns the reads and the reaping: one goroutine per terminal, gone when
-	// the PTY is.
-	go session.pump()
+	// The pump owns the reads and the reaping: one goroutine per terminal, gone when the
+	// PTY is.
+	//
+	// Without a sink there is nothing to forward, and a pump would be a second reader —
+	// stealing the bytes a plain `CopyTo` client is waiting for. The session then only
+	// reaps, which is what ends the stream for whoever reads it.
+	if sink == nil {
+		go session.reap()
+	} else {
+		go session.pump()
+	}
 	return session, nil
 }
 
