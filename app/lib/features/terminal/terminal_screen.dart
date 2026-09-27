@@ -8,15 +8,18 @@ import '../../core/api/errors.dart';
 import '../../core/api/frames.dart';
 import '../../core/api/providers.dart';
 import '../../core/api/socket.dart';
+import '../../core/l10n/l10n.dart';
 import '../../core/theme/theme_tokens.dart';
 import '../../widgets/empty_state.dart';
-import 'terminal_buffer.dart';
+import 'terminal_view.dart';
+import 'utf8_stream.dart';
+import 'vt.dart';
 
-/// One PTY, as a screen: the shell's output, and a line to type into it.
+/// One PTY, as a screen: the shell's output, painted by the emulator, and a line to type
+/// into it.
 ///
-/// It is deliberately not a full terminal emulator: it renders the byte stream in
-/// monospace and sends what the user types, which is what a phone or a desktop window
-/// needs for a build, a `git log` or a REPL. A VT parser is its own project.
+/// The emulator (see `vt.dart`) is what makes this a terminal rather than a log: a REPL, a
+/// progress bar or `top` moves the cursor and repaints, and the grid follows.
 class TerminalScreen extends ConsumerStatefulWidget {
   const TerminalScreen({super.key, required this.directory});
 
@@ -28,24 +31,30 @@ class TerminalScreen extends ConsumerStatefulWidget {
 }
 
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
-  final _buffer = TerminalBuffer();
+  /// The screen the shell paints, and the decoder that feeds it: the emulator owns the
+  /// scrollback and the cursor, the stream keeps a split character whole.
+  final _screen = VtScreen();
+  final _bytes = Utf8Stream();
   final _input = TextEditingController();
   final _scroll = ScrollController();
 
   StreamSubscription<WsFrame>? _subscription;
-  // The socket is kept in a field and not read from the container: `dispose` runs after
-  // the widget is unmounted, and reading a provider there is what Riverpod forbids.
+
+  // The socket is kept in a field and not read from the container: `dispose` runs after the
+  // widget is unmounted, and reading a provider there is what Riverpod forbids.
   PiUiSocket? _socket;
   String? _terminalId;
   String? _error;
   var _opening = true;
   var _closed = false;
 
+  /// Roughly the width of one monospace cell at the size the view draws.
+  static const _cellWidth = 7.9;
+  static const _fontSize = 12.5;
+
   @override
   void initState() {
     super.initState();
-    // The socket first, then the terminal: opening is a request, and its answer carries
-    // the id every later frame needs.
     WidgetsBinding.instance.addPostFrameCallback((_) => _open());
   }
 
@@ -55,8 +64,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     final socket = _socket;
     final id = _terminalId;
     if (socket != null && id != null && !_closed) {
-      // Closing is best effort: the server also closes a terminal whose connection is
-      // gone, so a failed close is not something the user has to read.
+      // Closing is best effort: the server also closes a terminal whose connection is gone.
       unawaited(socket.closeTerminal(id).catchError((Object _) {}));
     }
     _input.dispose();
@@ -70,16 +78,18 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     if (socket == null) {
       setState(() {
         _opening = false;
-        _error = 'Not connected to the server.';
+        _error = context.l10n.chatNotConnected;
       });
       return;
     }
     _subscription = socket.terminals.listen(_onFrame);
     try {
+      final size = _paneSize();
+      _screen.resize(size.columns, size.rows);
       final answer = await socket.openTerminal(
         dir: widget.directory,
-        cols: _columns(),
-        rows: 32,
+        cols: size.columns,
+        rows: size.rows,
       );
       final id = answer?['terminalId'];
       if (!mounted) {
@@ -102,23 +112,28 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     }
   }
 
-  /// The width in columns the pane can show, so the shell wraps where the user sees it.
-  int _columns() {
-    final width = MediaQuery.sizeOf(context).width;
-    return (width / 8.5).floor().clamp(20, 240);
+  /// The grid the pane can show, from its size: a shell told the wrong size wraps in the
+  /// wrong place.
+  ({int columns, int rows}) _paneSize() {
+    final size = MediaQuery.sizeOf(context);
+    return (
+      columns: (size.width / _cellWidth).floor().clamp(20, 240),
+      rows: ((size.height - 160) / (_fontSize * 1.35)).floor().clamp(5, 200),
+    );
   }
 
   void _onFrame(WsFrame frame) {
     switch (frame) {
       case WsTerminalOutput(:final terminalId, :final bytes)
           when terminalId == _terminalId:
-        setState(() => _buffer.append(bytes));
+        final text = _bytes.push(bytes);
+        setState(() => _screen.write(text));
         _follow();
       case WsTerminalClosed(:final terminalId, :final exitCode, :final reason)
           when terminalId == _terminalId:
         setState(() {
           _closed = true;
-          _buffer.append(utf8.encode('\n[closed: $reason, exit $exitCode]\n'));
+          _screen.write('\r\n[closed: $reason, exit $exitCode]\r\n');
         });
         _follow();
       default:
@@ -126,8 +141,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     }
   }
 
-  /// Keeps the newest output in view: a terminal that scrolls away from what just
-  /// happened is unreadable.
+  /// Keeps the newest output in view: a terminal that scrolls away from what just happened
+  /// is unreadable.
   void _follow() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
@@ -158,12 +173,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     final theme = Theme.of(context);
     if (_error != null && _terminalId == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Terminal')),
+        appBar: AppBar(title: Text(context.l10n.terminalTitle)),
         body: EmptyState(
           icon: Icons.terminal,
-          title: 'No terminal',
-          // The directory is still worth saying: it is where the shell would have run,
-          // and a user who asked for a terminal there wants to know.
+          title: context.l10n.terminalNoTerminal,
+          // The directory is still worth saying: it is where the shell would have run.
           message: '${_error!}\n\n${widget.directory}',
         ),
       );
@@ -180,47 +194,59 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             Padding(
               padding: EdgeInsets.symmetric(horizontal: tokens.spaceSm),
               child: Center(
-                child: Text('closed', style: theme.textTheme.labelSmall),
+                child: Text(
+                  context.l10n.terminalClosed,
+                  style: theme.textTheme.labelSmall,
+                ),
               ),
             ),
           IconButton(
-            tooltip: 'Clear the scrollback',
-            onPressed: () => setState(_buffer.clear),
+            tooltip: context.l10n.terminalClear,
+            // Clearing is a scrollback reset and nothing else: the shell keeps its state.
+            onPressed: () =>
+                setState(() => _screen.write('\u001b[3J\u001b[2J\u001b[H')),
             icon: const Icon(Icons.cleaning_services_outlined),
           ),
         ],
       ),
       body: Column(
         children: [
-          if (_buffer.isTruncated)
-            Padding(
-              padding: EdgeInsets.all(tokens.spaceXs),
-              child: Text(
-                'The oldest output was dropped.',
-                style: theme.textTheme.labelSmall,
-              ),
-            ),
           Expanded(
             child: _opening
                 ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                    controller: _scroll,
-                    padding: EdgeInsets.all(tokens.spaceMd),
-                    child: SelectableText(
-                      _buffer.text.isEmpty
-                          ? 'The shell is ready. Type a command.'
-                          : _buffer.text,
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 12.5,
-                        height: 1.35,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = (constraints.maxWidth / _cellWidth)
+                          .floor()
+                          .clamp(20, 240);
+                      final rows = (constraints.maxHeight / (_fontSize * 1.35))
+                          .floor()
+                          .clamp(5, 200);
+                      if (columns != _screen.columns || rows != _screen.rows) {
+                        _screen.resize(columns, rows);
+                        final id = _terminalId;
+                        if (id != null && !_closed) {
+                          unawaited(
+                            _socket
+                                    ?.resizeTerminal(id, columns, rows)
+                                    .catchError((Object _) {}) ??
+                                Future<void>.value(),
+                          );
+                        }
+                      }
+                      return SingleChildScrollView(
+                        controller: _scroll,
+                        padding: EdgeInsets.all(tokens.spaceMd),
+                        child: TerminalView(
+                          screen: _screen,
+                          fontSize: _fontSize,
+                        ),
+                      );
+                    },
                   ),
           ),
-          // A line, not a keystroke stream: sending a command is what this screen is for,
-          // and it is what an on-screen keyboard can do.
+          // A line, not a keystroke stream: sending a command is what this screen is for, and
+          // it is what an on-screen keyboard can do.
           Container(
             decoration: BoxDecoration(
               color: tokens.surface,
@@ -241,15 +267,15 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     controller: _input,
                     enabled: !_closed && _terminalId != null,
                     style: const TextStyle(fontFamily: 'monospace'),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'a command, then enter',
+                      hintText: context.l10n.terminalHint,
                     ),
                     onSubmitted: _send,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Send',
+                  tooltip: context.l10n.terminalSend,
                   onPressed: _closed ? null : () => _send(_input.text),
                   icon: const Icon(Icons.keyboard_return, size: 18),
                 ),

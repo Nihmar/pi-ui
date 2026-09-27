@@ -114,8 +114,9 @@ is unsigned; both say so in their names).
 The natural next steps, in the order they pay off:
 
 1. **App translations** (Phase 6's gap) — the only user-visible hole.
-2. **A VT emulator for the terminal** — today it renders the byte stream; a REPL that redraws
-   a line (progress bars, `top`) needs a parser.
+2. ~~A VT emulator for the terminal~~ — delivered (`app/lib/features/terminal/vt.dart`, drawn by
+   `terminal_view.dart`). What is left of it is the long tail: DEC special graphics, mouse
+   reporting and the rarer line-drawing modes.
 3. **The MCP client's remote transport** — `url` entries are validated, reported as
    unsupported and skipped; stdio works.
 4. **Server-in-container** (Phase 7's gap) and its network mode.
