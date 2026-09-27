@@ -114,8 +114,8 @@ jobs:
           # the path this job happened to build in.
           (cd ../dist && sha256sum "${name}.tar.gz" > "${name}.tar.gz.sha256")
           # The AppImage: one file that runs on a distribution which has no GTK or libsecret
-          # of its own.
-          bash packaging/linux/appimage.sh \
+          # of its own. The job runs from app/, so the script is two directories up.
+          bash ../packaging/linux/appimage.sh \
             build/linux/x64/release/bundle ../dist "${RELEASE_TAG#v}"
 
       # The APK carries the template's debug signature: a release key needs the operator's
