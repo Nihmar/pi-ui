@@ -111,6 +111,20 @@ type ServerInfo struct {
 	Protocol  int            `json:"protocol"`
 	Features  []string       `json:"features"`
 	Limits    map[string]any `json:"limits"`
+	// TLS describes the certificate in use, when the deployment terminates TLS. It is what
+	// a client pins: the fingerprint is the only part of a self-signed certificate a user
+	// can actually verify.
+	TLS *TLSInfo `json:"tls,omitempty"`
+}
+
+// TLSInfo is the certificate a client should pin.
+type TLSInfo struct {
+	// FingerprintSHA256 is the lowercase hex digest of the leaf.
+	FingerprintSHA256 string `json:"fingerprintSha256"`
+	// NotAfter is when it expires, RFC3339 UTC.
+	NotAfter string `json:"notAfter,omitempty"`
+	// Subject is for display only.
+	Subject string `json:"subject,omitempty"`
 }
 
 // NewRouter returns the handler that serves /api/v1 and, when a hub is wired, /ws/v1. It is

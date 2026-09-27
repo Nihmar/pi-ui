@@ -283,13 +283,25 @@ func serverIdentity(info ServerInfo) gen.SrvServerIdentity {
 	if limits == nil {
 		limits = gen.SrvServerIdentityLimits{}
 	}
-	return gen.SrvServerIdentity{
+	identity := gen.SrvServerIdentity{
 		Version:   info.Version,
 		PiVersion: info.PiVersion,
 		Protocol:  gen.SrvProtocolVersion(Protocol),
 		Features:  features,
 		Limits:    limits,
 	}
+	if info.TLS != nil && info.TLS.FingerprintSHA256 != "" {
+		// A pairing client gets the fingerprint here, so it can confirm the certificate
+		// before it starts trusting it (the mockup's screen 4).
+		notAfter := gen.SrvTimestamp(info.TLS.NotAfter)
+		subject := info.TLS.Subject
+		identity.Tls = &gen.SrvTlsInfo{
+			FingerprintSha256: info.TLS.FingerprintSHA256,
+			NotAfter:          &notAfter,
+			Subject:           &subject,
+		}
+	}
+	return identity
 }
 
 // wireTime formats a timestamp the way every DTO expects it.

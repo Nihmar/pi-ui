@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"github.com/Nihmar/pi-ui/server/internal/settings"
 	"github.com/Nihmar/pi-ui/server/internal/tasks"
 	"github.com/Nihmar/pi-ui/server/internal/terminal"
+	pitui "github.com/Nihmar/pi-ui/server/internal/tls"
 	"github.com/Nihmar/pi-ui/server/internal/updates"
 	"github.com/Nihmar/pi-ui/server/internal/ws"
 )
@@ -109,6 +111,28 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 
 	// One hub, one supervisor, one router: the supervisor is wired into the hub as command
 	// handler, dialog handler and replay source, which is the whole cross-package seam.
+	// TLS: when the operator gave a certificate the server terminates it itself, and every
+	// client is told which certificate to pin.
+	var tlsCertificate *tls.Certificate
+	var tlsInfo *api.TLSInfo
+	switch {
+	case cfg.tlsCert != "" && cfg.tlsKey != "":
+		certificate, info, err := pitui.Load(cfg.tlsCert, cfg.tlsKey)
+		if err != nil {
+			return err
+		}
+		tlsCertificate = &certificate
+		tlsInfo = &api.TLSInfo{
+			FingerprintSHA256: info.FingerprintSHA256,
+			NotAfter:          info.NotAfter.Format("2006-01-02T15:04:05.000Z07:00"),
+			Subject:           info.Subject,
+		}
+		logger.Info("pi-ui: terminating TLS", "subject", info.Subject,
+			"fingerprint", info.FingerprintSHA256, "notAfter", info.NotAfter.Format(time.RFC3339))
+	case cfg.tlsCert != "" || cfg.tlsKey != "":
+		return Usagef("--tls-cert and --tls-key go together")
+	}
+
 	hub := ws.New(ws.Options{
 		Authorizer:    restToWS{auth: authenticator},
 		Audit:         auditLog,
@@ -163,6 +187,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			PiVersion: "",
 			Features:  cfg.features(),
 			Limits:    cfg.limits(),
+			TLS:       tlsInfo,
 		},
 	}
 	if len(cfg.roots) > 0 || len(cfg.sessionDirs) > 0 {
@@ -236,7 +261,14 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		// compatibility mode of the spike.
 		options.AuthService = authService
 	}
-	router := api.NewRouter(options)
+	// The front door: a peer outside the allowlist never reaches a handler, which is why the
+	// list wraps the router instead of living inside a handler.
+	allowList, err := newIPAllowList(cfg.allowIPs)
+	if err != nil {
+		return err
+	}
+
+	router := allowList.middleware(api.NewRouter(options))
 
 	listener, err := net.Listen("tcp", cfg.addr)
 	if err != nil {
@@ -266,11 +298,23 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		"idleTimeout", cfg.idleTimeout.String(),
 	)
 	// The one line on stdout: a supervisor or a test needs the address it actually bound
-	// (with --addr 127.0.0.1:0 the port is the kernel's choice).
+	// (with --addr 127.0.0.1:0 the port is the kernel's choice). It keeps its shape whatever
+	// the scheme is, because scripts parse it; whether this server speaks TLS is in the log
+	// line below and in GET /server.
 	fmt.Fprintf(stdout, "listening %s\n", listener.Addr().String())
 
 	serveErr := make(chan error, 1)
-	go func() { serveErr <- server.Serve(listener) }()
+	go func() {
+		if tlsCertificate == nil {
+			serveErr <- server.Serve(listener)
+			return
+		}
+		// The listener is already up, so the handshake happens per connection.
+		serveErr <- server.Serve(tls.NewListener(listener, &tls.Config{
+			Certificates: []tls.Certificate{*tlsCertificate},
+			MinVersion:   tls.VersionTLS12,
+		}))
+	}()
 
 	// Bootstrap: a server with neither a device nor a password has no way in yet, so it
 	// mints one invitation and logs it. The QR comes from `pi-ui pair`, which writes to

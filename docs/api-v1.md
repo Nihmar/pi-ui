@@ -443,3 +443,27 @@ task's output. Without that flag the server answers `409 managed_mode` — a dep
 manages its own updates (a container image, a package manager, systemd) is the normal case,
 and guessing how to replace the running binary is not a server's decision. Every attempt is
 audited as `updates.apply`, denied ones included.
+
+## TLS and peer allowlist
+
+`serve --tls-cert <cert.pem> --tls-key <key.pem>` terminates TLS itself (both flags
+together, or the server refuses to start): the certificate is parsed at startup, the
+listener wraps in `tls.Config` with a TLS 1.2 floor, and `GET /server` — and therefore
+every pairing answer — carries the `tls` block a client pins:
+
+```json
+{"tls":{"fingerprintSha256":"4f2a…","notAfter":"2026-12-01T00:00:00.000Z","subject":"CN=pi-ui.local"}}
+```
+
+`fingerprintSha256` is the lowercase hex SHA-256 of the leaf's DER bytes, the value
+`pi-ui tls fingerprint` prints for a user to compare by eye and the only part of a
+self-signed certificate anybody can verify. When a reverse proxy terminates TLS instead,
+the server simply does not report a `tls` block: the fingerprint of the proxy is not this
+process's to describe, and the app pins what it was told at pairing time.
+
+`serve --allow-ips 10.0.0.0/8,192.168.1.4,::1` refuses any peer that is not on the list
+with `403 forbidden_scope` **before** a handler runs. It compares the address `net/http`
+resolved, never a forwarded header, so behind a proxy it is the proxy that must be
+allowed — which is the point: this is a front door for a deployment on a network it does
+not fully trust, not an authorization. An address that is neither an IP nor a CIDR block
+fails the startup; an empty list filters nothing.
