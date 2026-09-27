@@ -106,6 +106,79 @@ class VtColor {
   int get hashCode => Object.hash(value, isRgb);
 }
 
+/// The DEC special graphics set: the characters a program writes to draw lines and boxes
+/// after selecting it with `ESC ( 0`.
+///
+/// It is a plain table because it is a mapping and nothing else — `l` is a corner, `q` is a
+/// horizontal line — and a terminal that ignores the selection prints `lqk` instead of a box,
+/// which is what a shell prompt or `mc` looks like without it.
+const Map<int, String> decSpecialGraphics = {
+  0x60: '◆', // ` diamond
+  0x61: '▒', // a checker board
+  0x62: '␉', // b HT
+  0x63: '␌', // c FF
+  0x64: '␍', // d CR
+  0x65: '␊', // e LF
+  0x66: '°', // f degree
+  0x67: '±', // g plus/minus
+  0x68: '␤', // h NL
+  0x69: '␋', // i VT
+  0x6a: '┘', // j lower right corner
+  0x6b: '┐', // k upper right corner
+  0x6c: '┌', // l upper left corner
+  0x6d: '└', // m lower left corner
+  0x6e: '┼', // n crossing
+  0x6f: '⎺', // o scan line 1
+  0x70: '⎻', // p scan line 3
+  0x71: '─', // q horizontal line
+  0x72: '⎼', // r scan line 7
+  0x73: '⎽', // s scan line 9
+  0x74: '├', // t left tee
+  0x75: '┤', // u right tee
+  0x76: '┴', // v bottom tee
+  0x77: '┬', // w top tee
+  0x78: '│', // x vertical line
+  0x79: '≤', // y less or equal
+  0x7a: '≥', // z greater or equal
+  0x7b: 'π', // { pi
+  0x7c: '≠', // | not equal
+  0x7d: '£', // } pound
+  0x7e: '·', // ~ centred dot
+};
+
+/// Which of the two charsets is active, as the SO/SI controls switch them.
+enum _Charset { ascii, graphics }
+
+/// What a mouse report carries, which is what a program asked for.
+enum MouseReport { none, click, drag, movement }
+
+/// Where the mouse is and what it did.
+class MouseEvent {
+  const MouseEvent({
+    required this.row,
+    required this.column,
+    required this.button,
+    required this.action,
+    this.shift = false,
+    this.alt = false,
+    this.ctrl = false,
+  });
+
+  /// 0-based cell the pointer is on.
+  final int row;
+  final int column;
+
+  /// 0 left, 1 middle, 2 right, 64/65 wheel up/down.
+  final int button;
+
+  /// `press`, `release` or `move`.
+  final String action;
+
+  final bool shift;
+  final bool alt;
+  final bool ctrl;
+}
+
 /// The 16 ANSI colours, so a renderer does not have to know the palette.
 const List<int> ansiPalette = [
   0x000000,
@@ -196,12 +269,29 @@ class VtScreen {
   var _alternate = false;
   var _wrapNext = false;
   var _insertMode = false;
+  var _autoWrap = true;
+  var _originMode = false;
+  _Charset _g0 = _Charset.ascii;
+  _Charset _g1 = _Charset.ascii;
+  _Charset get _charset => _activeCharset;
+  _Charset _activeCharset = _Charset.ascii;
+
+  /// Columns where a horizontal tab stops, 0-based. The default is every eight columns.
+  late Set<int> _tabStops;
+
+  /// Called with a reply a program asked for (`CSI 6n`, `CSI c`). A screen without a writer
+  /// simply has no answer to give.
+  void Function(String reply)? onResponse;
+
+  MouseReport _mouseReport = MouseReport.none;
+  var _mouseSgr = false;
 
   /// The scroll region, inclusive, 0-based.
   var _scrollTop = 0;
   late int _scrollBottom = _rows - 1;
 
   _State _state = _State.ground;
+  int? _pendingCharset;
   final List<int> _params = [];
   int? _currentParam;
   final StringBuffer _osc = StringBuffer();
@@ -227,6 +317,22 @@ class VtScreen {
 
   /// True while the alternate screen is active (a full-screen program).
   bool get alternate => _alternate;
+
+  /// What the program asked to be told about the mouse, if anything.
+  MouseReport get mouseReport => _mouseReport;
+
+  /// True when mouse reports use the SGR encoding (`CSI <b;x;yM`), which is the only one that
+  /// survives coordinates past column 223.
+  bool get mouseSgr => _mouseSgr;
+
+  /// True while cursor addressing is relative to the scroll region.
+  bool get originMode => _originMode;
+
+  /// True while a character past the last column wraps to the next line.
+  bool get autoWrap => _autoWrap;
+
+  /// The columns a tab jumps to, for a test.
+  Set<int> get tabStops => Set<int>.from(_tabStops);
 
   /// The lines scrolled off, oldest first.
   List<VtLine> get scrollback => [for (final line in _scrollback) line];
@@ -302,6 +408,7 @@ class VtScreen {
     ];
     _scrollTop = 0;
     _scrollBottom = _rows - 1;
+    _tabStops = {for (var column = 8; column < _columns; column += 8) column};
   }
 
   /// A cell carrying the current attributes.
@@ -328,7 +435,12 @@ class VtScreen {
 
   /// Writes one character at the cursor and advances.
   void _put(int value) {
-    final char = String.fromCharCode(value);
+    // The active charset maps the character on the wire to the glyph on screen: DEC special
+    // graphics is what draws a box without Unicode box-drawing bytes.
+    final mapped = _charset == _Charset.graphics
+        ? decSpecialGraphics[value]
+        : null;
+    final char = mapped ?? String.fromCharCode(value);
     if (_wrapNext) {
       // A program that wrote to the last column left the cursor pending: the next character
       // continues on a new line.
@@ -357,7 +469,9 @@ class VtScreen {
     final step = wide ? 2 : 1;
     if (_cursorColumn + step >= _columns) {
       _cursorColumn = _columns - 1;
-      _wrapNext = true;
+      // With auto-wrap off (DECAWM reset) the cursor stays on the last column and the next
+      // character overwrites it, which is what a program painting a status line wants.
+      _wrapNext = _autoWrap;
       return;
     }
     _cursorColumn += step;
@@ -467,9 +581,32 @@ class VtScreen {
       case _State.osc:
         _oscFeed(rune);
       case _State.charset:
-        // One byte of a character-set selection (`ESC ( B`): this screen has no alternate
-        // font, so it is consumed and forgotten.
-        _state = _State.ground;
+        _charsetByte(rune);
+    }
+  }
+
+  /// One byte of a character-set selection (`ESC ( 0`) or of a `ESC #` sequence.
+  void _charsetByte(int rune) {
+    _state = _State.ground;
+    final which = _pendingCharset;
+    _pendingCharset = null;
+    if (which != null) {
+      final charset = rune == 0x30 ? _Charset.graphics : _Charset.ascii;
+      if (which == 0) {
+        _g0 = charset;
+        _activeCharset = charset;
+      } else if (which == 1) {
+        _g1 = charset;
+      }
+      return;
+    }
+    // `ESC # 8`: the screen alignment test, which fills the screen with `E`.
+    if (rune == 0x38) {
+      for (final row in _grid) {
+        for (var column = 0; column < _columns; column++) {
+          row[column] = const VtCell(char: 'E');
+        }
+      }
     }
   }
 
@@ -487,8 +624,9 @@ class VtScreen {
         }
         _wrapNext = false;
       case 0x09:
-        final next = (_cursorColumn ~/ 8 + 1) * 8;
-        _cursorColumn = next < _columns ? next : _columns - 1;
+        // A tab goes to the next stop, which a program may have moved: the default of every
+        // eight columns is only the starting point.
+        _tabForward();
         _wrapNext = false;
       case 0x0a:
       case 0x0b:
@@ -499,8 +637,9 @@ class VtScreen {
         _cursorColumn = 0;
         _wrapNext = false;
       case 0x0e:
+        _activeCharset = _g1;
       case 0x0f:
-        break; // SO/SI: no alternate charset here.
+        _activeCharset = _g0;
       default:
         if (rune >= 0x20) {
           _put(rune);
@@ -518,11 +657,22 @@ class VtScreen {
       case 0x5d: // ]
         _state = _State.osc;
         _osc.clear();
-      case 0x28: // (
-      case 0x29: // )
+      case 0x28: // ( : select G0
+        _pendingCharset = 0;
+        _state = _State.charset;
+      case 0x29: // ) : select G1
+        _pendingCharset = 1;
+        _state = _State.charset;
       case 0x2a: // *
       case 0x2b: // +
+        _pendingCharset = -1;
         _state = _State.charset;
+      case 0x23: // # : DECALN and friends
+        _state = _State.charset;
+      case 0x48: // H : horizontal tab set
+        if (_cursorColumn < _columns) {
+          _tabStops.add(_cursorColumn);
+        }
       case 0x37: // 7: save cursor
         _savedRow = _cursorRow;
         _savedColumn = _cursorColumn;
@@ -612,7 +762,11 @@ class VtScreen {
         _wrapNext = false;
       case 0x48: // H position
       case 0x66: // f position
-        _cursorRow = (param(0, 1) - 1).clamp(0, _rows - 1);
+        // Origin mode (DECOM) makes row 1 the top of the scroll region, which is how a
+        // full-screen program addresses its own window.
+        final top = _originMode ? _scrollTop : 0;
+        final bottom = _originMode ? _scrollBottom : _rows - 1;
+        _cursorRow = (top + param(0, 1) - 1).clamp(top, bottom);
         _cursorColumn = (param(1, 1) - 1).clamp(0, _columns - 1);
         _wrapNext = false;
       case 0x4a: // J erase display
@@ -654,6 +808,26 @@ class VtScreen {
         ) {
           _grid[_cursorRow][column] = _current();
         }
+      case 0x49: // I: forward tab
+        for (var step = 0; step < param(0, 1); step++) {
+          _tabForward();
+        }
+      case 0x5a: // Z: backward tab
+        for (var step = 0; step < param(0, 1); step++) {
+          _tabBack();
+        }
+      case 0x67: // g: clear tab stops
+        switch (param(0)) {
+          case 3:
+            _tabStops.clear();
+          case 0:
+            _tabStops.remove(_cursorColumn);
+          default:
+            // 4 clears every stop in a line; without per-line stops that is the same as 3.
+            _tabStops.clear();
+        }
+      case 0x63: // c: device attributes
+        onResponse?.call('\u001b[?62;1;2;4;6;9;15;22c');
       case 0x64: // d: line position
         _cursorRow = (param(0, 1) - 1).clamp(0, _rows - 1);
       case 0x68: // h set mode
@@ -662,8 +836,14 @@ class VtScreen {
         _setMode(false);
       case 0x6d: // m SGR
         _sgr();
-      case 0x6e: // n device status: no answer (the client has no back-channel here)
-        break;
+      case 0x6e: // n: device status report
+        if (param(0) == 6) {
+          // The cursor position report, which a program may wait for: an editor uses it to
+          // find out where it is before drawing.
+          onResponse?.call('\u001b[${_cursorRow + 1};${_cursorColumn + 1}R');
+        } else if (param(0) == 5) {
+          onResponse?.call('\u001b[0n');
+        }
       case 0x72: // r scroll region
         final top = (param(0, 1) - 1).clamp(0, _rows - 1);
         final bottom = (param(1, _rows) - 1).clamp(0, _rows - 1);
@@ -722,6 +902,24 @@ class VtScreen {
           break;
         case 4:
           _insertMode = enabled;
+        case 6:
+          _originMode = enabled;
+          // A mode change moves the cursor home, relative to the region when origin mode is on.
+          _cursorRow = _originMode ? _scrollTop : 0;
+          _cursorColumn = 0;
+        case 7:
+          _autoWrap = enabled;
+          _wrapNext = false;
+        case 9:
+          break; // X10 mouse: the oldest protocol, reported as clicks only
+        case 1000:
+          _mouseReport = enabled ? MouseReport.click : MouseReport.none;
+        case 1002:
+          _mouseReport = enabled ? MouseReport.drag : MouseReport.none;
+        case 1003:
+          _mouseReport = enabled ? MouseReport.movement : MouseReport.none;
+        case 1006:
+          _mouseSgr = enabled;
       }
     }
   }
@@ -747,6 +945,69 @@ class VtScreen {
       _cursorRow = _savedCursorRow.clamp(0, _grid.length - 1);
       _cursorColumn = _savedCursorColumn.clamp(0, _columns - 1);
     }
+  }
+
+  /// Moves to the next tab stop, or to the last column when there is none.
+  void _tabForward() {
+    for (var column = _cursorColumn + 1; column < _columns; column++) {
+      if (_tabStops.contains(column)) {
+        _cursorColumn = column;
+        return;
+      }
+    }
+    _cursorColumn = _columns - 1;
+  }
+
+  /// Moves to the previous tab stop, or to the first column.
+  void _tabBack() {
+    for (var column = _cursorColumn - 1; column >= 0; column--) {
+      if (_tabStops.contains(column)) {
+        _cursorColumn = column;
+        return;
+      }
+    }
+    _cursorColumn = 0;
+  }
+
+  /// Encodes one mouse event the way the program asked for it, or null when it did not.
+  ///
+  /// The SGR form (`CSI < b ; x ; y M/m`) is what a modern program requests and the only one
+  /// that survives coordinates past 223; the X10 form is the original, which packs button and
+  /// position into single bytes and reports a release as button 3.
+  String? encodeMouse(MouseEvent event) {
+    if (_mouseReport == MouseReport.none) {
+      return null;
+    }
+    if (event.action == 'move' &&
+        _mouseReport != MouseReport.drag &&
+        _mouseReport != MouseReport.movement) {
+      return null;
+    }
+    var modifiers = 0;
+    if (event.shift) {
+      modifiers |= 4;
+    }
+    if (event.alt) {
+      modifiers |= 8;
+    }
+    if (event.ctrl) {
+      modifiers |= 16;
+    }
+    if (_mouseSgr) {
+      final terminator = event.action == 'release' ? 'm' : 'M';
+      final button =
+          event.button + modifiers + (event.action == 'move' ? 32 : 0);
+      return '\u001b[<$button;${event.column + 1};${event.row + 1}$terminator';
+    }
+    // X10: `CSI M` then three bytes, each offset by 32. Coordinates are capped at 223, and a
+    // release is reported as button 3 with the original button in the low bits.
+    final button = event.action == 'release'
+        ? 3 + modifiers
+        : event.button + modifiers + (event.action == 'move' ? 32 : 0);
+    final column = (event.column + 1).clamp(1, 223);
+    final row = (event.row + 1).clamp(1, 223);
+    return '\u001b[M${String.fromCharCode(32 + button)}'
+        '${String.fromCharCode(32 + column)}${String.fromCharCode(32 + row)}';
   }
 
   /// Applies an SGR sequence: `ESC [ … m`.

@@ -285,6 +285,8 @@ void main() {
     });
   });
 
+  _longTail();
+
   group('tolerance', () {
     test('an unknown CSI sequence changes nothing', () {
       final vt = screen();
@@ -312,6 +314,235 @@ void main() {
       expect(vt.lines[0].text, 'hel');
       expect(vt.lines[1].text, 'wor');
       expect(vt.cursorRow, lessThan(2));
+    });
+  });
+}
+
+/// The long tail: the modes and encodings a full-screen program uses after the basics.
+void _longTail() {
+  group('DEC special graphics', () {
+    test('a box drawn with letters comes out as a box', () {
+      final vt = screen();
+      vt.write('\u001b(0lqk');
+      vt.write('\u001b(B');
+
+      expect(vt.charAt(0, 0), '┌');
+      expect(vt.charAt(0, 1), '─');
+      expect(vt.charAt(0, 2), '┐');
+    });
+
+    test('the plain charset is restored by the selection, and by SI', () {
+      final vt = screen();
+      vt.write('\u001b(0q');
+      expect(vt.charAt(0, 0), '─');
+      vt.write('\u001b(Bq');
+      expect(vt.charAt(0, 1), 'q');
+
+      // SO selects G1, SI selects G0; both are a program's way of switching between them.
+      vt.write('\u001b)0\u000eq');
+      expect(vt.charAt(0, 2), '─');
+      vt.write('\u000fq');
+      expect(vt.charAt(0, 3), 'q');
+    });
+
+    test('an unselected graphics set leaves the letters alone', () {
+      final vt = screen();
+      vt.write('lqk');
+      expect(vt.lines[0].text, 'lqk');
+    });
+  });
+
+  group('modes', () {
+    test('origin mode addresses the scroll region', () {
+      final vt = screen(rows: 5);
+      vt.write('\u001b[2;4r'); // region: rows 2-4
+
+      vt.write('\u001b[1;1Hx');
+      expect(
+        vt.charAt(0, 0),
+        'x',
+        reason: 'without origin mode row 1 is the screen',
+      );
+
+      vt.write('\u001b[?6h');
+      vt.write('\u001b[1;1Hy');
+      expect(
+        vt.charAt(1, 0),
+        'y',
+        reason: 'with origin mode row 1 is the region top',
+      );
+    });
+
+    test('with auto-wrap off nothing wraps past the last column', () {
+      final vt = screen(columns: 4, rows: 2);
+      vt.write('\u001b[?7labcdefg');
+
+      // Every character past the end lands on the last cell, overwriting the one before it:
+      // no new line is started.
+      expect(vt.lines[0].text, 'abcg');
+      expect(vt.lines[1].text, '');
+    });
+
+    test('with auto-wrap on the same input wraps instead', () {
+      final vt = screen(columns: 4, rows: 2);
+      vt.write('abcdefg');
+
+      expect(vt.lines[0].text, 'abcd');
+      expect(vt.lines[1].text, 'efg');
+    });
+  });
+
+  group('tabs', () {
+    test('stops are every eight columns by default', () {
+      final vt = screen(columns: 20);
+      vt.write('\tx\ty');
+      expect(vt.charAt(0, 8), 'x');
+      expect(vt.charAt(0, 16), 'y');
+    });
+
+    test('a program can set, clear and step through its own stops', () {
+      final vt = screen(columns: 20);
+      vt.write('\u001b[3g'); // clear them all
+      vt.write('\u001b[5G\u001bH'); // set one at column 5 (1-based)
+      expect(vt.tabStops, contains(4), reason: 'HTS sets a stop at the cursor');
+      vt.write('\u001b[1G\tx');
+      expect(vt.charAt(0, 4), 'x');
+
+      vt.write('\u001b[3g\u001b[1G\tz');
+      expect(
+        vt.charAt(0, 19),
+        'z',
+        reason: 'no stops left: the tab goes to the last column',
+      );
+    });
+
+    test('CSI I and Z move without writing', () {
+      final vt = screen(columns: 30);
+      vt.write('\u001b[2Iy');
+      expect(vt.charAt(0, 16), 'y');
+
+      // Back to the nearest stop before the cursor, which is the one it just passed.
+      vt.write('\u001b[1Zx');
+      expect(vt.charAt(0, 16), 'x');
+    });
+  });
+
+  group('screen alignment and cursor reports', () {
+    test('DECALN fills the screen with E', () {
+      final vt = screen(columns: 4, rows: 2);
+      vt.write('\u001b#8');
+
+      expect(vt.lines[0].text, 'EEEE');
+      expect(vt.lines[1].text, 'EEEE');
+    });
+
+    test('a cursor position report answers with the position', () {
+      final vt = screen();
+      final replies = <String>[];
+      vt.onResponse = replies.add;
+
+      vt.write('\u001b[2;3H\u001b[6n');
+      expect(replies, ['\u001b[2;3R']);
+
+      vt.write('\u001b[5n');
+      expect(replies.last, '\u001b[0n');
+
+      vt.write('\u001b[c');
+      expect(replies.last, contains('\u001b[?'));
+    });
+
+    test('a screen without a writer simply has no answer to give', () {
+      final vt = screen();
+      vt.write('\u001b[6n');
+      expect(vt.cursorRow, 0);
+    });
+  });
+
+  group('mouse reporting', () {
+    test('nothing is reported unless a program asked', () {
+      final vt = screen();
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(row: 0, column: 0, button: 0, action: 'press'),
+        ),
+        isNull,
+      );
+    });
+
+    test('SGR reports press, release and moves with coordinates', () {
+      final vt = screen();
+      vt.write('\u001b[?1000h\u001b[?1006h');
+
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(row: 4, column: 9, button: 0, action: 'press'),
+        ),
+        '\u001b[<0;10;5M',
+      );
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(row: 4, column: 9, button: 0, action: 'release'),
+        ),
+        '\u001b[<0;10;5m',
+      );
+      // A move is only reported when the program asked for drag or movement tracking.
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(row: 1, column: 1, button: 0, action: 'move'),
+        ),
+        isNull,
+      );
+      vt.write('\u001b[?1000l\u001b[?1002h');
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(row: 1, column: 1, button: 0, action: 'move'),
+        ),
+        '\u001b[<32;2;2M',
+      );
+    });
+
+    test('the wheel and the modifier keys are part of the report', () {
+      final vt = screen();
+      vt.write('\u001b[?1000h\u001b[?1006h');
+
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(row: 0, column: 0, button: 64, action: 'press'),
+        ),
+        '\u001b[<64;1;1M',
+      );
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(
+            row: 0,
+            column: 0,
+            button: 0,
+            action: 'press',
+            ctrl: true,
+            shift: true,
+          ),
+        ),
+        '\u001b[<20;1;1M',
+      );
+    });
+
+    test('the X10 encoding packs the position into bytes', () {
+      final vt = screen();
+      vt.write('\u001b[?1000h');
+
+      final report = vt.encodeMouse(
+        const MouseEvent(row: 2, column: 3, button: 0, action: 'press'),
+      );
+      expect(
+        report,
+        '\u001b[M${String.fromCharCode(32)}${String.fromCharCode(36)}${String.fromCharCode(35)}',
+      );
+      expect(
+        vt.encodeMouse(
+          const MouseEvent(row: 0, column: 0, button: 0, action: 'release'),
+        ),
+        '\u001b[M${String.fromCharCode(35)}${String.fromCharCode(33)}${String.fromCharCode(33)}',
+      );
     });
   });
 }
