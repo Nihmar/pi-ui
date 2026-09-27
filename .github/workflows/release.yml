@@ -162,7 +162,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${GITHUB_REF_NAME}"
+          # A tag push publishes that tag; a manual run publishes `v<version>`, so a
+          # dispatch can never create a second tag for a release that already exists.
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            tag="v${{ github.event.inputs.version }}"
+            tag="${tag#vv}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
           version="${tag#v}"
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then tag="${{ github.event.inputs.version }}"; fi
           notes="$(mktemp)"

@@ -21,7 +21,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/Nihmar/pi-ui/server/internal/audit"
@@ -210,7 +209,7 @@ func (s *Service) Start(ctx context.Context, spec Spec, owner string) (Task, err
 	}
 	command.Dir = dir
 	// Its own process group, so a stop reaches what the command started too.
-	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.SysProcAttr = groupAttr()
 	// The output goes through a pipe this process owns, not through StdoutPipe: `Wait`
 	// closes the pipe it created, so a reader racing it can lose the last bytes — or all of
 	// them — which is exactly what a test caught. With an io.Writer, `exec` copies the
@@ -303,11 +302,11 @@ func (s *Service) Stop(id string) (Task, error) {
 	record.mu.Unlock()
 
 	if command != nil && command.Process != nil {
-		_ = syscall.Kill(-command.Process.Pid, syscall.SIGTERM)
+		_ = signalGroup(command.Process.Pid, false)
 		select {
 		case <-record.done:
 		case <-time.After(StopGrace):
-			_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+			_ = signalGroup(command.Process.Pid, true)
 		}
 	}
 	return record.snapshot(), nil

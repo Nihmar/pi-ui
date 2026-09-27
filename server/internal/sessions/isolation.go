@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -39,7 +38,7 @@ func NewIsolation(image, docker string, mounts []string, user string) (*Isolatio
 		docker = "docker"
 	}
 	if user == "" {
-		user = fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
+		user = defaultIsolationUser()
 	}
 	clean := make([]string, 0, len(mounts))
 	for _, mount := range mounts {

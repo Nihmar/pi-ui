@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/creack/pty"
@@ -162,6 +161,12 @@ func (m *Manager) SetSink(sink Sink) {
 
 // Open starts one shell in dir and returns its terminal.
 func (m *Manager) Open(ctx context.Context, dir string, cols, rows uint16) (*Session, error) {
+	// The capability follows the host: a build without pseudo-terminals says so instead of
+	// half-starting a shell.
+	if !supportsPTY {
+		return nil, sessions.Codedf(sessions.CodeUnsupported,
+			"terminals need a POSIX host: this build has no PTY support")
+	}
 	confined, err := m.cfg.FS.Resolve(dir)
 	if err != nil {
 		return nil, err
@@ -199,7 +204,7 @@ func (m *Manager) Open(ctx context.Context, dir string, cols, rows uint16) (*Ses
 	// not interrupted by closing the file, so one terminal that stopped producing
 	// output would hold a goroutine and a descriptor until the process left. Every
 	// read below tolerates EAGAIN instead.
-	_ = syscall.SetNonblock(int(file.Fd()), true)
+	_ = setNonBlocking(file)
 	sessionID := fmt.Sprintf("t_%016x", m.counter.Add(1))
 	session := &Session{
 		ID:       sessionID,
@@ -332,31 +337,11 @@ func (s *Session) pump() {
 			}
 			continue
 		}
-		if err != nil && !errors.Is(err, syscall.EAGAIN) && !errors.Is(err, syscall.EWOULDBLOCK) {
+		if err != nil && !wouldBlock(err) {
 			break
 		}
 	}
 	s.reap()
-}
-
-// waitReadable reports whether the PTY has something to read within timeout.
-func waitReadable(file *os.File, timeout time.Duration) (bool, error) {
-	fd := int(file.Fd())
-	var readSet syscall.FdSet
-	index := fd / 64
-	if index < 0 || index >= len(readSet.Bits) {
-		return false, errors.New("terminal: the descriptor is out of range for select")
-	}
-	readSet.Bits[index] |= 1 << (uint(fd) % 64)
-	tv := syscall.NsecToTimeval(timeout.Nanoseconds())
-	ready, err := syscall.Select(fd+1, &readSet, nil, nil, &tv)
-	if errors.Is(err, syscall.EINTR) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return ready > 0, nil
 }
 
 // reap waits for the shell once and tells the sink it is gone.
@@ -419,8 +404,7 @@ func (s *Session) Write(p []byte) (int, error) {
 		if err == nil {
 			return written, nil
 		}
-		if attempt < writeRetries &&
-			(errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK)) {
+		if attempt < writeRetries && wouldBlock(err) {
 			time.Sleep(writeRetryDelay)
 			continue
 		}
@@ -484,11 +468,11 @@ func (s *Session) CloseWithReason(reason string) error {
 	if command != nil && command.Process != nil {
 		// The whole group, and SIGHUP because that is the signal a shell reads as
 		// "your terminal is gone": SIGTERM is ignored by an interactive shell.
-		_ = syscall.Kill(-command.Process.Pid, syscall.SIGHUP)
+		_ = signalGroup(command.Process.Pid, false)
 		select {
 		case <-s.exited:
 		case <-time.After(KillGrace):
-			_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+			_ = signalGroup(command.Process.Pid, true)
 			select {
 			case <-s.exited:
 			case <-time.After(KillGrace):
@@ -557,7 +541,7 @@ func (s *Session) CopyTo(w io.Writer) error {
 			continue
 		}
 		if err != nil {
-			if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.EWOULDBLOCK) {
+			if wouldBlock(err) {
 				time.Sleep(readRetryDelay)
 				continue
 			}
