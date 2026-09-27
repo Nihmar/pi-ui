@@ -173,5 +173,7 @@ jobs:
             echo "(\`pi-ui pair --url http://<host>:8787\`). See \`deploy/README.md\` for the"
             echo "network matrix and TLS."
           } > "${notes}"
-          gh release create "${tag}" --title "pi-ui ${tag}" --notes-file "${notes}" dist/**/* \
-            || gh release upload "${tag}" dist/**/* --clobber
+          # Every artifact is flat in dist/ (download-artifact merges the folders), so the
+          # glob is one level: `**` would need `shopt -s globstar` to mean anything.
+          gh release create "${tag}" --title "pi-ui ${tag}" --notes-file "${notes}" dist/* \
+            || gh release upload "${tag}" dist/* --clobber
