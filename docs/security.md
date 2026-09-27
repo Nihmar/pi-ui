@@ -32,6 +32,7 @@ Two boundaries follow from that:
 | Policy | `feature_disabled` is the server refusing by configuration (`git.write` off), which is not the same as a scope refusing | `internal/settings` |
 | Path | every host path is resolved (symlinks included) and confined to a `--root`; a path outside is `path_escape`, audited as `path.escape.blocked` | `internal/fs` |
 | Process | a PTY or a task gets its own process group and is signalled as a group, so a child does not outlive it | `internal/terminal`, `internal/tasks` |
+| Session | `--isolate <image>` wraps each child in `docker run` with every path mounted same-path: what a session can reach is what was mounted, not the host's whole filesystem | `internal/sessions/isolation.go` |
 | Rate | REST, refresh, WebSocket connects and prompts each have a budget; a refusal is `429` with `Retry-After` and an audit entry | `internal/ratelimit` |
 | Content | logs never carry tokens or conversation content; the client only ever receives nicknames for providers | `internal/obs`, every handler |
 
@@ -65,7 +66,10 @@ client's cooperation.
 
 - **A hostile host.** The server runs with the operator's privileges and so do the children
   and the bridge extension; a user who can start a server can already run code there.
-  Container-per-session isolation is the plan's answer and is not implemented yet.
+  `--isolate <image>` runs each session in its own container instead (every path mounted
+  same-path, the working directory first, the pi configuration and the bridge reachable,
+  the container disposable), which bounds a session to what it was mounted — but the server
+  itself still runs on the host, and the container shares its network namespace.
 - **A hostile `pi` or provider.** The server forwards what the child says, including a
   malformed line (`pi.unknown`), and never interprets it as instructions to itself.
 - **Traffic analysis on plain HTTP.** Without TLS, everything but the credentials is

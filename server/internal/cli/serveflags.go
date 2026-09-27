@@ -90,6 +90,10 @@ type serveConfig struct {
 	tlsCert       string
 	tlsKey        string
 	allowIPs      []string
+	isolateImage  string
+	isolateDocker string
+	isolateUser   string
+	isolateMounts []string
 	updateCommand string
 	piVersion     string
 	terminals     int
@@ -227,6 +231,9 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.String("tls-cert", "", "certificate file; with --tls-key the server terminates TLS (PIUI_TLS_CERT)")
 	fs.String("tls-key", "", "private key file for --tls-cert (PIUI_TLS_KEY)")
 	fs.String("allow-ips", "", "comma-separated peer addresses or CIDR blocks allowed to connect (empty = any)")
+	fs.String("isolate", "", "run every session in a container of this image (empty = on the host)")
+	fs.String("isolate-docker", "", "container CLI to use with --isolate (default docker)")
+	fs.String("isolate-user", "", "uid:gid the containers run as (default this process's)")
 	fs.String("pi-version", "", "version of the pi binary this server runs, for the update panel (PIUI_PI_VERSION)")
 	fs.String("idle-timeout", "", "wrap up a session after this much silence, 0 = off (default 1h)")
 	fs.String("wrap-up-budget", "", "time the handoff turn gets before the session stops (default 1m)")
@@ -235,6 +242,8 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 	fs.Var(&sessionArgs, "session", "session to start at boot: <cwd>[:<name>] (repeatable)")
 	var rootArgs rootFlag
 	fs.Var(&rootArgs, "root", "workspace the client may browse: <path> (repeatable)")
+	var isolateMountArgs rootFlag
+	fs.Var(&isolateMountArgs, "isolate-mount", "extra host[:container] path to mount, repeatable")
 
 	if err := fs.Parse(args); err != nil {
 		return serveConfig{}, Usage(err)
@@ -260,6 +269,10 @@ func parseServeConfig(args []string, stderr io.Writer) (serveConfig, error) {
 		tlsCert:       resolve(fs, "tls-cert", "PIUI_TLS_CERT", ""),
 		tlsKey:        resolve(fs, "tls-key", "PIUI_TLS_KEY", ""),
 		allowIPs:      splitList(resolve(fs, "allow-ips", "PIUI_ALLOW_IPS", "")),
+		isolateImage:  resolve(fs, "isolate", "PIUI_ISOLATE", ""),
+		isolateDocker: resolve(fs, "isolate-docker", "PIUI_ISOLATE_DOCKER", ""),
+		isolateUser:   resolve(fs, "isolate-user", "PIUI_ISOLATE_USER", ""),
+		isolateMounts: isolateMountArgs,
 		piVersion:     resolve(fs, "pi-version", "PIUI_PI_VERSION", ""),
 	}
 
@@ -355,6 +368,7 @@ func writeServeUsage(w io.Writer) {
 		"  --update-command PATH      script that applies updates (empty = managed elsewhere)\n"+
 		"  --tls-cert, --tls-key      terminate TLS with this certificate and key\n"+
 		"  --allow-ips LIST           peer addresses or CIDR blocks allowed to connect\n"+
+		"  --isolate IMAGE            run every session inside a container\n"+
 		"  --session-dirs LIST        directories of pi session JSONL for the message search\n"+
 		"  --bridge <path>            pi-ui-bridge extension loaded by every child (PIUI_BRIDGE)\n"+
 		"  --token <token>            bearer token clients must send (PIUI_TOKEN)\n"+

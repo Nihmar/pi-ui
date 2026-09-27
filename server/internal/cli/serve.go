@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -154,10 +155,34 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			}
 		})
 	}
+	// Container isolation, when the operator asked for it: the child argv is wrapped, so
+	// the lifecycle below is exactly the same whether a session runs on the host or in a
+	// container.
+	var isolation *sessions.Isolation
+	if cfg.isolateImage != "" {
+		mounts := append([]string(nil), cfg.isolateMounts...)
+		// What a child needs to reach: the bridge extension, the runtime file its config
+		// lives in, and the pi configuration with the credentials.
+		if cfg.bridge != "" {
+			mounts = append(mounts, filepath.Dir(cfg.bridge))
+		}
+		mounts = append(mounts, sessions.RuntimeDir())
+		if home, err := os.UserHomeDir(); err == nil {
+			mounts = append(mounts, filepath.Join(home, ".pi", "agent"))
+		}
+		built, err := sessions.NewIsolation(cfg.isolateImage, cfg.isolateDocker, mounts, cfg.isolateUser)
+		if err != nil {
+			return err
+		}
+		isolation = built
+		logger.Info("pi-ui: sessions are isolated", "isolation", isolation.Describe())
+	}
+
 	supervisor := sessions.New(sessions.Config{
 		PiCommand:     []string{cfg.pi, "--mode", "rpc"},
 		BridgeExt:     cfg.bridge,
 		MCPConfig:     mcpPath(cfg),
+		Isolation:     isolation,
 		MaxSessions:   cfg.maxSessions,
 		DialogTimeout: cfg.dialogTimeout,
 		PromptLimit:   cfg.ratePrompt,

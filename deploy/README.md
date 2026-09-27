@@ -84,6 +84,29 @@ pi-ui.example.com {
 The proxy terminates TLS, so the server reports no `tls` block and the app pins the proxy's
 certificate, which is the one it saw. Allow only the proxy: `--allow-ips 127.0.0.1`.
 
+## One container per session
+
+The Compose file puts the *server* in a container. To put each **session** in one too — the
+plan's answer to "the children run with the host's privileges" — start the server with an
+image that carries pi:
+
+```bash
+pi-ui serve --root ~/Projects \
+  --isolate pi-ui:local \
+  --bridge /usr/local/share/pi-ui/pi-ui-bridge.ts
+```
+
+Every child then runs as `docker run --rm -i --init --user <uid:gid>` with the session's
+working directory (**same path inside and outside**), the bridge extension's directory, the
+runtime file holding the bridge configuration, and `~/.pi/agent` mounted, and with the
+session's environment passed as `--env`. Nothing else of the host is reachable: a session
+sees the project it was given and the credentials it needs.
+
+What it does not do: give the container its own network namespace (the session talks to the
+same provider endpoints as the host), or isolate the server itself, which still runs on the
+host and still owns the sockets. `--isolate-mount host:container` adds a path when a project
+needs one, and `--isolate-docker` points at another CLI (podman, for instance).
+
 ## Backups
 
 The state database is the only thing that must be kept: `$PIUI_STATE_DIR/state.db` (devices,

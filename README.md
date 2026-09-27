@@ -27,6 +27,7 @@ the workspaces an operator allows:
 | Drain | `internal/api` | `/drain/start\|resume` |
 | TLS and pinning | `internal/tls`, `internal/cli` | `--tls-cert`/`--tls-key`, the `tls` block in `/server` |
 | Peer allowlist | `internal/cli` | `--allow-ips` (addressed or CIDR, checked before any handler) |
+| Session isolation | `internal/sessions` | `--isolate <image>`: one `docker run` per session, every path mounted same-path |
 
 The confinement rule is one implementation (`internal/fs`): a path is decided on its
 resolved form, so a symlink inside a root cannot point outside it, and every capability

@@ -75,7 +75,10 @@ type Config struct {
 	BridgeExt  string   // optional -e path
 	// MCPConfig is the MCP configuration file the bridge reads, when MCP is
 	// configured. Empty means the bridge finds no servers to connect to.
-	MCPConfig     string
+	MCPConfig string
+	// Isolation runs every child inside a container. Nil runs them on the host, which is
+	// the default and needs no container runtime at all.
+	Isolation     *Isolation
 	MaxSessions   int           // default 8
 	DialogTimeout time.Duration // default 60s
 	SendTimeout   time.Duration // default 15s

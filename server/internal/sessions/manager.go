@@ -123,6 +123,9 @@ func (m *Manager) Start(ctx context.Context, spec Spec) (Info, error) {
 	if err != nil {
 		return Info{}, err
 	}
+	// Isolation wraps the argv after the session flags are built: the flags belong to pi,
+	// the wrapper belongs to the process that executes it.
+	argv = m.cfg.Isolation.Wrap(argv, spec.CWD, env)
 
 	s := newSession(m, sessionID, spec)
 
