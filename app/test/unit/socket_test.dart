@@ -368,6 +368,113 @@ void main() {
     },
   );
 
+  test('a terminal frame is typed and routed to its own stream', () async {
+    final harness = SocketHarness();
+    addTearDown(harness.dispose);
+    await harness.connect();
+
+    final frames = <WsFrame>[];
+    harness.socket.terminals.listen(frames.add);
+    harness.channel?.serverSend(
+      jsonEncode({
+        'type': 'terminal.output',
+        'terminalId': 't_1',
+        'data': base64Encode(utf8.encode('hello')),
+        'ts': '2026-09-26T12:00:00.000Z',
+      }),
+    );
+    harness.channel?.serverSend(
+      jsonEncode({
+        'type': 'terminal.closed',
+        'terminalId': 't_1',
+        'exitCode': 3,
+        'reason': 'exit',
+      }),
+    );
+    await settle();
+
+    expect(frames, hasLength(2));
+    final output = frames.first as WsTerminalOutput;
+    expect(output.terminalId, 't_1');
+    expect(utf8.decode(output.bytes), 'hello');
+    final closed = frames.last as WsTerminalClosed;
+    expect(closed.exitCode, 3);
+    expect(closed.reason, 'exit');
+  });
+
+  test(
+    'opening a terminal writes its own frame and returns the answer',
+    () async {
+      final harness = SocketHarness();
+      addTearDown(harness.dispose);
+      await harness.connect();
+
+      final pending = harness.socket.openTerminal(
+        dir: '/srv/app',
+        cols: 80,
+        rows: 24,
+      );
+      await settle();
+      final frame = harness.sent.last;
+      expect(frame['type'], 'terminal.open');
+      expect(frame['dir'], '/srv/app');
+      expect(frame['cols'], 80);
+
+      harness.channel?.serverSend(
+        jsonEncode({
+          'type': 'response',
+          'id': frame['id'],
+          'ok': true,
+          'data': {'terminalId': 't_1', 'cwd': '/srv/app', 'pid': 42},
+        }),
+      );
+      final answer = await pending;
+      expect(answer?['terminalId'], 't_1');
+    },
+  );
+
+  test('input is base64, resize and close carry their ids', () async {
+    final harness = SocketHarness();
+    addTearDown(harness.dispose);
+    await harness.connect();
+
+    final input = harness.socket.inputTerminal('t_1', utf8.encode('ls\n'));
+    await settle();
+    final inputFrame = harness.sent.last;
+    expect(inputFrame['type'], 'terminal.input');
+    expect(inputFrame['terminalId'], 't_1');
+    expect(utf8.decode(base64Decode(inputFrame['data'] as String)), 'ls\n');
+    harness.channel?.serverSend(
+      jsonEncode({'type': 'response', 'id': inputFrame['id'], 'ok': true}),
+    );
+    await input;
+
+    final resize = harness.socket.resizeTerminal('t_1', 100, 30);
+    await settle();
+    expect(harness.sent.last['type'], 'terminal.resize');
+    expect(harness.sent.last['cols'], 100);
+    harness.channel?.serverSend(
+      jsonEncode({
+        'type': 'response',
+        'id': harness.sent.last['id'],
+        'ok': true,
+      }),
+    );
+    await resize;
+
+    final close = harness.socket.closeTerminal('t_1');
+    await settle();
+    expect(harness.sent.last['type'], 'terminal.close');
+    harness.channel?.serverSend(
+      jsonEncode({
+        'type': 'response',
+        'id': harness.sent.last['id'],
+        'ok': true,
+      }),
+    );
+    await close;
+  });
+
   test('stop closes the socket and leaves it idle', () async {
     final harness = SocketHarness();
     addTearDown(harness.dispose);

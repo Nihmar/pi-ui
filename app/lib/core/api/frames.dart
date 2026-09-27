@@ -155,6 +155,47 @@ final class WsPong extends WsFrame {
   String get type => 'pong';
 }
 
+/// `{"type":"terminal.output",…}` — bytes produced by one PTY.
+final class WsTerminalOutput extends WsFrame {
+  const WsTerminalOutput({
+    required this.terminalId,
+    required this.bytes,
+    this.at,
+  });
+
+  /// The terminal the chunk belongs to.
+  final String terminalId;
+
+  /// The decoded bytes: base64 on the wire, because a chunk may split a UTF-8 rune.
+  final List<int> bytes;
+
+  final DateTime? at;
+
+  @override
+  String get type => 'terminal.output';
+}
+
+/// `{"type":"terminal.closed",…}` — one terminal is gone, exactly once.
+final class WsTerminalClosed extends WsFrame {
+  const WsTerminalClosed({
+    required this.terminalId,
+    this.exitCode = -1,
+    this.reason = '',
+    this.at,
+  });
+
+  final String terminalId;
+  final int exitCode;
+
+  /// `client`, `owner`, `server` or `exit`.
+  final String reason;
+
+  final DateTime? at;
+
+  @override
+  String get type => 'terminal.closed';
+}
+
 /// A frame this client has no type for: kept, never acted on.
 final class WsUnknown extends WsFrame {
   const WsUnknown(this.type, this.raw);
@@ -199,6 +240,17 @@ WsFrame parseFrame(String text) {
       errorMessage: optStr(asMap(json['error'])?['message']),
     ),
     'pong' => const WsPong(),
+    'terminal.output' => WsTerminalOutput(
+      terminalId: str(json['terminalId']),
+      bytes: _base64Bytes(json['data']),
+      at: timeOf(json['ts']),
+    ),
+    'terminal.closed' => WsTerminalClosed(
+      terminalId: str(json['terminalId']),
+      exitCode: intOf(json['exitCode'], fallback: -1),
+      reason: str(json['reason']),
+      at: timeOf(json['ts']),
+    ),
     _ when type.contains('.') => WsEvent(
       type: type,
       sessionId: optStr(json['sessionId']),
@@ -229,4 +281,19 @@ WsRequest _request(Map<String, dynamic> json) {
     at: at,
     expiresAt: at.add(Duration(milliseconds: timeoutMs)),
   );
+}
+
+/// Decodes a base64 payload, treating a malformed one as empty: a terminal that shows
+/// nothing for a broken chunk is better than a client that throws on the socket's read
+/// loop.
+List<int> _base64Bytes(Object? value) {
+  final text = optStr(value);
+  if (text == null) {
+    return const [];
+  }
+  try {
+    return base64Decode(text);
+  } on FormatException {
+    return const [];
+  }
 }

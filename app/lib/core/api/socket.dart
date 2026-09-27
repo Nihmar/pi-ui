@@ -10,6 +10,9 @@ import 'frames.dart';
 import 'http.dart';
 import 'profile.dart';
 
+/// How long a terminal frame waits for a connection before it fails.
+const reconnectBudgetForTerminals = Duration(seconds: 10);
+
 /// How a socket is built, so a test can hand in a fake channel.
 typedef ChannelFactory = WebSocketChannel Function(
   Uri uri,
@@ -86,6 +89,9 @@ class PiUiSocket {
   final Random _random;
 
   final _frames = StreamController<WsFrame>.broadcast();
+  // Terminal output is its own stream: it is live state of one socket, never replayed,
+  // and a chat screen has no business filtering it out of the event history.
+  final _terminals = StreamController<WsFrame>.broadcast();
   final _statuses = StreamController<SocketStatus>.broadcast();
   final _subscriptions = <String, _Subscription>{};
   final _pending = <String, Completer<Map<String, dynamic>?>>{};
@@ -106,6 +112,9 @@ class PiUiSocket {
 
   /// Every server frame except the handshake and the command answers.
   Stream<WsFrame> get frames => _frames.stream;
+
+  /// Terminal frames: output chunks and close notifications.
+  Stream<WsFrame> get terminals => _terminals.stream;
 
   /// Every status change, including the current one on listen.
   Stream<SocketStatus> get statusChanges async* {
@@ -176,6 +185,7 @@ class PiUiSocket {
     Map<String, dynamic>? payload,
     Duration? timeout,
     Duration? waitForConnection,
+    Map<String, dynamic> Function(String id)? frame,
   }) async {
     if (!_status.isOnline) {
       final budget = waitForConnection;
@@ -191,13 +201,18 @@ class PiUiSocket {
     final completer = Completer<Map<String, dynamic>?>();
     _pending[id] = completer;
     try {
-      _send({
-        'type': 'command',
-        'id': id,
-        'sessionId': sessionId,
-        'op': op,
-        'payload': ?payload,
-      });
+      // A terminal frame carries its own shape; everything else is a session command.
+      _send(
+        frame != null
+            ? frame(id)
+            : {
+                'type': 'command',
+                'id': id,
+                'sessionId': sessionId,
+                'op': op,
+                'payload': ?payload,
+              },
+      );
     } catch (error) {
       _pending.remove(id);
       throw PiuiException(ErrorCodes.offline, '$error');
@@ -214,6 +229,62 @@ class PiUiSocket {
     );
     return response;
   }
+
+  /// Opens a PTY in [dir] and returns what the server answered: `terminalId`, `cwd`,
+  /// `pid`, `cols`, `rows`.
+  ///
+  /// The size is the client's, because only the client knows how big its pane is.
+  Future<Map<String, dynamic>?> openTerminal({
+    required String dir,
+    required int cols,
+    required int rows,
+  }) => command(
+    sessionId: '',
+    op: '',
+    waitForConnection: reconnectBudgetForTerminals,
+    // A terminal is not a session command: it travels as its own frame, so this is the
+    // one place that writes a frame by hand and waits for the `response` of its id.
+    frame: (id) => ({
+      'type': 'terminal.open',
+      'id': id,
+      'dir': dir,
+      'cols': cols,
+      'rows': rows,
+    }),
+  );
+
+  /// Writes bytes to one terminal: keystrokes, a paste, an answer to a prompt.
+  Future<void> inputTerminal(String terminalId, List<int> bytes) => command(
+    sessionId: '',
+    op: '',
+    frame: (id) => ({
+      'type': 'terminal.input',
+      'id': id,
+      'terminalId': terminalId,
+      'data': base64Encode(bytes),
+    }),
+  );
+
+  /// Tells one terminal how big the client's pane is.
+  Future<void> resizeTerminal(String terminalId, int cols, int rows) => command(
+    sessionId: '',
+    op: '',
+    frame: (id) => ({
+      'type': 'terminal.resize',
+      'id': id,
+      'terminalId': terminalId,
+      'cols': cols,
+      'rows': rows,
+    }),
+  );
+
+  /// Closes one terminal; the process group goes with it.
+  Future<void> closeTerminal(String terminalId) => command(
+    sessionId: '',
+    op: '',
+    frame: (id) =>
+        ({'type': 'terminal.close', 'id': id, 'terminalId': terminalId}),
+  );
 
   /// Answers one extension dialog.
   void uiResponse({
@@ -241,6 +312,7 @@ class PiUiSocket {
     await stop();
     _failPending(const PiuiException(ErrorCodes.offline, 'The socket closed.'));
     await _frames.close();
+    await _terminals.close();
     await _statuses.close();
   }
 
@@ -371,6 +443,10 @@ class PiUiSocket {
       case WsEvent():
         _advanceCursor(frame);
         _frames.add(frame);
+      case WsTerminalOutput():
+        _terminals.add(frame);
+      case WsTerminalClosed():
+        _terminals.add(frame);
     }
   }
 
