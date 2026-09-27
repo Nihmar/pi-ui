@@ -47,12 +47,14 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: '0'
           # The tag is the version; a manual run says what it wants.
+          # The tag is the version; the `v` prefix belongs to the tag, not to the stamp.
           VERSION: ${{ github.event.inputs.version || github.ref_name }}
         run: |
-          name="pi-ui_${VERSION}_${GOOS}_${GOARCH}"
+          version="${VERSION#v}"
+          name="pi-ui_${version}_${GOOS}_${GOARCH}"
           extension=""
           if [ "${GOOS}" = "windows" ]; then extension=".exe"; fi
-          go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7}" \
+          go build -trimpath -ldflags "-s -w -X main.version=${version} -X main.commit=${GITHUB_SHA::7}" \
             -o "../dist/${name}/pi-ui${extension}" ./cmd/pi-ui
           cp ../LICENSE "../dist/${name}/LICENSE"
           tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
@@ -96,23 +98,25 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build libgtk-3-dev libsecret-1-dev
           flutter build linux --release
-          name="piui_${GITHUB_REF_NAME}_linux_x64"
+          name="piui_${GITHUB_REF_NAME#v}_linux_x64"
           mkdir -p "../dist/${name}"
           cp -r build/linux/x64/release/bundle/* "../dist/${name}/"
           tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
           sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
 
-      # The APK is unsigned on purpose: signing needs the operator's keystore, and a
-      # release build that is signed with a throw-away key is a worse default than one
-      # that says it is unsigned (deploy/README.md).
+      # The APK carries the template's debug signature: a release key needs the operator's
+      # keystore, and an artifact that says what it is beats one that pretends
+      # (deploy/README.md).
       - name: Build for Android
         if: matrix.target == 'android'
         working-directory: app
         run: |
           flutter build apk --release
-          name="piui_${GITHUB_REF_NAME}_android"
+          name="piui_${GITHUB_REF_NAME#v}_android"
           mkdir -p "../dist/${name}"
-          cp build/app/outputs/flutter-apk/app-release.apk "../dist/${name}/piui-unsigned.apk"
+          # The template signs a release build with the debug keystore; the name says so
+          # rather than calling it unsigned (it is not) or pretending it is a release key.
+          cp build/app/outputs/flutter-apk/app-release.apk "../dist/${name}/piui-debug-signed.apk"
           tar -C ../dist -czf "../dist/${name}.tar.gz" "${name}"
           sha256sum "../dist/${name}.tar.gz" > "../dist/${name}.tar.gz.sha256"
 
@@ -121,7 +125,7 @@ jobs:
         working-directory: app
         run: |
           flutter build windows --release
-          $name = "piui_$env:GITHUB_REF_NAME" + "_windows_x64"
+          $name = "piui_" + $env:GITHUB_REF_NAME.TrimStart("v") + "_windows_x64"
           New-Item -ItemType Directory -Force -Path "../dist/$name" | Out-Null
           Copy-Item -Recurse "build/windows/x64/runner/Release/*" "../dist/$name/"
           Compress-Archive -Path "../dist/$name" -DestinationPath "../dist/$name.zip"
@@ -159,13 +163,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then tag="${{ github.event.inputs.version }}"; fi
           notes="$(mktemp)"
           {
             echo "## pi-ui ${tag}"
             echo
             echo "Server binaries (linux amd64/arm64, windows amd64) and the client"
-            echo "(Linux bundle, unsigned Android APK, Windows zip)."
+            echo "(Linux bundle, Android APK signed with the template's debug key, Windows zip)."
             echo
             echo "Verify a download with its \`.sha256\` file: \`sha256sum -c <file>.sha256\`."
             echo

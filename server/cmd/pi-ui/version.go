@@ -12,8 +12,11 @@ import (
 // Build stamps, overridable at link time:
 //
 //	go build -ldflags "-X main.version=0.1.0 -X main.commit=$(git rev-parse --short HEAD)"
+//
+// The defaults are what a plain `go build` reports: a development build says so instead of
+// claiming a released version, and a release stamps both.
 var (
-	version = "0.0.1-spike"
+	version = "0.1.0-dev"
 	commit  = "none"
 )
 

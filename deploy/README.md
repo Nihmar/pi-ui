@@ -122,7 +122,7 @@ A tag (`v0.1.0`) runs `.github/workflows/release.yml`, which builds and attaches
 | `pi-ui_<version>_linux_{amd64,arm64}.tar.gz` | the static server binary, with `LICENSE` |
 | `pi-ui_<version>_windows_amd64.tar.gz` | the same for Windows |
 | `piui_<version>_linux_x64.tar.gz` | the Linux client (Flutter release bundle) |
-| `piui_<version>_android.tar.gz` | `piui-unsigned.apk` — signing needs the operator's keystore |
+| `piui_<version>_android.tar.gz` | `piui-debug-signed.apk` — signed with the template's debug key, because a release key is the operator's to hold |
 | `piui_<version>_windows_x64.zip` | the Windows client |
 
 Every archive has a `.sha256` next to it (`sha256sum -c <file>.sha256`).

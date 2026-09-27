@@ -97,18 +97,17 @@ Linux client bundle, unsigned APK, Windows zip, checksums, GitHub release), the 
 and Compose reference, a hardened systemd unit, the network/TLS/deployment guide, the Arch
 `PKGBUILD` and the Inno Setup script.
 
-**Missing:** a cut release (no tag has been pushed yet — CI is green, the workflow is
-untested against a real tag), AppImage (the plan names it; today the Linux client ships as a
-tar.gz), and code signing for the APK and the Windows installer (deliberate: an unsigned
-artifact that says so beats one signed with a throw-away key).
+**Missing:** AppImage (the plan names it; today the Linux client ships as a tar.gz) and
+proper code signing (the APK carries the template's debug signature and the Windows installer
+is unsigned; both say so). A cut release exercises the workflow end to end — see below.
 
 ## Beyond the plan
 
 The natural next steps, in the order they pay off:
 
 1. **App translations** (Phase 6's gap) — the only user-visible hole.
-2. **A first tagged release** — exercises `release.yml` end to end and gives the deployment
-   docs something to point at.
+2. **A first tagged release** — `release.yml` builds and attaches the artifacts from a tag;
+   the deployment docs point at the release page.
 3. **A VT emulator for the terminal** — today it renders the byte stream; a REPL that redraws
    a line (progress bars, `top`) needs a parser.
 4. **Server-in-container** (Phase 7's gap) and its network mode.
