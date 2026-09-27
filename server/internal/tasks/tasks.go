@@ -211,11 +211,14 @@ func (s *Service) Start(ctx context.Context, spec Spec, owner string) (Task, err
 	command.Dir = dir
 	// Its own process group, so a stop reaches what the command started too.
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	stdout, err := command.StdoutPipe()
-	if err != nil {
-		return Task{}, sessions.Codedf(sessions.CodeInternal, "the task cannot be started: %v", err)
-	}
-	command.Stderr = command.Stdout
+	// The output goes through a pipe this process owns, not through StdoutPipe: `Wait`
+	// closes the pipe it created, so a reader racing it can lose the last bytes — or all of
+	// them — which is exactly what a test caught. With an io.Writer, `exec` copies the
+	// child's output itself and `Wait` waits for that copy, so closing our writer is the
+	// one thing that ends the stream, and it happens after the process is gone.
+	stdout, writer := io.Pipe()
+	command.Stdout = writer
+	command.Stderr = writer
 
 	if err := command.Start(); err != nil {
 		return Task{}, sessions.Codedf(sessions.CodeBadRequest, "%s cannot be started: %v", spec.Command, err)
@@ -236,7 +239,7 @@ func (s *Service) Start(ctx context.Context, spec Spec, owner string) (Task, err
 	s.mu.Unlock()
 
 	go s.collect(record, stdout)
-	go s.wait(record)
+	go s.wait(record, writer)
 	s.publish(record)
 	return record.snapshot(), nil
 }
@@ -343,12 +346,14 @@ func (s *Service) collect(record *task, stdout io.Reader) {
 }
 
 // wait reaps the process and records how it ended.
-func (s *Service) wait(record *task) {
+func (s *Service) wait(record *task, writer *io.PipeWriter) {
 	err := record.cmd.Wait()
+	// The process is gone and its output has been copied; closing our end is what tells the
+	// collector the stream is over.
+	_ = writer.Close()
 
-	// The process is gone, so the output pipe is at EOF or one read away; waiting for
-	// the collector is what makes "not running any more" mean "the output is complete"
-	// for a client that polls the status and then reads what it printed.
+	// Waiting for the collector is what makes "not running any more" mean "the output is
+	// complete" for a client that polls the status and then reads what it printed.
 	select {
 	case <-record.collected:
 	case <-time.After(StopGrace):
