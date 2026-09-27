@@ -113,6 +113,11 @@ void main() {
     await harness.connect();
 
     expect(harness.socket.status.isWorking, isTrue);
+    // The retry is a timer: wait for it instead of assuming the settle window covered it.
+    final deadline = DateTime.now().add(const Duration(seconds: 2));
+    while (harness.attempts < 2 && DateTime.now().isBefore(deadline)) {
+      await settle(20);
+    }
     expect(harness.attempts, greaterThan(1), reason: 'it keeps retrying');
   });
 
