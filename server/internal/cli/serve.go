@@ -134,6 +134,22 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return Usagef("--tls-cert and --tls-key go together")
 	}
 
+	// What pi actually is: every session runs this binary, so `GET /server` reports the
+	// version the server is really driving. A probe that fails is logged and leaves the
+	// field empty — a session that cannot start says so itself, and a guess here would be
+	// worse than "unknown".
+	piVersion := cfg.piVersion
+	if probed, err := probePiVersion(ctx, []string{cfg.pi}); err != nil {
+		logger.Warn("pi-ui: could not ask pi for its version", "pi", cfg.pi, "error", err)
+	} else {
+		piVersion = probed
+		if message := versionMismatch(cfg.piVersion, probed); message != "" {
+			// A mismatch is a warning, not a refusal: the RPC surface is what this server
+			// speaks, and a newer patch usually still speaks it.
+			logger.Warn("pi-ui: pi version mismatch", "expected", cfg.piVersion, "running", probed, "hint", message)
+		}
+	}
+
 	hub := ws.New(ws.Options{
 		Authorizer:    restToWS{auth: authenticator},
 		Audit:         auditLog,
@@ -209,7 +225,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 			Version: Version,
 			// The spike does not probe pi: Phase 3 adds the version probe together with
 			// the "degrade instead of fail" policy of AGENTS.md.
-			PiVersion: "",
+			PiVersion: piVersion,
 			Features:  cfg.features(),
 			Limits:    cfg.limits(),
 			TLS:       tlsInfo,
@@ -265,7 +281,7 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	options.Updates = updates.New(updates.Config{
 		Components: []updates.Component{
 			{Name: updates.ComponentServer, Current: Version, Source: "build stamp"},
-			{Name: updates.ComponentPi, Current: cfg.piVersion},
+			{Name: updates.ComponentPi, Current: piVersion},
 			{Name: updates.ComponentBridge, Current: bridgeVersion, Source: "vendored"},
 		},
 		Checker: &updates.HTTPChecker{Packages: map[string]string{

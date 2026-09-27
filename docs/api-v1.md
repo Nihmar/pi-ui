@@ -220,6 +220,13 @@ by the deployment's liveness probe. Never leaks cwd, names or versions.
 
 ### `GET /server`
 
+`piVersion` is **probed**, not configured: the server asks the binary it spawns
+(`pi --version`) once at startup and reports what it answered, so a client can tell which pi
+it is actually driving. A probe that fails leaves the field empty and logs why: a guess here
+would be worse than "unknown". `--pi-version` declares the version a deployment was built
+for; when the probe disagrees the server logs a warning naming both versions and keeps
+running (a newer patch release usually still speaks the same RPC surface).
+
 Scope `viewer`. A loopback peer without a token is the **operator** until the
 server is configured (no device paired, no admin password), which is the
 bootstrap state the plan describes; once an identity exists it is only a viewer,
