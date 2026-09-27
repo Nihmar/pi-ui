@@ -1,0 +1,42 @@
+# The reference deployment: one server container, the host's projects mounted same-path.
+#
+# "Same-path" is not a convenience: a session's working directory is its identity, so a
+# path that reads /home/alessandro/Projects/pi-ui outside the container must read exactly
+# that inside it, or `pi` resolves files the client never asked about.
+services:
+  pi-ui:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      # Build as the host user, so the bind mounts are writable without `chmod` games.
+      args:
+        UID: "${HOST_UID:-1000}"
+        GID: "${HOST_GID:-1000}"
+    image: pi-ui:local
+    container_name: pi-ui
+    restart: unless-stopped
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    ports:
+      # Bound to loopback by default: put the deployment behind Tailscale or a TLS proxy
+      # rather than publishing it to the LAN as plain HTTP (deploy/README.md).
+      - "127.0.0.1:8787:8787"
+    environment:
+      # Credentials and sessions: the host's own pi configuration, shared read-write so a
+      # session started here is the same one the terminal would start.
+      HOME: /home/piui
+      PIUI_STATE_DIR: /state
+      # An allowlist keeps a wrong-network peer from reaching a handler at all. Optional.
+      # PIUI_ALLOW_IPS: "100.64.0.0/10,192.168.0.0/16"
+    volumes:
+      - pi-ui-state:/state
+      - "${HOME}/.pi/agent:/home/piui/.pi/agent"
+      # Same-path projects: the left side is the host path the client will type.
+      - "${HOME}/Projects:${HOME}/Projects"
+      - "../bridge:/opt/pi-ui-bridge:ro"
+    # A shell and a PTY need a few more descriptors than the default, and a build task
+    # needs a real /tmp.
+    tmpfs:
+      - /tmp:exec
+
+volumes:
+  pi-ui-state:

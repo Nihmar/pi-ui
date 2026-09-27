@@ -1,0 +1,52 @@
+# systemd, for a host that runs the static binary directly.
+#
+# Install:
+#   sudo install -m 0755 pi-ui /usr/local/bin/pi-ui
+#   sudo install -m 0644 deploy/systemd/pi-ui.service /etc/systemd/system/
+#   sudo systemctl enable --now pi-ui
+#
+# The unit is deliberately small: it says who runs the server, where its state is, and what
+# it may touch. Everything else is a flag (docs/api-v1.md) or an environment variable
+# (serve --help).
+[Unit]
+Description=pi-ui server (companion for the pi coding agent)
+Documentation=https://github.com/Nihmar/pi-ui
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# A dedicated user that owns the projects and the pi configuration, so a session cannot
+# reach anything the operator cannot.
+User=%i
+Environment=PIUI_STATE_DIR=%S/pi-ui
+Environment=PIUI_RUNTIME_DIR=/run/pi-ui
+# Node must be on PATH for `pi`; adjust if pi lives elsewhere.
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/local/bin/pi-ui serve \
+    --addr 127.0.0.1:8787 \
+    --root %h/Projects \
+    --session-dirs %h/.pi/agent/sessions \
+    --bridge /usr/local/share/pi-ui/pi-ui-bridge.ts
+Restart=on-failure
+RestartSec=2
+# The server reaps its children; systemd only has to stop it.
+KillMode=mixed
+TimeoutStopSec=15
+
+# Hardening that a PTY and a task still work under: their own /tmp, no new privileges, a
+# read-only system, and write access only to the state and the projects.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/Projects %S/pi-ui /run/pi-ui
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+
+[Install]
+WantedBy=multi-user.target

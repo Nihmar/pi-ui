@@ -44,7 +44,7 @@ filesystem, git, task or terminal surface at all (a `501`, never a guess).
 | `packages/piui-markdown/` | Shared markdown/editor engine (vendored from Niman, MIT) |
 | `schemas/` | JSON Schema, the source of truth for every DTO and event |
 | `docs/` | ADRs, protocol documents and the spike report |
-| `deploy/` | Docker Compose reference, systemd, Tailscale/nginx examples |
+| `deploy/` | The reference deployment: Docker image + Compose, a hardened systemd unit, and the network matrix (LAN/VPN/HTTPS) |
 
 ## Build and run the server
 
@@ -59,6 +59,9 @@ CGO_ENABLED=0 go build -o bin/pi-ui ./cmd/pi-ui
   --session /path/to/project[:name] \
   --bridge ../bridge/pi-ui-bridge.ts
 ```
+
+The reference deployment is [deploy/](deploy/README.md): a container that mounts the
+projects same-path, or the static binary under systemd.
 
 `serve` starts one `pi --mode rpc` child per `--session`, serves REST on `/api/v1` and
 WebSockets on `/ws/v1`, and shuts down gracefully on SIGINT/SIGTERM, reaping every child

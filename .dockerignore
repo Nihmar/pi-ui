@@ -1,0 +1,13 @@
+# Nothing of the development tree belongs in a build context: the Dockerfile copies only
+# server/ (for the Go build) and deploy/ is the Dockerfile itself.
+.git
+app/build
+app/.dart_tool
+mockups/build
+mockups/.dart_tool
+bridge/node_modules
+packages/*/build
+server/bin
+**/*.log
+PLAN.md
+.commandcode
