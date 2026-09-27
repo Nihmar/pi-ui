@@ -90,26 +90,32 @@ provider endpoints), and the server itself still runs on the host. The plan's re
 is putting *the server* in the container as the only supported deployment; `deploy/` has the
 image, so the work is a network-namespace mode and its documentation.
 
-## Phase 8 — Distribution 🔶
+## Phase 8 — Distribution ✅
 
 Delivered: the release workflow (tag → server binaries for linux amd64/arm64 and windows,
 Linux client bundle, unsigned APK, Windows zip, checksums, GitHub release), the Docker image
 and Compose reference, a hardened systemd unit, the network/TLS/deployment guide, the Arch
 `PKGBUILD` and the Inno Setup script.
 
+**The first release is out**: `v0.1.1` (2026-09-27) with the server for linux amd64/arm64 and
+windows amd64, the client for Linux, Android and Windows, and a `.sha256` next to every
+archive. Its story is worth keeping: `v0.1.0` was tagged first and its build failed — the
+Windows server did not compile, because the terminal, task and session services reached for
+POSIX calls on a platform that has none. The fix landed on main rather than on a moved tag,
+so the first published release is `v0.1.1`, and the portability that came out of it (build
+tags per platform, PTYs `unsupported` on Windows with a clear message) is part of it.
+
 **Missing:** AppImage (the plan names it; today the Linux client ships as a tar.gz) and
 proper code signing (the APK carries the template's debug signature and the Windows installer
-is unsigned; both say so). A cut release exercises the workflow end to end — see below.
+is unsigned; both say so in their names).
 
 ## Beyond the plan
 
 The natural next steps, in the order they pay off:
 
 1. **App translations** (Phase 6's gap) — the only user-visible hole.
-2. **A first tagged release** — `release.yml` builds and attaches the artifacts from a tag;
-   the deployment docs point at the release page.
-3. **A VT emulator for the terminal** — today it renders the byte stream; a REPL that redraws
+2. **A VT emulator for the terminal** — today it renders the byte stream; a REPL that redraws
    a line (progress bars, `top`) needs a parser.
-4. **Server-in-container** (Phase 7's gap) and its network mode.
-5. **The MCP client's remote transport** — `url` entries are validated, reported as
+3. **The MCP client's remote transport** — `url` entries are validated, reported as
    unsupported and skipped; stdio works.
+4. **Server-in-container** (Phase 7's gap) and its network mode.

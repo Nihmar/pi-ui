@@ -63,7 +63,9 @@ CGO_ENABLED=0 go build -o bin/pi-ui ./cmd/pi-ui
 ```
 
 The reference deployment is [deploy/](deploy/README.md): a container that mounts the
-projects same-path, or the static binary under systemd.
+projects same-path, or the static binary under systemd. Prebuilt archives are on the
+[release page](https://github.com/Nihmar/pi-ui/releases) (server for linux amd64/arm64 and
+windows amd64, client for Linux, Android and Windows, with checksums).
 
 `serve` starts one `pi --mode rpc` child per `--session`, serves REST on `/api/v1` and
 WebSockets on `/ws/v1`, and shuts down gracefully on SIGINT/SIGTERM, reaping every child
