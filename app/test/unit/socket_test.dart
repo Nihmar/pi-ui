@@ -490,4 +490,70 @@ void main() {
     expect(harness.socket.status, SocketStatus.idle);
     expect(harness.channel?.closed, isTrue);
   });
+
+  test('unsubscribing while offline is a no-op, not a throw', () async {
+    final harness = SocketHarness();
+    addTearDown(harness.dispose);
+
+    // Dropping a subscription is cleanup: the server forgets it with the socket, and the
+    // caller (a screen being torn down) has nowhere to report a failure to.
+    expect(() => harness.socket.unsubscribe('s_1'), returnsNormally);
+    expect(harness.socket.status, SocketStatus.idle);
+  });
+
+  test('unsubscribing while online still reaches the server', () async {
+    final harness = SocketHarness();
+    addTearDown(harness.dispose);
+    await harness.connect();
+    harness.socket.subscribe('s_1');
+    await settle();
+
+    harness.socket.unsubscribe('s_1');
+    await settle();
+
+    final frame = harness.sent.last;
+    expect(frame['type'], 'unsubscribe');
+    expect(frame['sessionId'], 's_1');
+  });
+
+  test(
+    'an answer sent while offline is reported, not thrown at the caller',
+    () async {
+      final harness = SocketHarness();
+      addTearDown(harness.dispose);
+
+      // The caller is a widget: it can tell the user, but only if the failure is a value
+      // rather than an exception on a frame nobody reads.
+      late bool sent;
+      expect(
+        () => sent = harness.socket.uiResponse(
+          sessionId: 's_1',
+          requestId: 'r_1',
+          confirmed: true,
+        ),
+        returnsNormally,
+      );
+      expect(sent, isFalse, reason: 'the answer never reached the server');
+    },
+  );
+
+  test('an answer while online goes out and reports success', () async {
+    final harness = SocketHarness();
+    addTearDown(harness.dispose);
+    await harness.connect();
+
+    expect(
+      harness.socket.uiResponse(
+        sessionId: 's_1',
+        requestId: 'r_1',
+        confirmed: true,
+      ),
+      isTrue,
+    );
+    await settle();
+    final frame = harness.sent.last;
+    expect(frame['type'], 'ui_response');
+    expect(frame['id'], 'r_1');
+    expect(frame['confirmed'], isTrue);
+  });
 }

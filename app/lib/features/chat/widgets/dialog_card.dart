@@ -58,16 +58,26 @@ class _DialogCardState extends ConsumerState<DialogCard> {
 
   /// Answers the dialog and tells the screen, so the card goes at once instead
   /// of waiting for the answer to come back.
+  ///
+  /// An answer that could not go out keeps the card: the dialog is still open on the
+  /// server, and pretending it was answered would lose the run.
   void _answer({String? value, bool? confirmed, bool cancelled = false}) {
-    ref
-        .read(socketProvider)
-        ?.uiResponse(
-          sessionId: widget.sessionId,
-          requestId: widget.request.id,
-          value: value,
-          confirmed: confirmed,
-          cancelled: cancelled ? true : null,
-        );
+    final sent =
+        ref
+            .read(socketProvider)
+            ?.uiResponse(
+              sessionId: widget.sessionId,
+              requestId: widget.request.id,
+              value: value,
+              confirmed: confirmed,
+              cancelled: cancelled ? true : null,
+            ) ??
+        false;
+    if (!sent) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.l10n.connectionIdle)));
+      return;
+    }
     widget.onAnswered(widget.request.id);
   }
 

@@ -169,10 +169,12 @@ class PiUiSocket {
     _sendSubscribe(sessionId, subscription, replay: replay);
   }
 
-  /// Stops receiving one session's events. Idempotent.
+  /// Stops receiving one session's events. Idempotent, and safe while offline: a
+  /// subscription is the server's state about this socket, so the socket going away
+  /// drops it anyway — there is nothing to report and nowhere to report it.
   void unsubscribe(String sessionId) {
     _subscriptions.remove(sessionId);
-    _send({'type': 'unsubscribe', 'sessionId': sessionId});
+    _trySend({'type': 'unsubscribe', 'sessionId': sessionId});
   }
 
   /// Sends one op (`session.prompt`, `session.steer`, …) and waits for its answer.
@@ -287,14 +289,19 @@ class PiUiSocket {
   );
 
   /// Answers one extension dialog.
-  void uiResponse({
+  ///
+  /// Returns whether the answer went out. A dialog answered while the socket is down
+  /// never reaches pi, and the only thing that can be done about it is telling the user,
+  /// so the failure is a value the caller handles instead of an exception thrown on a
+  /// frame nobody reads.
+  bool uiResponse({
     required String sessionId,
     required String requestId,
     String? value,
     bool? confirmed,
     bool? cancelled,
   }) {
-    _send({
+    return _trySend({
       'type': 'ui_response',
       'sessionId': sessionId,
       'id': requestId,
@@ -304,8 +311,9 @@ class PiUiSocket {
     });
   }
 
-  /// Sends a keepalive ping.
-  void ping() => _send({'type': 'ping'});
+  /// Sends a keepalive ping. Best effort: a socket that is not there has nothing to keep
+  /// alive, and the caller is a timer.
+  void ping() => _trySend({'type': 'ping'});
 
   /// Closes everything; the socket is unusable afterwards.
   Future<void> dispose() async {
@@ -581,6 +589,26 @@ class PiUiSocket {
     _online = null;
     if (waiter != null && !waiter.isCompleted) {
       waiter.completeError(error);
+    }
+  }
+
+  /// Sends one frame and reports whether it went out.
+  ///
+  /// This is the sending path of the frames whose failure the caller cannot do anything
+  /// about — cleanup, a keepalive, an answer the UI reports — so a missing connection is a
+  /// `false` instead of an exception. Everything that drives a session goes through
+  /// [command], which fails loudly and can wait for the connection.
+  bool _trySend(Map<String, dynamic> frame) {
+    if (_channel == null || _stopped) {
+      return false;
+    }
+    try {
+      _send(frame);
+      return true;
+    } on Object {
+      // A sink that refuses the frame (a socket that closed between the check and the
+      // write) is the same situation as having no socket at all: not sent.
+      return false;
     }
   }
 
