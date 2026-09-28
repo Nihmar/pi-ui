@@ -24,7 +24,7 @@ Intended layout once the definition phase lands:
 pi-ui/
 ├── AGENTS.md
 ├── README.md
-├── docs/          ADRs 0001-0009, api-v1.md, ws-protocol.md, protocol-mapping.md, security.md, mockups.md, roadmap.md
+├── docs/          ADRs 0001-0009, api-v1.md, ws-protocol.md, protocol-mapping.md, security.md, mockups.md, site.md, roadmap.md
 ├── schemas/       core.json, pi.json, server.json, ws.json, openapi.yaml
 ├── server/        Go module (github.com/Nihmar/pi-ui/server)
 │                  cmd/pi-ui/ · internal/{api,ws,rpc,sessions,auth,fs,git,terminal,search,tasks,mcp,store,obs}
@@ -34,6 +34,7 @@ pi-ui/
 ├── packages/piui-markdown/  markdown/editor engine shared with Niman (MIT, attribution, upstream-first)
 ├── app/           lib/{core,features,widgets}
 ├── mockups/       static HTML mockup of the whole UI (assets/ + screens/)
+├── site/          landing page (static HTML/CSS/JS, no build step) + tools/{build_gallery,stage_site}.py
 ├── deploy/        docker compose (reference), systemd, Tailscale/nginx examples, certificate notes
 └── .github/workflows/
 ```
@@ -103,6 +104,29 @@ flutter test          # when the package has tests
 - The HTML mockups in `mockups/` are the visual contract: implementing a screen means matching `mockups/screens/NN-<name>.html` — tokens, spacing, states — not inventing a layout. A mockup change is a plain HTML/CSS/JS edit (no build step): keep `mockups/index.html` and the notes in `docs/mockups.md` in the same commit.
 - Markdown rendering/editing (chat messages, tool diffs, prompt templates, skills, `AGENTS.md`, host `.md` files) comes from `packages/piui-markdown` — do not add a second markdown stack to the app.
 - Naming: `snake_case` files, `PascalCase` classes; Riverpod providers in their own file next to the feature they serve.
+
+## Site (`site/`)
+
+The landing page is static HTML/CSS/JS with **no build step**; `site/tools/` holds the two scripts
+that keep it truthful. Details in [`docs/site.md`](docs/site.md).
+
+```bash
+python3 site/tools/build_gallery.py            # regenerate the gallery block after a mockup change
+python3 site/tools/build_gallery.py --check    # must be green: the block matches the mockup
+python3 site/tools/stage_site.py --serve       # stage site/ + mockups/ and serve on :8000
+```
+
+- The **Every screen** gallery is **committed markup generated** from `mockups/index.html` (groups,
+  order, captions) and `mockups/screenshots/`, plus the client's renders. Never edit inside
+  `gallery:begin`/`gallery:end` by hand, and regenerate when a screen is added: `--check` fails on
+  a stale block, and the Pages workflow runs it before publishing.
+- JavaScript **adds** filtering and the lightbox on top of that grid — with scripting off the page
+  still lists every screen, so a new section must render without JS too. Anything the page claims
+  about a screen comes from the mockup or the client's own renders; never invent a screenshot.
+- Tokens only: colours, spacing and radii come from the variables in `site/assets/site.css`; a
+  section or widget never hard-codes one.
+- `stage_site.py` is the single copy step — the local `--serve` and the Pages workflow run it, so
+  what is previewed locally is what is published. `_site/` is gitignored and never committed.
 
 ## Server (`server/`, Go)
 

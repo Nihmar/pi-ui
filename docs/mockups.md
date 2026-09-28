@@ -50,6 +50,15 @@ The tokens mirror `AppTokens` of the Flutter client: `--accent`, `--bg`,
 routes), `600–1024` one pane plus rails, `>= 1024` desktop (rail, master/detail,
 multi-pane). A widget never hard-codes a colour or a gap.
 
+### 2.1 The mockup is a source of truth for the landing page too
+
+The published site carries an **Every screen** gallery of its own, and it is generated from the
+gallery above: the groups, the order and the captions are read out of `mockups/index.html`, and
+the tiles are these renders, shown next to the client's own shots. A screen added here therefore
+appears on the site after one `python3 site/tools/build_gallery.py` run — a stale block fails
+`build_gallery.py --check`, which the Pages workflow runs before publishing. Details in
+[`site.md`](site.md).
+
 ## 3. Screen inventory (PLAN.md §7)
 
 All 42 screens are **done** as HTML. "States" lists the variants the file shows.

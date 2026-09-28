@@ -10,3 +10,9 @@ bridge/node_modules/
 
 # Local runtime state (session runtimes, spike outputs)
 .piui/
+
+# Python bytecode (the site and mockup tools are scripts, not packages)
+__pycache__/
+
+# Staged site (site/tools/stage_site.py writes here)
+_site/

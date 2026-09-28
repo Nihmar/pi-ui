@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui — the pi coding agent, on your phone</title>
+<meta name="description" content="pi-ui is a Go server that owns one `pi --mode rpc` child per session and a Flutter client for Android, Linux and Windows: streaming chat, approvals, files, git, terminals, tasks and MCP. Provider keys never leave the server.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234c8dff'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='white' font-family='monospace'%3E%CF%80%3C/text%3E%3C/svg%3E">
+<meta property="og:title" content="pi-ui — the pi coding agent, on your phone">
+<meta property="og:description" content="One Go server orchestrating pi sessions on the host, one Flutter client for Android, Linux and Windows. Every screen of the product, rendered and browsable.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="mockups/screenshots/app/02-chat.png">
+<link rel="stylesheet" href="assets/site.css">
+<script>
+  // The theme is chosen before the first paint, so a light-theme visitor never sees a dark flash.
+  (() => {
+    const stored = localStorage.getItem('piui-site-theme');
+    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+    document.documentElement.setAttribute('data-theme', stored ?? (prefersLight ? 'light' : 'dark'));
+  })();
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <span class="brand"><span class="mark">π</span> pi-ui</span>
+  <button class="icon-button" id="menu" aria-expanded="false" aria-controls="main-nav" aria-label="Menu">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+  </button>
+  <nav id="main-nav" hidden>
+    <a href="#features">Features</a>
+    <a href="#screens">Screens</a>
+    <a href="#parity">Mockup → app</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#run">Run it</a>
+    <a href="#security">Security</a>
+    <a href="#roadmap">Roadmap</a>
+  </nav>
+  <button class="icon-button" id="theme" aria-label="Switch theme" title="Switch theme">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.4"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M12.8 3.2l-1.1 1.1M4.3 11.7l-1.1 1.1"/></svg>
+  </button>
+  <a class="icon-button" href="https://github.com/Nihmar/pi-ui" aria-label="GitHub repository" title="GitHub">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .5a7.5 7.5 0 0 0-2.37 14.62c.37.07.51-.16.51-.36v-1.3c-2.09.45-2.53-1-2.53-1-.34-.87-.83-1.1-.83-1.1-.68-.47.05-.46.05-.46.75.05 1.15.77 1.15.77.67 1.15 1.76.82 2.19.63.07-.49.26-.82.47-1-1.67-.19-3.42-.83-3.42-3.7 0-.82.29-1.49.77-2.01-.08-.19-.33-.95.07-1.98 0 0 .63-.2 2.06.76a7.1 7.1 0 0 1 3.75 0c1.43-.96 2.06-.76 2.06-.76.4 1.03.15 1.79.07 1.98.48.52.77 1.19.77 2.01 0 2.88-1.76 3.51-3.43 3.7.27.23.51.69.51 1.39v2.06c0 .2.13.43.51.36A7.5 7.5 0 0 0 8 .5Z"/></svg>
+  </a>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">server companion + Flutter client for the pi coding agent</p>
+        <h1>pi runs on your host.<br>You drive it from the sofa.</h1>
+        <p class="lead">
+          One Go process orchestrates a <code>pi --mode rpc</code> child per session and
+          exposes REST <code>/api/v1</code> plus WebSocket <code>/ws/v1</code>. The Flutter
+          client streams the conversation, answers tool approvals, browses files, runs git
+          and opens real PTYs — on Android, Linux and Windows. Provider keys and tokens stay
+          on the server; the client only ever sees what it is allowed to see.
+        </p>
+        <p class="cta">
+          <a class="btn primary" href="https://github.com/Nihmar/pi-ui/releases/latest">Download the latest release</a>
+          <a class="btn" href="#screens">See every screen</a>
+          <a class="btn ghost" href="https://github.com/Nihmar/pi-ui#build-and-run-the-server">Build it</a>
+        </p>
+        <ul class="chips">
+          <li>Go 1.27 · static binary, <code>CGO_ENABLED=0</code></li>
+          <li>Flutter client · Android 15+, Linux, Windows</li>
+          <li>pi orchestrated, never forked</li>
+          <li>MIT</li>
+        </ul>
+      </div>
+      <div class="hero-art">
+        <figure class="shot desktop"><img src="mockups/screenshots/app/04-git-panel.png" alt="The git panel of the Flutter client: status, diff and log of a working tree"></figure>
+        <figure class="shot phone"><img src="mockups/screenshots/app/02-chat.png" alt="The chat screen of the Flutter client: a streaming answer, a tool card and an approval dialog"></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="kicker">What it adds to pi</p>
+        <h2>Everything pi does, from anywhere — plus what pi does not have</h2>
+        <p>
+          pi stays pi: the server forwards <code>pi.*</code> payloads verbatim and a new pi
+          command needs no server change. What pi-ui adds are the surfaces a phone needs, each
+          confined to the workspaces the operator allows.
+        </p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="13" height="9"/><path d="M6 14h4M8 11.5V14"/></svg>One child per session</h3>
+          <p>A supervisor spawns <code>pi --mode rpc</code> per session on the host, watches it,
+          respawns it with resume after a crash and evicts what nobody is using.</p>
+        </article>
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12v8H6l-4 3z"/></svg>Streaming chat</h3>
+          <p>Assistant deltas, a collapsible thinking block, tool cards with their output and
+          diff, and a replay that fills the gap after the socket dropped.</p>
+        </article>
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6.2"/><path d="M5.4 8.2 7.2 10l3.4-3.6"/></svg>Approvals in your pocket</h3>
+          <p>The bridge asks <code>notify</code>/<code>confirm</code> with a TTL; the card shows
+          the command and denies on its own when nobody answers before it expires.</p>
+        </article>
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12.5 8 3l6 9.5z"/></svg>Steer or queue a follow-up</h3>
+          <p>Send into the running turn, or leave a message the server delivers when the
+          current tool calls finish. Attachments and slash commands pass through.</p>
+        </article>
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 4.2h4l1.4 1.6h7.6v6.6a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1z"/></svg>Files, git and search</h3>
+          <p>Browse and read inside the roots, see status/diff/log and commit when
+          <code>git.write</code> is on, search with ripgrep or across the session JSONL.</p>
+        </article>
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2" width="13" height="12" rx="1.5"/><path d="m4.5 6 2 2-2 2M8.5 10h3"/></svg>Terminals and tasks</h3>
+          <p>Real PTYs over the WebSocket (<code>terminal.open|input|resize|close</code>) and
+          background tasks in their own process group, stop included.</p>
+        </article>
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2v3M10 2v3M4.5 5h7v3.5a3.5 3.5 0 0 1-7 0zM8 12v2"/></svg>MCP and goal mode</h3>
+          <p>The bridge configures MCP servers and registers their tools inside the session,
+          and <code>/goal</code> keeps a long run pointed at one outcome.</p>
+        </article>
+        <article class="card">
+          <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.5 14 4v4.2c0 3.3-2.4 5.6-6 6.3-3.6-.7-6-3-6-6.3V4z"/></svg>Safe by construction</h3>
+          <p>Device tokens are argon2id hashes, scopes bound what a client can do, revocation
+          closes its sockets, TLS is pin-able, and <code>--isolate</code> puts a session in a
+          container instead of your whole host.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="screens">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="kicker">Every screen</p>
+        <h2>The whole product, rendered — filter it, or click one to enlarge it</h2>
+        <p>
+          Each tile is a real capture of <code>mockups/screens/NN-name.html</code> at 2×, dark and
+          light, in the same order and with the same captions as
+          <a href="mockups/">the mockup's own gallery</a>. The last group is the Flutter client
+          itself, rendered from the widgets that ship.
+        </p>
+      </div>
+
+<!-- gallery:begin — generated by site/tools/build_gallery.py, do not edit by hand -->
+      <div class="filters" id="gallery-filters">
+        <div class="row">
+          <label class="row-label" for="gallery-search">Find a screen</label>
+          <input class="search" id="gallery-search" type="search" placeholder="Type a name: chat, git, pairing…" autocomplete="off">
+        </div>
+        <div class="row"><span class="row-label">Area</span>
+          <button class="chip" type="button" data-filter="group" data-value="all" aria-pressed="true">All <span class="count">48</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="review-start" aria-pressed="false">Review start <span class="count">1</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="onboarding" aria-pressed="false">Onboarding <span class="count">6</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="sessions" aria-pressed="false">Sessions <span class="count">2</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="chat" aria-pressed="false">Chat <span class="count">5</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="session-header" aria-pressed="false">Session header <span class="count">2</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="session" aria-pressed="false">Session <span class="count">1</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="branching" aria-pressed="false">Branching <span class="count">4</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="tools" aria-pressed="false">Tools <span class="count">6</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="dialogs" aria-pressed="false">Dialogs <span class="count">2</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="observability" aria-pressed="false">Observability <span class="count">2</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="global" aria-pressed="false">Global <span class="count">1</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="desktop" aria-pressed="false">Desktop <span class="count">2</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="search" aria-pressed="false">Search <span class="count">1</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="settings" aria-pressed="false">Settings <span class="count">5</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="optional" aria-pressed="false">Optional <span class="count">1</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="states" aria-pressed="false">States <span class="count">2</span></button>
+          <button class="chip" type="button" data-filter="group" data-value="the-flutter-client" aria-pressed="false">The Flutter client <span class="count">5</span></button>
+        </div>
+        <div class="row"><span class="row-label">Form</span>
+          <button class="chip" type="button" data-filter="device" data-value="mobile" aria-pressed="false">Phone <span class="count">36</span></button><button class="chip" type="button" data-filter="device" data-value="desktop" aria-pressed="false">Desktop <span class="count">12</span></button>
+        </div>
+        <div class="row"><span class="row-label">Source</span>
+          <button class="chip" type="button" data-filter="source" data-value="mockup" aria-pressed="false">Mockup <span class="count">43</span></button><button class="chip" type="button" data-filter="source" data-value="app" aria-pressed="false">Flutter client <span class="count">5</span></button>
+        </div>
+      </div>
+      <p class="gallery-count" id="gallery-count">48 screens: 43 from the mockup, 5 rendered from the Flutter client.</p>
+      <div class="gallery-grid" id="gallery-grid">
+      <figure class="tile" data-slug="00-states" data-title="States board — every mandatory state" data-group="review-start" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/00-states.png" data-light="mockups/screenshots/light/00-states.png" data-thumb-dark="mockups/screenshots/thumbs/dark/00-states.png" data-thumb-light="mockups/screenshots/thumbs/light/00-states.png" data-live="mockups/screens/00-states.html">
+        <button class="open" type="button" aria-label="Enlarge States board — every mandatory state">
+          <img src="mockups/screenshots/thumbs/dark/00-states.png" alt="States board — every mandatory state — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>States board — every mandatory state</figcaption>
+        <p class="meta"><span class="num">★</span><span>Review start</span></p>
+      </figure>
+      <figure class="tile" data-slug="01-server-url" data-title="Server URL" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/01-server-url.png" data-light="mockups/screenshots/light/01-server-url.png" data-thumb-dark="mockups/screenshots/thumbs/dark/01-server-url.png" data-thumb-light="mockups/screenshots/thumbs/light/01-server-url.png" data-live="mockups/screens/01-server-url.html">
+        <button class="open" type="button" aria-label="Enlarge Server URL">
+          <img src="mockups/screenshots/thumbs/dark/01-server-url.png" alt="Server URL — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Server URL</figcaption>
+        <p class="meta"><span class="num">#1</span><span>Onboarding</span></p>
+      </figure>
+      <figure class="tile" data-slug="02-pairing-qr" data-title="Pairing — QR" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/02-pairing-qr.png" data-light="mockups/screenshots/light/02-pairing-qr.png" data-thumb-dark="mockups/screenshots/thumbs/dark/02-pairing-qr.png" data-thumb-light="mockups/screenshots/thumbs/light/02-pairing-qr.png" data-live="mockups/screens/02-pairing-qr.html">
+        <button class="open" type="button" aria-label="Enlarge Pairing — QR">
+          <img src="mockups/screenshots/thumbs/dark/02-pairing-qr.png" alt="Pairing — QR — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Pairing — QR</figcaption>
+        <p class="meta"><span class="num">#2</span><span>Onboarding</span></p>
+      </figure>
+      <figure class="tile" data-slug="03-pairing-code" data-title="Pairing — code" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/03-pairing-code.png" data-light="mockups/screenshots/light/03-pairing-code.png" data-thumb-dark="mockups/screenshots/thumbs/dark/03-pairing-code.png" data-thumb-light="mockups/screenshots/thumbs/light/03-pairing-code.png" data-live="mockups/screens/03-pairing-code.html">
+        <button class="open" type="button" aria-label="Enlarge Pairing — code">
+          <img src="mockups/screenshots/thumbs/dark/03-pairing-code.png" alt="Pairing — code — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Pairing — code</figcaption>
+        <p class="meta"><span class="num">#3</span><span>Onboarding</span></p>
+      </figure>
+      <figure class="tile" data-slug="04-certificate" data-title="Certificate trust" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/04-certificate.png" data-light="mockups/screenshots/light/04-certificate.png" data-thumb-dark="mockups/screenshots/thumbs/dark/04-certificate.png" data-thumb-light="mockups/screenshots/thumbs/light/04-certificate.png" data-live="mockups/screens/04-certificate.html">
+        <button class="open" type="button" aria-label="Enlarge Certificate trust">
+          <img src="mockups/screenshots/thumbs/dark/04-certificate.png" alt="Certificate trust — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Certificate trust</figcaption>
+        <p class="meta"><span class="num">#4</span><span>Onboarding</span></p>
+      </figure>
+      <figure class="tile" data-slug="05-network-profile" data-title="Network profile" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/05-network-profile.png" data-light="mockups/screenshots/light/05-network-profile.png" data-thumb-dark="mockups/screenshots/thumbs/dark/05-network-profile.png" data-thumb-light="mockups/screenshots/thumbs/light/05-network-profile.png" data-live="mockups/screens/05-network-profile.html">
+        <button class="open" type="button" aria-label="Enlarge Network profile">
+          <img src="mockups/screenshots/thumbs/dark/05-network-profile.png" alt="Network profile — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Network profile</figcaption>
+        <p class="meta"><span class="num">#5</span><span>Onboarding</span></p>
+      </figure>
+      <figure class="tile" data-slug="39-login" data-title="Two-mode login" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/39-login.png" data-light="mockups/screenshots/light/39-login.png" data-thumb-dark="mockups/screenshots/thumbs/dark/39-login.png" data-thumb-light="mockups/screenshots/thumbs/light/39-login.png" data-live="mockups/screens/39-login.html">
+        <button class="open" type="button" aria-label="Enlarge Two-mode login">
+          <img src="mockups/screenshots/thumbs/dark/39-login.png" alt="Two-mode login — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Two-mode login</figcaption>
+        <p class="meta"><span class="num">#39</span><span>Onboarding</span></p>
+      </figure>
+      <figure class="tile" data-slug="06-sessions" data-title="Session list" data-group="sessions" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/06-sessions.png" data-light="mockups/screenshots/light/06-sessions.png" data-thumb-dark="mockups/screenshots/thumbs/dark/06-sessions.png" data-thumb-light="mockups/screenshots/thumbs/light/06-sessions.png" data-live="mockups/screens/06-sessions.html">
+        <button class="open" type="button" aria-label="Enlarge Session list">
+          <img src="mockups/screenshots/thumbs/dark/06-sessions.png" alt="Session list — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Session list</figcaption>
+        <p class="meta"><span class="num">#6</span><span>Sessions</span></p>
+      </figure>
+      <figure class="tile" data-slug="07-session-new" data-title="New session" data-group="sessions" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/07-session-new.png" data-light="mockups/screenshots/light/07-session-new.png" data-thumb-dark="mockups/screenshots/thumbs/dark/07-session-new.png" data-thumb-light="mockups/screenshots/thumbs/light/07-session-new.png" data-live="mockups/screens/07-session-new.html">
+        <button class="open" type="button" aria-label="Enlarge New session">
+          <img src="mockups/screenshots/thumbs/dark/07-session-new.png" alt="New session — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>New session</figcaption>
+        <p class="meta"><span class="num">#7</span><span>Sessions</span></p>
+      </figure>
+      <figure class="tile" data-slug="08-chat-streaming" data-title="Chat — streaming" data-group="chat" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/08-chat-streaming.png" data-light="mockups/screenshots/light/08-chat-streaming.png" data-thumb-dark="mockups/screenshots/thumbs/dark/08-chat-streaming.png" data-thumb-light="mockups/screenshots/thumbs/light/08-chat-streaming.png" data-live="mockups/screens/08-chat-streaming.html">
+        <button class="open" type="button" aria-label="Enlarge Chat — streaming">
+          <img src="mockups/screenshots/thumbs/dark/08-chat-streaming.png" alt="Chat — streaming — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Chat — streaming</figcaption>
+        <p class="meta"><span class="num">#8</span><span>Chat</span></p>
+      </figure>
+      <figure class="tile" data-slug="09-chat-search" data-title="Search in conversation" data-group="chat" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/09-chat-search.png" data-light="mockups/screenshots/light/09-chat-search.png" data-thumb-dark="mockups/screenshots/thumbs/dark/09-chat-search.png" data-thumb-light="mockups/screenshots/thumbs/light/09-chat-search.png" data-live="mockups/screens/09-chat-search.html">
+        <button class="open" type="button" aria-label="Enlarge Search in conversation">
+          <img src="mockups/screenshots/thumbs/dark/09-chat-search.png" alt="Search in conversation — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Search in conversation</figcaption>
+        <p class="meta"><span class="num">#9</span><span>Chat</span></p>
+      </figure>
+      <figure class="tile" data-slug="10-composer" data-title="Composer and slash commands" data-group="chat" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/10-composer.png" data-light="mockups/screenshots/light/10-composer.png" data-thumb-dark="mockups/screenshots/thumbs/dark/10-composer.png" data-thumb-light="mockups/screenshots/thumbs/light/10-composer.png" data-live="mockups/screens/10-composer.html">
+        <button class="open" type="button" aria-label="Enlarge Composer and slash commands">
+          <img src="mockups/screenshots/thumbs/dark/10-composer.png" alt="Composer and slash commands — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Composer and slash commands</figcaption>
+        <p class="meta"><span class="num">#10</span><span>Chat</span></p>
+      </figure>
+      <figure class="tile" data-slug="11-composer-steer" data-title="Composer — steer or follow-up" data-group="chat" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/11-composer-steer.png" data-light="mockups/screenshots/light/11-composer-steer.png" data-thumb-dark="mockups/screenshots/thumbs/dark/11-composer-steer.png" data-thumb-light="mockups/screenshots/thumbs/light/11-composer-steer.png" data-live="mockups/screens/11-composer-steer.html">
+        <button class="open" type="button" aria-label="Enlarge Composer — steer or follow-up">
+          <img src="mockups/screenshots/thumbs/dark/11-composer-steer.png" alt="Composer — steer or follow-up — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Composer — steer or follow-up</figcaption>
+        <p class="meta"><span class="num">#11</span><span>Chat</span></p>
+      </figure>
+      <figure class="tile" data-slug="12-queue" data-title="Message queue" data-group="chat" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/12-queue.png" data-light="mockups/screenshots/light/12-queue.png" data-thumb-dark="mockups/screenshots/thumbs/dark/12-queue.png" data-thumb-light="mockups/screenshots/thumbs/light/12-queue.png" data-live="mockups/screens/12-queue.html">
+        <button class="open" type="button" aria-label="Enlarge Message queue">
+          <img src="mockups/screenshots/thumbs/dark/12-queue.png" alt="Message queue — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Message queue</figcaption>
+        <p class="meta"><span class="num">#12</span><span>Chat</span></p>
+      </figure>
+      <figure class="tile" data-slug="13-header-model" data-title="Model and thinking" data-group="session-header" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/13-header-model.png" data-light="mockups/screenshots/light/13-header-model.png" data-thumb-dark="mockups/screenshots/thumbs/dark/13-header-model.png" data-thumb-light="mockups/screenshots/thumbs/light/13-header-model.png" data-live="mockups/screens/13-header-model.html">
+        <button class="open" type="button" aria-label="Enlarge Model and thinking">
+          <img src="mockups/screenshots/thumbs/dark/13-header-model.png" alt="Model and thinking — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Model and thinking</figcaption>
+        <p class="meta"><span class="num">#13</span><span>Session header</span></p>
+      </figure>
+      <figure class="tile" data-slug="14-status-sheet" data-title="Run status" data-group="session-header" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/14-status-sheet.png" data-light="mockups/screenshots/light/14-status-sheet.png" data-thumb-dark="mockups/screenshots/thumbs/dark/14-status-sheet.png" data-thumb-light="mockups/screenshots/thumbs/light/14-status-sheet.png" data-live="mockups/screens/14-status-sheet.html">
+        <button class="open" type="button" aria-label="Enlarge Run status">
+          <img src="mockups/screenshots/thumbs/dark/14-status-sheet.png" alt="Run status — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Run status</figcaption>
+        <p class="meta"><span class="num">#14</span><span>Session header</span></p>
+      </figure>
+      <figure class="tile" data-slug="15-stats" data-title="Session statistics" data-group="session" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/15-stats.png" data-light="mockups/screenshots/light/15-stats.png" data-thumb-dark="mockups/screenshots/thumbs/dark/15-stats.png" data-thumb-light="mockups/screenshots/thumbs/light/15-stats.png" data-live="mockups/screens/15-stats.html">
+        <button class="open" type="button" aria-label="Enlarge Session statistics">
+          <img src="mockups/screenshots/thumbs/dark/15-stats.png" alt="Session statistics — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Session statistics</figcaption>
+        <p class="meta"><span class="num">#15</span><span>Session</span></p>
+      </figure>
+      <figure class="tile" data-slug="16-tree" data-title="Branch tree" data-group="branching" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/16-tree.png" data-light="mockups/screenshots/light/16-tree.png" data-thumb-dark="mockups/screenshots/thumbs/dark/16-tree.png" data-thumb-light="mockups/screenshots/thumbs/light/16-tree.png" data-live="mockups/screens/16-tree.html">
+        <button class="open" type="button" aria-label="Enlarge Branch tree">
+          <img src="mockups/screenshots/thumbs/dark/16-tree.png" alt="Branch tree — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Branch tree</figcaption>
+        <p class="meta"><span class="num">#16</span><span>Branching</span></p>
+      </figure>
+      <figure class="tile" data-slug="17-fork" data-title="Fork from a message" data-group="branching" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/17-fork.png" data-light="mockups/screenshots/light/17-fork.png" data-thumb-dark="mockups/screenshots/thumbs/dark/17-fork.png" data-thumb-light="mockups/screenshots/thumbs/light/17-fork.png" data-live="mockups/screens/17-fork.html">
+        <button class="open" type="button" aria-label="Enlarge Fork from a message">
+          <img src="mockups/screenshots/thumbs/dark/17-fork.png" alt="Fork from a message — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Fork from a message</figcaption>
+        <p class="meta"><span class="num">#17</span><span>Branching</span></p>
+      </figure>
+      <figure class="tile" data-slug="18-clone-rename" data-title="Clone, rename, switch" data-group="branching" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/18-clone-rename.png" data-light="mockups/screenshots/light/18-clone-rename.png" data-thumb-dark="mockups/screenshots/thumbs/dark/18-clone-rename.png" data-thumb-light="mockups/screenshots/thumbs/light/18-clone-rename.png" data-live="mockups/screens/18-clone-rename.html">
+        <button class="open" type="button" aria-label="Enlarge Clone, rename, switch">
+          <img src="mockups/screenshots/thumbs/dark/18-clone-rename.png" alt="Clone, rename, switch — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Clone, rename, switch</figcaption>
+        <p class="meta"><span class="num">#18</span><span>Branching</span></p>
+      </figure>
+      <figure class="tile" data-slug="19-export" data-title="Export a session" data-group="branching" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/19-export.png" data-light="mockups/screenshots/light/19-export.png" data-thumb-dark="mockups/screenshots/thumbs/dark/19-export.png" data-thumb-light="mockups/screenshots/thumbs/light/19-export.png" data-live="mockups/screens/19-export.html">
+        <button class="open" type="button" aria-label="Enlarge Export a session">
+          <img src="mockups/screenshots/thumbs/dark/19-export.png" alt="Export a session — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Export a session</figcaption>
+        <p class="meta"><span class="num">#19</span><span>Branching</span></p>
+      </figure>
+      <figure class="tile" data-slug="20-bash" data-title="Direct bash console" data-group="tools" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/20-bash.png" data-light="mockups/screenshots/light/20-bash.png" data-thumb-dark="mockups/screenshots/thumbs/dark/20-bash.png" data-thumb-light="mockups/screenshots/thumbs/light/20-bash.png" data-live="mockups/screens/20-bash.html">
+        <button class="open" type="button" aria-label="Enlarge Direct bash console">
+          <img src="mockups/screenshots/thumbs/dark/20-bash.png" alt="Direct bash console — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Direct bash console</figcaption>
+        <p class="meta"><span class="num">#20</span><span>Tools</span></p>
+      </figure>
+      <figure class="tile" data-slug="28-files" data-title="Host file browser" data-group="tools" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/28-files.png" data-light="mockups/screenshots/light/28-files.png" data-thumb-dark="mockups/screenshots/thumbs/dark/28-files.png" data-thumb-light="mockups/screenshots/thumbs/light/28-files.png" data-live="mockups/screens/28-files.html">
+        <button class="open" type="button" aria-label="Enlarge Host file browser">
+          <img src="mockups/screenshots/thumbs/dark/28-files.png" alt="Host file browser — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Host file browser</figcaption>
+        <p class="meta"><span class="num">#28</span><span>Tools</span></p>
+      </figure>
+      <figure class="tile" data-slug="29-terminals" data-title="PTY terminals" data-group="tools" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/29-terminals.png" data-light="mockups/screenshots/light/29-terminals.png" data-thumb-dark="mockups/screenshots/thumbs/dark/29-terminals.png" data-thumb-light="mockups/screenshots/thumbs/light/29-terminals.png" data-live="mockups/screens/29-terminals.html">
+        <button class="open" type="button" aria-label="Enlarge PTY terminals">
+          <img src="mockups/screenshots/thumbs/dark/29-terminals.png" alt="PTY terminals — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>PTY terminals</figcaption>
+        <p class="meta"><span class="num">#29</span><span>Tools</span></p>
+      </figure>
+      <figure class="tile" data-slug="30-git" data-title="Git panel" data-group="tools" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/30-git.png" data-light="mockups/screenshots/light/30-git.png" data-thumb-dark="mockups/screenshots/thumbs/dark/30-git.png" data-thumb-light="mockups/screenshots/thumbs/light/30-git.png" data-live="mockups/screens/30-git.html">
+        <button class="open" type="button" aria-label="Enlarge Git panel">
+          <img src="mockups/screenshots/thumbs/dark/30-git.png" alt="Git panel — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Git panel</figcaption>
+        <p class="meta"><span class="num">#30</span><span>Tools</span></p>
+      </figure>
+      <figure class="tile" data-slug="32-tasks" data-title="Background tasks" data-group="tools" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/32-tasks.png" data-light="mockups/screenshots/light/32-tasks.png" data-thumb-dark="mockups/screenshots/thumbs/dark/32-tasks.png" data-thumb-light="mockups/screenshots/thumbs/light/32-tasks.png" data-live="mockups/screens/32-tasks.html">
+        <button class="open" type="button" aria-label="Enlarge Background tasks">
+          <img src="mockups/screenshots/thumbs/dark/32-tasks.png" alt="Background tasks — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Background tasks</figcaption>
+        <p class="meta"><span class="num">#32</span><span>Tools</span></p>
+      </figure>
+      <figure class="tile" data-slug="42-markdown-editor" data-title="Markdown editor" data-group="tools" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/42-markdown-editor.png" data-light="mockups/screenshots/light/42-markdown-editor.png" data-thumb-dark="mockups/screenshots/thumbs/dark/42-markdown-editor.png" data-thumb-light="mockups/screenshots/thumbs/light/42-markdown-editor.png" data-live="mockups/screens/42-markdown-editor.html">
+        <button class="open" type="button" aria-label="Enlarge Markdown editor">
+          <img src="mockups/screenshots/thumbs/dark/42-markdown-editor.png" alt="Markdown editor — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Markdown editor</figcaption>
+        <p class="meta"><span class="num">#42</span><span>Tools</span></p>
+      </figure>
+      <figure class="tile" data-slug="21-dialogs" data-title="Extension dialogs" data-group="dialogs" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/21-dialogs.png" data-light="mockups/screenshots/light/21-dialogs.png" data-thumb-dark="mockups/screenshots/thumbs/dark/21-dialogs.png" data-thumb-light="mockups/screenshots/thumbs/light/21-dialogs.png" data-live="mockups/screens/21-dialogs.html">
+        <button class="open" type="button" aria-label="Enlarge Extension dialogs">
+          <img src="mockups/screenshots/thumbs/dark/21-dialogs.png" alt="Extension dialogs — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Extension dialogs</figcaption>
+        <p class="meta"><span class="num">#21</span><span>Dialogs</span></p>
+      </figure>
+      <figure class="tile" data-slug="22-notifications" data-title="Notify, status and widget" data-group="dialogs" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/22-notifications.png" data-light="mockups/screenshots/light/22-notifications.png" data-thumb-dark="mockups/screenshots/thumbs/dark/22-notifications.png" data-thumb-light="mockups/screenshots/thumbs/light/22-notifications.png" data-live="mockups/screens/22-notifications.html">
+        <button class="open" type="button" aria-label="Enlarge Notify, status and widget">
+          <img src="mockups/screenshots/thumbs/dark/22-notifications.png" alt="Notify, status and widget — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Notify, status and widget</figcaption>
+        <p class="meta"><span class="num">#22</span><span>Dialogs</span></p>
+      </figure>
+      <figure class="tile" data-slug="24-logs-errors" data-title="Errors and log tail" data-group="observability" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/24-logs-errors.png" data-light="mockups/screenshots/light/24-logs-errors.png" data-thumb-dark="mockups/screenshots/thumbs/dark/24-logs-errors.png" data-thumb-light="mockups/screenshots/thumbs/light/24-logs-errors.png" data-live="mockups/screens/24-logs-errors.html">
+        <button class="open" type="button" aria-label="Enlarge Errors and log tail">
+          <img src="mockups/screenshots/thumbs/dark/24-logs-errors.png" alt="Errors and log tail — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Errors and log tail</figcaption>
+        <p class="meta"><span class="num">#24</span><span>Observability</span></p>
+      </figure>
+      <figure class="tile" data-slug="41-log-viewer" data-title="Log viewer and audit" data-group="observability" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/41-log-viewer.png" data-light="mockups/screenshots/light/41-log-viewer.png" data-thumb-dark="mockups/screenshots/thumbs/dark/41-log-viewer.png" data-thumb-light="mockups/screenshots/thumbs/light/41-log-viewer.png" data-live="mockups/screens/41-log-viewer.html">
+        <button class="open" type="button" aria-label="Enlarge Log viewer and audit">
+          <img src="mockups/screenshots/thumbs/dark/41-log-viewer.png" alt="Log viewer and audit — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Log viewer and audit</figcaption>
+        <p class="meta"><span class="num">#41</span><span>Observability</span></p>
+      </figure>
+      <figure class="tile" data-slug="25-connection" data-title="Connection states" data-group="global" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/25-connection.png" data-light="mockups/screenshots/light/25-connection.png" data-thumb-dark="mockups/screenshots/thumbs/dark/25-connection.png" data-thumb-light="mockups/screenshots/thumbs/light/25-connection.png" data-live="mockups/screens/25-connection.html">
+        <button class="open" type="button" aria-label="Enlarge Connection states">
+          <img src="mockups/screenshots/thumbs/dark/25-connection.png" alt="Connection states — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Connection states</figcaption>
+        <p class="meta"><span class="num">#25</span><span>Global</span></p>
+      </figure>
+      <figure class="tile" data-slug="26-desktop-tabs" data-title="Desktop multi-session" data-group="desktop" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/26-desktop-tabs.png" data-light="mockups/screenshots/light/26-desktop-tabs.png" data-thumb-dark="mockups/screenshots/thumbs/dark/26-desktop-tabs.png" data-thumb-light="mockups/screenshots/thumbs/light/26-desktop-tabs.png" data-live="mockups/screens/26-desktop-tabs.html">
+        <button class="open" type="button" aria-label="Enlarge Desktop multi-session">
+          <img src="mockups/screenshots/thumbs/dark/26-desktop-tabs.png" alt="Desktop multi-session — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Desktop multi-session</figcaption>
+        <p class="meta"><span class="num">#26</span><span>Desktop</span></p>
+      </figure>
+      <figure class="tile" data-slug="27-desktop-dashboard" data-title="Multi-session dashboard" data-group="desktop" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/27-desktop-dashboard.png" data-light="mockups/screenshots/light/27-desktop-dashboard.png" data-thumb-dark="mockups/screenshots/thumbs/dark/27-desktop-dashboard.png" data-thumb-light="mockups/screenshots/thumbs/light/27-desktop-dashboard.png" data-live="mockups/screens/27-desktop-dashboard.html">
+        <button class="open" type="button" aria-label="Enlarge Multi-session dashboard">
+          <img src="mockups/screenshots/thumbs/dark/27-desktop-dashboard.png" alt="Multi-session dashboard — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Multi-session dashboard</figcaption>
+        <p class="meta"><span class="num">#27</span><span>Desktop</span></p>
+      </figure>
+      <figure class="tile" data-slug="31-search" data-title="Global search" data-group="search" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/31-search.png" data-light="mockups/screenshots/light/31-search.png" data-thumb-dark="mockups/screenshots/thumbs/dark/31-search.png" data-thumb-light="mockups/screenshots/thumbs/light/31-search.png" data-live="mockups/screens/31-search.html">
+        <button class="open" type="button" aria-label="Enlarge Global search">
+          <img src="mockups/screenshots/thumbs/dark/31-search.png" alt="Global search — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Global search</figcaption>
+        <p class="meta"><span class="num">#31</span><span>Search</span></p>
+      </figure>
+      <figure class="tile" data-slug="23-server-settings" data-title="Server settings" data-group="settings" data-device="desktop" data-source="mockup" data-dark="mockups/screenshots/dark/23-server-settings.png" data-light="mockups/screenshots/light/23-server-settings.png" data-thumb-dark="mockups/screenshots/thumbs/dark/23-server-settings.png" data-thumb-light="mockups/screenshots/thumbs/light/23-server-settings.png" data-live="mockups/screens/23-server-settings.html">
+        <button class="open" type="button" aria-label="Enlarge Server settings">
+          <img src="mockups/screenshots/thumbs/dark/23-server-settings.png" alt="Server settings — mockup" loading="lazy" width="300" height="183">
+        </button>
+        <figcaption>Server settings</figcaption>
+        <p class="meta"><span class="num">#23</span><span>Settings</span></p>
+      </figure>
+      <figure class="tile" data-slug="33-mcp" data-title="MCP configuration" data-group="settings" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/33-mcp.png" data-light="mockups/screenshots/light/33-mcp.png" data-thumb-dark="mockups/screenshots/thumbs/dark/33-mcp.png" data-thumb-light="mockups/screenshots/thumbs/light/33-mcp.png" data-live="mockups/screens/33-mcp.html">
+        <button class="open" type="button" aria-label="Enlarge MCP configuration">
+          <img src="mockups/screenshots/thumbs/dark/33-mcp.png" alt="MCP configuration — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>MCP configuration</figcaption>
+        <p class="meta"><span class="num">#33</span><span>Settings</span></p>
+      </figure>
+      <figure class="tile" data-slug="34-updates" data-title="Updates" data-group="settings" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/34-updates.png" data-light="mockups/screenshots/light/34-updates.png" data-thumb-dark="mockups/screenshots/thumbs/dark/34-updates.png" data-thumb-light="mockups/screenshots/thumbs/light/34-updates.png" data-live="mockups/screens/34-updates.html">
+        <button class="open" type="button" aria-label="Enlarge Updates">
+          <img src="mockups/screenshots/thumbs/dark/34-updates.png" alt="Updates — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Updates</figcaption>
+        <p class="meta"><span class="num">#34</span><span>Settings</span></p>
+      </figure>
+      <figure class="tile" data-slug="35-themes" data-title="Themes and language" data-group="settings" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/35-themes.png" data-light="mockups/screenshots/light/35-themes.png" data-thumb-dark="mockups/screenshots/thumbs/dark/35-themes.png" data-thumb-light="mockups/screenshots/thumbs/light/35-themes.png" data-live="mockups/screens/35-themes.html">
+        <button class="open" type="button" aria-label="Enlarge Themes and language">
+          <img src="mockups/screenshots/thumbs/dark/35-themes.png" alt="Themes and language — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Themes and language</figcaption>
+        <p class="meta"><span class="num">#35</span><span>Settings</span></p>
+      </figure>
+      <figure class="tile" data-slug="37-packages" data-title="pi packages" data-group="settings" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/37-packages.png" data-light="mockups/screenshots/light/37-packages.png" data-thumb-dark="mockups/screenshots/thumbs/dark/37-packages.png" data-thumb-light="mockups/screenshots/thumbs/light/37-packages.png" data-live="mockups/screens/37-packages.html">
+        <button class="open" type="button" aria-label="Enlarge pi packages">
+          <img src="mockups/screenshots/thumbs/dark/37-packages.png" alt="pi packages — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>pi packages</figcaption>
+        <p class="meta"><span class="num">#37</span><span>Settings</span></p>
+      </figure>
+      <figure class="tile" data-slug="36-goal-mode" data-title="Goal mode" data-group="optional" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/36-goal-mode.png" data-light="mockups/screenshots/light/36-goal-mode.png" data-thumb-dark="mockups/screenshots/thumbs/dark/36-goal-mode.png" data-thumb-light="mockups/screenshots/thumbs/light/36-goal-mode.png" data-live="mockups/screens/36-goal-mode.html">
+        <button class="open" type="button" aria-label="Enlarge Goal mode">
+          <img src="mockups/screenshots/thumbs/dark/36-goal-mode.png" alt="Goal mode — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Goal mode</figcaption>
+        <p class="meta"><span class="num">#36</span><span>Optional</span></p>
+      </figure>
+      <figure class="tile" data-slug="38-wrapup" data-title="Wrap-up and handoff" data-group="states" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/38-wrapup.png" data-light="mockups/screenshots/light/38-wrapup.png" data-thumb-dark="mockups/screenshots/thumbs/dark/38-wrapup.png" data-thumb-light="mockups/screenshots/thumbs/light/38-wrapup.png" data-live="mockups/screens/38-wrapup.html">
+        <button class="open" type="button" aria-label="Enlarge Wrap-up and handoff">
+          <img src="mockups/screenshots/thumbs/dark/38-wrapup.png" alt="Wrap-up and handoff — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Wrap-up and handoff</figcaption>
+        <p class="meta"><span class="num">#38</span><span>States</span></p>
+      </figure>
+      <figure class="tile" data-slug="40-offline" data-title="Offline queue" data-group="states" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/40-offline.png" data-light="mockups/screenshots/light/40-offline.png" data-thumb-dark="mockups/screenshots/thumbs/dark/40-offline.png" data-thumb-light="mockups/screenshots/thumbs/light/40-offline.png" data-live="mockups/screens/40-offline.html">
+        <button class="open" type="button" aria-label="Enlarge Offline queue">
+          <img src="mockups/screenshots/thumbs/dark/40-offline.png" alt="Offline queue — mockup" loading="lazy" width="300" height="607">
+        </button>
+        <figcaption>Offline queue</figcaption>
+        <p class="meta"><span class="num">#40</span><span>States</span></p>
+      </figure>
+      <figure class="tile" data-slug="01-sessions-list" data-title="Sessions — the list and its states" data-group="the-flutter-client" data-device="mobile" data-source="app" data-dark="mockups/screenshots/app/01-sessions-list.png" data-light="mockups/screenshots/app/01-sessions-list.png" data-thumb-dark="mockups/screenshots/app/01-sessions-list.png" data-thumb-light="mockups/screenshots/app/01-sessions-list.png" data-live="">
+        <button class="open" type="button" aria-label="Enlarge Sessions — the list and its states">
+          <img src="mockups/screenshots/app/01-sessions-list.png" alt="Sessions — the list and its states — the Flutter client" loading="lazy" width="430" height="932">
+        </button>
+        <figcaption>Sessions — the list and its states</figcaption>
+        <p class="meta"><span class="num">1</span><span>The Flutter client</span></p>
+      </figure>
+      <figure class="tile" data-slug="02-chat" data-title="Chat — a streaming turn" data-group="the-flutter-client" data-device="mobile" data-source="app" data-dark="mockups/screenshots/app/02-chat.png" data-light="mockups/screenshots/app/02-chat.png" data-thumb-dark="mockups/screenshots/app/02-chat.png" data-thumb-light="mockups/screenshots/app/02-chat.png" data-live="">
+        <button class="open" type="button" aria-label="Enlarge Chat — a streaming turn">
+          <img src="mockups/screenshots/app/02-chat.png" alt="Chat — a streaming turn — the Flutter client" loading="lazy" width="430" height="932">
+        </button>
+        <figcaption>Chat — a streaming turn</figcaption>
+        <p class="meta"><span class="num">2</span><span>The Flutter client</span></p>
+      </figure>
+      <figure class="tile" data-slug="03-files" data-title="Files — browsing a workspace" data-group="the-flutter-client" data-device="mobile" data-source="app" data-dark="mockups/screenshots/app/03-files.png" data-light="mockups/screenshots/app/03-files.png" data-thumb-dark="mockups/screenshots/app/03-files.png" data-thumb-light="mockups/screenshots/app/03-files.png" data-live="">
+        <button class="open" type="button" aria-label="Enlarge Files — browsing a workspace">
+          <img src="mockups/screenshots/app/03-files.png" alt="Files — browsing a workspace — the Flutter client" loading="lazy" width="430" height="932">
+        </button>
+        <figcaption>Files — browsing a workspace</figcaption>
+        <p class="meta"><span class="num">3</span><span>The Flutter client</span></p>
+      </figure>
+      <figure class="tile" data-slug="04-git-panel" data-title="Git — status, diff and log" data-group="the-flutter-client" data-device="desktop" data-source="app" data-dark="mockups/screenshots/app/04-git-panel.png" data-light="mockups/screenshots/app/04-git-panel.png" data-thumb-dark="mockups/screenshots/app/04-git-panel.png" data-thumb-light="mockups/screenshots/app/04-git-panel.png" data-live="">
+        <button class="open" type="button" aria-label="Enlarge Git — status, diff and log">
+          <img src="mockups/screenshots/app/04-git-panel.png" alt="Git — status, diff and log — the Flutter client" loading="lazy" width="880" height="900">
+        </button>
+        <figcaption>Git — status, diff and log</figcaption>
+        <p class="meta"><span class="num">4</span><span>The Flutter client</span></p>
+      </figure>
+      <figure class="tile" data-slug="05-settings" data-title="Settings — the server&#x27;s policy" data-group="the-flutter-client" data-device="desktop" data-source="app" data-dark="mockups/screenshots/app/05-settings.png" data-light="mockups/screenshots/app/05-settings.png" data-thumb-dark="mockups/screenshots/app/05-settings.png" data-thumb-light="mockups/screenshots/app/05-settings.png" data-live="">
+        <button class="open" type="button" aria-label="Enlarge Settings — the server&#x27;s policy">
+          <img src="mockups/screenshots/app/05-settings.png" alt="Settings — the server&#x27;s policy — the Flutter client" loading="lazy" width="880" height="1100">
+        </button>
+        <figcaption>Settings — the server&#x27;s policy</figcaption>
+        <p class="meta"><span class="num">5</span><span>The Flutter client</span></p>
+      </figure>
+      </div>
+      <p class="gallery-empty" id="gallery-empty" hidden>No screen matches that filter. <button class="chip" type="button" id="gallery-reset">Clear the filters</button></p>
+<!-- gallery:end -->
+    </div>
+  </section>
+
+  <section id="parity">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="kicker">Mockup → app</p>
+        <h2>The mockup is the visual contract. These are the widgets that implement it.</h2>
+        <p>
+          Every screen was frozen in HTML before a line of Flutter was written, and the app was
+          then measured against that frame. On the left the mockup, on the right the client
+          rendering the same screen — same tokens, same order, same states.
+        </p>
+      </div>
+      <div class="parity-controls">
+        <label class="muted" for="pair">Screen</label>
+        <select id="pair">
+          <option value="chat">Chat — a streaming turn</option>
+          <option value="sessions">Sessions — the list and its states</option>
+          <option value="files">Files — browsing a workspace</option>
+          <option value="git">Git — status, diff and log</option>
+          <option value="settings">Settings — the server's policy</option>
+        </select>
+        <span class="dim" id="pair-note"></span>
+      </div>
+
+      <div class="pair-set" data-pair="chat" data-note="A streaming answer, the thinking block it came with, a bash tool card and the approval card counting down.">
+        <div class="parity">
+          <figure>
+            <figcaption class="label">Mockup <span class="tag contract">the contract</span></figcaption>
+            <img src="mockups/screenshots/dark/08-chat-streaming.png" alt="Mockup of the chat screen while an answer streams">
+          </figure>
+          <figure>
+            <figcaption class="label">App <span class="tag">shipped</span></figcaption>
+            <img src="mockups/screenshots/app/02-chat.png" alt="The Flutter client's chat screen with a streaming answer and an approval dialog">
+          </figure>
+        </div>
+      </div>
+
+      <div class="pair-set" data-pair="sessions" hidden data-note="The same lifecycle states — streaming, ready, crashed, exited — with message counts and a context bar.">
+        <div class="parity">
+          <figure>
+            <figcaption class="label">Mockup <span class="tag contract">the contract</span></figcaption>
+            <img src="mockups/screenshots/dark/06-sessions.png" alt="Mockup of the session list">
+          </figure>
+          <figure>
+            <figcaption class="label">App <span class="tag">shipped</span></figcaption>
+            <img src="mockups/screenshots/app/01-sessions-list.png" alt="The Flutter client's session list">
+          </figure>
+        </div>
+      </div>
+
+      <div class="pair-set" data-pair="files" hidden data-note="A workspace root, its directories and the file sizes the server reports for them.">
+        <div class="parity">
+          <figure>
+            <figcaption class="label">Mockup <span class="tag contract">the contract</span></figcaption>
+            <img src="mockups/screenshots/dark/28-files.png" alt="Mockup of the file browser">
+          </figure>
+          <figure>
+            <figcaption class="label">App <span class="tag">shipped</span></figcaption>
+            <img src="mockups/screenshots/app/03-files.png" alt="The Flutter client's file browser">
+          </figure>
+        </div>
+      </div>
+
+      <div class="pair-set" data-pair="git" hidden data-note="Status, diff and log in one panel; the writes only appear when `git.write` is on.">
+        <div class="parity">
+          <figure>
+            <figcaption class="label">Mockup <span class="tag contract">the contract</span></figcaption>
+            <img src="mockups/screenshots/dark/30-git.png" alt="Mockup of the git panel">
+          </figure>
+          <figure>
+            <figcaption class="label">App <span class="tag">shipped</span></figcaption>
+            <img src="mockups/screenshots/app/04-git-panel.png" alt="The Flutter client's git panel">
+          </figure>
+        </div>
+      </div>
+
+      <div class="pair-set" data-pair="settings" hidden data-note="The policy the admin edits — a catalogue the server sends, not a form the client invents.">
+        <div class="parity">
+          <figure>
+            <figcaption class="label">Mockup <span class="tag contract">the contract</span></figcaption>
+            <img src="mockups/screenshots/dark/23-server-settings.png" alt="Mockup of the server settings">
+          </figure>
+          <figure>
+            <figcaption class="label">App <span class="tag">shipped</span></figcaption>
+            <img src="mockups/screenshots/app/05-settings.png" alt="The Flutter client's settings screen">
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="kicker">How it is put together</p>
+        <h2>A server that owns the sessions, a client that owns nothing</h2>
+        <p>
+          The server is the only process that holds a provider key, a device token hash or a
+          session. The client is a remote control: it asks, streams and renders.
+        </p>
+      </div>
+      <div class="arch">
+        <div class="layer">
+          <div class="name">Clients</div>
+          <div class="boxes">
+            <span class="box">Flutter · Android 15+</span>
+            <span class="box">Flutter · Linux</span>
+            <span class="box">Flutter · Windows</span>
+            <span class="box">one device token per device, kept in the OS keystore</span>
+          </div>
+        </div>
+        <p class="arrow">↑ HTTPS · WSS — scopes are checked on every request and every frame ↓</p>
+        <div class="layer">
+          <div class="name">Server (Go)</div>
+          <div class="boxes">
+            <span class="box accent">api · REST <code>/api/v1</code></span>
+            <span class="box accent">ws · hub, ring, <code>since</code> replay</span>
+            <span class="box">auth · pairing, scopes, revocation</span>
+            <span class="box">rpc · LF-only framing, backpressure</span>
+            <span class="box">sessions · spawn, watchdog, respawn with resume, eviction</span>
+            <span class="box">fs · git · search</span>
+            <span class="box">terminal · tasks · mcp · updates · settings</span>
+            <span class="box">store · SQLite (devices, cursors, audit)</span>
+            <span class="box">obs · audit and logs without conversation content</span>
+          </div>
+        </div>
+        <p class="arrow">⇅ JSONL over stdio, split on <code>\n</code> only — stdout is the protocol, stderr is diagnostics</p>
+        <div class="layer">
+          <div class="name">One child per session</div>
+          <div class="boxes">
+            <span class="box accent">pi --mode rpc</span>
+            <span class="box">pi-ui-bridge · approvals, MCP tools, goal mode</span>
+            <span class="box">conversation lives in pi's session JSONL</span>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="name">Host</div>
+          <div class="boxes">
+            <span class="box">your working directory</span>
+            <span class="box">git and ripgrep</span>
+            <span class="box">PTYs and background tasks</span>
+            <span class="box">optional: <code>--isolate &lt;image&gt;</code>, paths mounted same-path</span>
+          </div>
+        </div>
+      </div>
+      <p class="dim" style="margin-top: var(--sp-4)">
+        The seam that keeps this expandable: new pi commands and events flow through the generic
+        passthrough (<code>POST /sessions/{id}/commands</code>, WS <code>session.command.raw</code>)
+        instead of a new server-side special case, and unknown fields are tolerated rather than rejected.
+      </p>
+    </div>
+  </section>
+
+  <section id="run">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="kicker">Run it</p>
+        <h2>From a clone to a phone in the same room</h2>
+        <p>Go 1.27+ to build the server; Node 22.19+ wherever the sessions run, because pi is a Node CLI.</p>
+      </div>
+      <div class="code">
+        <pre><code>cd server
+CGO_ENABLED=0 go build -o bin/pi-ui ./cmd/pi-ui
+
+./bin/pi-ui serve --addr 127.0.0.1:8787 --pi pi \
+  --session /path/to/project[:name] \
+  --bridge ../bridge/pi-ui-bridge.ts</code></pre>
+        <p class="note">
+          <code>serve</code> starts one child per <code>--session</code>, serves REST and WebSockets,
+          and on SIGINT/SIGTERM stops every terminal and task before reaping the children.
+          <code>--root &lt;path&gt;</code> (repeatable) is what a client may browse,
+          <code>--session-dirs</code> is what the message search reads, <code>--state-dir</code> holds
+          the settings and the device tokens. Every flag also has a <code>PIUI_*</code> variable.
+        </p>
+      </div>
+      <div class="code">
+        <pre><code>./bin/pi-ui auth set-password           # the admin credential and the recovery path
+./bin/pi-ui pair --url http://&lt;host&gt;:8787   # code, deep link and a scannable QR
+./bin/pi-ui status                      # devices, password, pending invitations
+./bin/pi-ui tls fingerprint --cert cert.pem   # what the app compares when it pins</code></pre>
+        <p class="note">
+          An invitation is single-use and expires after ten minutes; the app burns it and keeps the
+          device token in the OS keystore. <code>deploy/</code> carries the container that mounts the
+          projects same-path, and the systemd unit for the static binary.
+        </p>
+      </div>
+      <div class="code">
+        <pre><code>cd server
+gofmt -l . &amp;&amp; go vet ./... &amp;&amp; go test -race ./... &amp;&amp; CGO_ENABLED=0 go build ./...
+
+server/scripts/measure.sh   # spawn latency, RSS, WS throughput, the three-minute soak</code></pre>
+        <p class="note">
+          The suites need neither a model nor a network: <code>server/test/fake-pi</code> impersonates
+          <code>pi --mode rpc</code> deterministically, <code>test/e2e</code> drives the built binary,
+          and <code>test/adversarial</code> attacks the framing, the WebSocket and the REST surface.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="security">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="kicker">Security</p>
+        <h2>What this deployment trusts, and what it never reveals</h2>
+        <p>
+          Every row below is a rule with a test next to it, not an intention:
+          <a href="https://github.com/Nihmar/pi-ui/blob/main/docs/security.md">docs/security.md</a>
+          is written so that each sentence can point at the code that enforces it.
+        </p>
+      </div>
+      <table class="table">
+        <thead><tr><th>Layer</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>Network</td><td><code>--allow-ips</code> refuses a peer outside the list with <code>403 forbidden_scope</code> before any handler runs, and audits the refusal.</td></tr>
+          <tr><td>Transport</td><td><code>--tls-cert</code>/<code>--tls-key</code> terminate TLS 1.2+; <code>GET /server</code> reports the leaf's SHA-256, which the app pins when it pairs.</td></tr>
+          <tr><td>Identity</td><td>A device token is <code>&lt;deviceId&gt;.&lt;secret&gt;</code>: O(1) on the id, constant-time on the hash. Revoking a device closes its sockets immediately.</td></tr>
+          <tr><td>Scope</td><td><code>viewer</code> reads · <code>operator</code> drives sessions and the host · <code>admin</code> manages the server itself. Every request and frame is authorized against the stored scope.</td></tr>
+          <tr><td>Path</td><td>Every host path is resolved — symlinks included — and confined to a <code>--root</code>; outside is <code>path_escape</code>, audited.</td></tr>
+          <tr><td>Process</td><td>A terminal or a task gets its own process group and is signalled as a group, so no child outlives it.</td></tr>
+          <tr><td>Content</td><td>Logs never carry tokens or conversation content, and the client only ever receives a nickname for a provider.</td></tr>
+        </tbody>
+      </table>
+      <div class="cards" style="margin-top: var(--sp-4)">
+        <article class="card">
+          <h3>Pairing</h3>
+          <ol class="muted" style="font-size: 13.5px; padding-left: 18px; margin: 0">
+            <li><code>pi-ui pair</code> mints a six-digit code plus a high-entropy secret (QR only), ten minutes of TTL.</li>
+            <li>The app confirms the origin and, on a self-signed certificate, the fingerprint.</li>
+            <li><code>POST /auth/pair</code> burns the invitation and returns the token exactly once.</li>
+            <li>The token goes to the keystore, the profile to plain preferences; a refresh rotates the secret and keeps the device id.</li>
+          </ol>
+        </article>
+        <article class="card">
+          <h3>What a leaked token can do</h3>
+          <ul>
+            <li><code>viewer</code>: read sessions, files, git state and search results — nothing else.</li>
+            <li><code>operator</code>: the above plus prompting, steering, aborting, tasks, PTYs, writes inside the roots and git writes when <code>git.write</code> is on.</li>
+            <li><code>admin</code>: all of that plus the server's own policy — and still no provider key, because none is stored in a form a client can fetch.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Deliberately not defended</h3>
+          <ul>
+            <li>A hostile host: the server runs with the operator's privileges — that is what <code>--isolate &lt;image&gt;</code> bounds.</li>
+            <li>Traffic analysis on plain HTTP: on a network you do not trust, terminate TLS or sit behind a VPN.</li>
+            <li>A hostile <code>pi</code> or provider: a malformed line becomes <code>pi.unknown</code>, never an instruction to the server.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="kicker">Roadmap</p>
+        <h2>Eight phases, and the gaps named instead of hidden</h2>
+        <p>
+          The phases are documented to be resumable, each with its exit criterion:
+          <a href="https://github.com/Nihmar/pi-ui/blob/main/docs/roadmap.md">docs/roadmap.md</a>.
+        </p>
+      </div>
+      <ul class="phases">
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 0 — Definition</strong><span>ADRs 0001–0009, the protocol documents, <code>schemas/</code> as the source of truth, the generated Go types drift-checked in CI.</span></div></li>
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 1 — Server spike (Go)</strong><span>LF-only framing, backpressure, WebSocket fan-out with <code>since</code> replay and the fake-pi harness; the measured criteria held, so no fallback was needed.</span></div></li>
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 2 — Mockup</strong><span>42 screens for phone and desktop, and the tokens the app reads: <code>mockups/assets/styles.css</code> → <code>app/lib/core/theme/theme_tokens.dart</code>.</span></div></li>
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 3 — Server core</strong><span>Auth, REST and WS, the session supervisor with respawn and eviction, audit, health, rate limits, drain.</span></div></li>
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 4 — App core</strong><span>Pairing with the keystore, the session list, streaming chat with replay and reconnection, approvals, notifications, the three targets.</span></div></li>
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 5 — Server parity</strong><span>Files, git, search, terminals, tasks, settings, MCP, updates, goal mode and drain — with <code>session.command.raw</code> carrying every other pi command untouched.</span></div></li>
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 6 — App parity</strong><span>The full set of screens, catalogue-driven settings, themes, and the client's own translations (<code>app_en.arb</code> → <code>app_it.arb</code>).</span></div></li>
+        <li class="partial"><span class="dot">~</span><div><strong>Phase 7 — Security and networks</strong><span>Delivered: TLS with a pinned fingerprint, the audited peer allowlist, scopes and revocation, path confinement, rate limits and container-per-session isolation. Named boundary: a containerised server cannot spawn session containers that mount host paths, so <code>deploy/</code> ships without <code>--isolate</code> and says why.</span></div></li>
+        <li class="done"><span class="dot">✓</span><div><strong>Phase 8 — Distribution</strong><span>Tag → binaries, bundles, checksums and a GitHub release; Docker image and Compose reference, hardened systemd unit, the Arch <code>PKGBUILD</code> and the Inno Setup script. Missing by name: AppImage and proper code signing.</span></div></li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <p><strong>pi-ui</strong> — a server companion and a Flutter client for the <a href="https://github.com/earendil-works/pi-coding-agent">pi coding agent</a>.</p>
+      <p class="dim">The screens above are the visual contract: the mockup freezes the UI, the app implements it, and both read the same design tokens. MIT licensed.</p>
+    </div>
+    <div>
+      <h3>Project</h3>
+      <ul>
+        <li><a href="https://github.com/Nihmar/pi-ui">Repository</a></li>
+        <li><a href="https://github.com/Nihmar/pi-ui/releases/latest">Releases</a></li>
+        <li><a href="https://github.com/Nihmar/pi-ui/issues">Issues</a></li>
+        <li><a href="mockups/screenshots/">Rendered screenshots</a></li>
+        <li><a href="mockups/">Browse the mockup</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Docs</h3>
+      <ul>
+        <li><a href="https://github.com/Nihmar/pi-ui/blob/main/README.md">README</a></li>
+        <li><a href="https://github.com/Nihmar/pi-ui/blob/main/docs/roadmap.md">Roadmap</a></li>
+        <li><a href="https://github.com/Nihmar/pi-ui/blob/main/docs/security.md">Security model</a></li>
+        <li><a href="https://github.com/Nihmar/pi-ui/blob/main/docs/api-v1.md">REST API v1</a></li>
+        <li><a href="https://github.com/Nihmar/pi-ui/blob/main/docs/ws-protocol.md">WebSocket protocol</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+  <div class="bar">
+    <span class="title" id="lightbox-title"></span>
+    <span class="counter" id="lightbox-counter"></span>
+    <span class="nav">
+      <button class="icon-button" id="lightbox-prev" type="button" aria-label="Previous screen">←</button>
+      <button class="icon-button" id="lightbox-next" type="button" aria-label="Next screen">→</button>
+      <button class="icon-button" id="lightbox-close" type="button" aria-label="Close">✕</button>
+    </span>
+  </div>
+  <div class="stage"><img id="lightbox-image" src="" alt=""></div>
+  <div class="foot">
+    <span id="lightbox-meta"></span>
+    <a id="lightbox-live" href="" hidden>Open the live screen</a>
+    <a id="lightbox-full" href="" target="_blank" rel="noopener">Open at full size</a>
+    <span class="dim">← → to move · Esc to close</span>
+  </div>
+</div>
+
+<script src="assets/site.js"></script>
+</body>
+</html>
