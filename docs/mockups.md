@@ -34,6 +34,14 @@ xdg-open mockups/index.html      # or any browser: file:///…/mockups/index.htm
 | `assets/app.js` | Theme/device toggles, tabs, countdowns. Dependency-free. |
 | `screens/00-states.html` | The mandatory-states board. |
 | `screens/NN-<name>.html` | One screen per file, `NN` matching the inventory below. |
+| `screenshots/` | Frozen PNG renders of every screen (dark + light) and of the app; gallery in `screenshots/index.html`. |
+| `tools/` | `shoot_screenshots.mjs` renders the screens headlessly, `make_gallery.py` builds the thumbnails and the gallery. |
+
+Since the renders are only a mirror of the screens, they are regenerated on demand rather
+than kept in step by hand: `node mockups/tools/shoot_screenshots.mjs` followed by
+`python3 mockups/tools/make_gallery.py` (both path-independent, documented in
+[`mockups/screenshots/README.md`](../mockups/screenshots/README.md)). Rendering never edits a mockup:
+if an image and its screen disagree, the screen wins.
 
 The tokens mirror `AppTokens` of the Flutter client: `--accent`, `--bg`,
 `--surface`, `--border`, `--text`, `--muted`, `--success`, `--error`,

@@ -40,7 +40,7 @@ filesystem, git, task or terminal surface at all (a `501`, never a guess).
 |---|---|
 | `server/` | Go service (`CGO_ENABLED=0`, static binary): `internal/{rpc,ws,sessions,api,cli,protocol/gen,spike}` |
 | `app/` | Flutter client (Riverpod · go_router · dio · web_socket_channel) |
-| `mockups/` | Clickable Flutter mock that freezes the UI before product work |
+| `mockups/` | Clickable Flutter mock that freezes the UI before product work, with [rendered screenshots](mockups/screenshots/index.html) of every screen |
 | `bridge/` | `pi-ui-bridge` extension (TypeScript sources, loaded by pi via jiti) |
 | `packages/piui-markdown/` | Shared markdown/editor engine (vendored from Niman, MIT) |
 | `schemas/` | JSON Schema, the source of truth for every DTO and event |
@@ -135,7 +135,7 @@ server/bin/pi-ui measure [--sessions 8] [--pi <path>|--fake-pi <path>] \
 - [`docs/api-v1.md`](docs/api-v1.md) — REST conventions, scopes and the pairing/device contract.
 - [`docs/ws-protocol.md`](docs/ws-protocol.md) — WebSocket v1 handshake, frames, replay and error codes.
 - [`docs/spike-report.md`](docs/spike-report.md) — the acceptance measurements C1–C9 with their raw samples.
-- [`docs/mockups.md`](docs/mockups.md) — the Phase 2 screen inventory, the mandatory states and the approval checklist.
+- [`docs/mockups.md`](docs/mockups.md) — the Phase 2 screen inventory, the mandatory states and the approval checklist; the rendered screens are in [`mockups/screenshots/`](mockups/screenshots/index.html).
 - [`docs/adr/0007-go-spike-decision.md`](docs/adr/0007-go-spike-decision.md) — why the Go server stands.
 - [`docs/verification-report.md`](docs/verification-report.md) — adversarial verification of framing and shutdown.
 - [`docs/review-notes.md`](docs/review-notes.md) — Phase 1 code review: findings, severity and status.

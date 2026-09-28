@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pi-ui — rendered screens</title>
+<style>
+  :root { --bg:#0f1115; --surface:#161a21; --border:#232936; --text:#e6e9ef; --muted:#8b93a3; --accent:#6ea8fe; }
+  html[data-theme="light"] { --bg:#f6f7f9; --surface:#fff; --border:#e2e6ec; --text:#101828; --muted:#667085; --accent:#1f5fd0; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { position:sticky; top:0; z-index:5; display:flex; gap:16px; align-items:center;
+            padding:14px 22px; background:var(--surface); border-bottom:1px solid var(--border); }
+  header h1 { margin:0; font-size:16px; }
+  header .count { color:var(--muted); font-size:12.5px; }
+  header button { margin-left:auto; padding:8px 14px; border-radius:8px; border:1px solid var(--border);
+                   background:transparent; color:var(--text); cursor:pointer; font-size:13px; }
+  main { padding:22px; }
+  p.intro { color:var(--muted); max-width:80ch; }
+  h2 { font-size:14px; margin:26px 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:18px; }
+  .grid.app img { max-height:420px; object-fit:contain; }
+  .card { margin:0; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px; }
+  .card img { width:100%; height:auto; display:block; border-radius:8px; background:var(--bg); }
+  figcaption { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .name { font-size:12.5px; }
+  .links { display:flex; gap:10px; font-size:11.5px; color:var(--muted); }
+  .links a { color:var(--accent); text-decoration:none; }
+  a { color:var(--accent); }
+  .device { margin-right:auto; text-transform:uppercase; letter-spacing:.08em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>pi-ui — rendered screens</h1>
+  <span class="count">43 mockup screens (dark + light) · 5 app screens · 2×</span>
+  <button id="theme">Theme: dark</button>
+</header>
+<main>
+  <p class="intro">A frozen look at the UI for reviews without a display: every screen of
+  <code>mockups/screens/</code> rendered in both themes, plus a few screens of the Flutter
+  app itself. The live mockup is <a href="../index.html">../index.html</a>; the mockup is the
+  visual contract, these PNGs only mirror it. Regenerate with
+  <code>node mockups/tools/shoot_screenshots.mjs</code> and
+  <code>python3 mockups/tools/make_gallery.py</code>.</p>
+  <h2>App screens (Flutter renders)</h2>
+  <div class="grid app">
+      <figure class="card">
+        <a href="app/01-sessions-list.png"><img src="app/01-sessions-list.png" alt="Sessions list — streaming, ready, crashed and exited" loading="lazy"></a>
+        <figcaption>Sessions list — streaming, ready, crashed and exited</figcaption>
+      </figure>
+      <figure class="card">
+        <a href="app/02-chat.png"><img src="app/02-chat.png" alt="Chat — thinking, tool card, approval dialog, steer queue, composer" loading="lazy"></a>
+        <figcaption>Chat — thinking, tool card, approval dialog, steer queue, composer</figcaption>
+      </figure>
+      <figure class="card">
+        <a href="app/03-files.png"><img src="app/03-files.png" alt="Files — the roots of the workspace" loading="lazy"></a>
+        <figcaption>Files — the roots of the workspace</figcaption>
+      </figure>
+      <figure class="card">
+        <a href="app/04-git-panel.png"><img src="app/04-git-panel.png" alt="Git — status, diff and log of a working tree" loading="lazy"></a>
+        <figcaption>Git — status, diff and log of a working tree</figcaption>
+      </figure>
+      <figure class="card">
+        <a href="app/05-settings.png"><img src="app/05-settings.png" alt="Settings — device, server policy and updates" loading="lazy"></a>
+        <figcaption>Settings — device, server policy and updates</figcaption>
+      </figure>
+  </div>
+  <h2>Review start  the states the plan requires</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/00-states.png">
+          <img data-dark="thumbs/dark/00-states.png" data-light="thumbs/light/00-states.png"
+               src="thumbs/dark/00-states.png" alt="States board — every mandatory state" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">States board — every mandatory state</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/00-states.png">dark</a>
+            <a href="light/00-states.png">light</a>
+            <a href="../screens/00-states.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Onboarding</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/01-server-url.png">
+          <img data-dark="thumbs/dark/01-server-url.png" data-light="thumbs/light/01-server-url.png"
+               src="thumbs/dark/01-server-url.png" alt="#1 Server URL" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#1 Server URL</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/01-server-url.png">dark</a>
+            <a href="light/01-server-url.png">light</a>
+            <a href="../screens/01-server-url.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/02-pairing-qr.png">
+          <img data-dark="thumbs/dark/02-pairing-qr.png" data-light="thumbs/light/02-pairing-qr.png"
+               src="thumbs/dark/02-pairing-qr.png" alt="#2 Pairing — QR" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#2 Pairing — QR</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/02-pairing-qr.png">dark</a>
+            <a href="light/02-pairing-qr.png">light</a>
+            <a href="../screens/02-pairing-qr.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/03-pairing-code.png">
+          <img data-dark="thumbs/dark/03-pairing-code.png" data-light="thumbs/light/03-pairing-code.png"
+               src="thumbs/dark/03-pairing-code.png" alt="#3 Pairing — code" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#3 Pairing — code</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/03-pairing-code.png">dark</a>
+            <a href="light/03-pairing-code.png">light</a>
+            <a href="../screens/03-pairing-code.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/04-certificate.png">
+          <img data-dark="thumbs/dark/04-certificate.png" data-light="thumbs/light/04-certificate.png"
+               src="thumbs/dark/04-certificate.png" alt="#4 Certificate trust" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#4 Certificate trust</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/04-certificate.png">dark</a>
+            <a href="light/04-certificate.png">light</a>
+            <a href="../screens/04-certificate.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/05-network-profile.png">
+          <img data-dark="thumbs/dark/05-network-profile.png" data-light="thumbs/light/05-network-profile.png"
+               src="thumbs/dark/05-network-profile.png" alt="#5 Network profile" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#5 Network profile</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/05-network-profile.png">dark</a>
+            <a href="light/05-network-profile.png">light</a>
+            <a href="../screens/05-network-profile.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/39-login.png">
+          <img data-dark="thumbs/dark/39-login.png" data-light="thumbs/light/39-login.png"
+               src="thumbs/dark/39-login.png" alt="#39 Two-mode login" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#39 Two-mode login</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/39-login.png">dark</a>
+            <a href="light/39-login.png">light</a>
+            <a href="../screens/39-login.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Sessions</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/06-sessions.png">
+          <img data-dark="thumbs/dark/06-sessions.png" data-light="thumbs/light/06-sessions.png"
+               src="thumbs/dark/06-sessions.png" alt="#6 Session list" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#6 Session list</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/06-sessions.png">dark</a>
+            <a href="light/06-sessions.png">light</a>
+            <a href="../screens/06-sessions.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/07-session-new.png">
+          <img data-dark="thumbs/dark/07-session-new.png" data-light="thumbs/light/07-session-new.png"
+               src="thumbs/dark/07-session-new.png" alt="#7 New session" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#7 New session</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/07-session-new.png">dark</a>
+            <a href="light/07-session-new.png">light</a>
+            <a href="../screens/07-session-new.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Chat</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/08-chat-streaming.png">
+          <img data-dark="thumbs/dark/08-chat-streaming.png" data-light="thumbs/light/08-chat-streaming.png"
+               src="thumbs/dark/08-chat-streaming.png" alt="#8 Chat — streaming" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#8 Chat — streaming</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/08-chat-streaming.png">dark</a>
+            <a href="light/08-chat-streaming.png">light</a>
+            <a href="../screens/08-chat-streaming.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/09-chat-search.png">
+          <img data-dark="thumbs/dark/09-chat-search.png" data-light="thumbs/light/09-chat-search.png"
+               src="thumbs/dark/09-chat-search.png" alt="#9 Search in conversation" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#9 Search in conversation</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/09-chat-search.png">dark</a>
+            <a href="light/09-chat-search.png">light</a>
+            <a href="../screens/09-chat-search.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/10-composer.png">
+          <img data-dark="thumbs/dark/10-composer.png" data-light="thumbs/light/10-composer.png"
+               src="thumbs/dark/10-composer.png" alt="#10 Composer and slash commands" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#10 Composer and slash commands</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/10-composer.png">dark</a>
+            <a href="light/10-composer.png">light</a>
+            <a href="../screens/10-composer.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/11-composer-steer.png">
+          <img data-dark="thumbs/dark/11-composer-steer.png" data-light="thumbs/light/11-composer-steer.png"
+               src="thumbs/dark/11-composer-steer.png" alt="#11 Composer — steer or follow-up" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#11 Composer — steer or follow-up</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/11-composer-steer.png">dark</a>
+            <a href="light/11-composer-steer.png">light</a>
+            <a href="../screens/11-composer-steer.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/12-queue.png">
+          <img data-dark="thumbs/dark/12-queue.png" data-light="thumbs/light/12-queue.png"
+               src="thumbs/dark/12-queue.png" alt="#12 Message queue" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#12 Message queue</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/12-queue.png">dark</a>
+            <a href="light/12-queue.png">light</a>
+            <a href="../screens/12-queue.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Session header</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/13-header-model.png">
+          <img data-dark="thumbs/dark/13-header-model.png" data-light="thumbs/light/13-header-model.png"
+               src="thumbs/dark/13-header-model.png" alt="#13 Model and thinking" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#13 Model and thinking</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/13-header-model.png">dark</a>
+            <a href="light/13-header-model.png">light</a>
+            <a href="../screens/13-header-model.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/14-status-sheet.png">
+          <img data-dark="thumbs/dark/14-status-sheet.png" data-light="thumbs/light/14-status-sheet.png"
+               src="thumbs/dark/14-status-sheet.png" alt="#14 Run status" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#14 Run status</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/14-status-sheet.png">dark</a>
+            <a href="light/14-status-sheet.png">light</a>
+            <a href="../screens/14-status-sheet.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Session</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/15-stats.png">
+          <img data-dark="thumbs/dark/15-stats.png" data-light="thumbs/light/15-stats.png"
+               src="thumbs/dark/15-stats.png" alt="#15 Session statistics" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#15 Session statistics</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/15-stats.png">dark</a>
+            <a href="light/15-stats.png">light</a>
+            <a href="../screens/15-stats.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Branching</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/16-tree.png">
+          <img data-dark="thumbs/dark/16-tree.png" data-light="thumbs/light/16-tree.png"
+               src="thumbs/dark/16-tree.png" alt="#16 Branch tree" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#16 Branch tree</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/16-tree.png">dark</a>
+            <a href="light/16-tree.png">light</a>
+            <a href="../screens/16-tree.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/17-fork.png">
+          <img data-dark="thumbs/dark/17-fork.png" data-light="thumbs/light/17-fork.png"
+               src="thumbs/dark/17-fork.png" alt="#17 Fork from a message" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#17 Fork from a message</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/17-fork.png">dark</a>
+            <a href="light/17-fork.png">light</a>
+            <a href="../screens/17-fork.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/18-clone-rename.png">
+          <img data-dark="thumbs/dark/18-clone-rename.png" data-light="thumbs/light/18-clone-rename.png"
+               src="thumbs/dark/18-clone-rename.png" alt="#18 Clone, rename, switch" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#18 Clone, rename, switch</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/18-clone-rename.png">dark</a>
+            <a href="light/18-clone-rename.png">light</a>
+            <a href="../screens/18-clone-rename.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/19-export.png">
+          <img data-dark="thumbs/dark/19-export.png" data-light="thumbs/light/19-export.png"
+               src="thumbs/dark/19-export.png" alt="#19 Export a session" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#19 Export a session</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/19-export.png">dark</a>
+            <a href="light/19-export.png">light</a>
+            <a href="../screens/19-export.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Tools</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/20-bash.png">
+          <img data-dark="thumbs/dark/20-bash.png" data-light="thumbs/light/20-bash.png"
+               src="thumbs/dark/20-bash.png" alt="#20 Direct bash console" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#20 Direct bash console</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/20-bash.png">dark</a>
+            <a href="light/20-bash.png">light</a>
+            <a href="../screens/20-bash.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/28-files.png">
+          <img data-dark="thumbs/dark/28-files.png" data-light="thumbs/light/28-files.png"
+               src="thumbs/dark/28-files.png" alt="#28 Host file browser" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#28 Host file browser</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/28-files.png">dark</a>
+            <a href="light/28-files.png">light</a>
+            <a href="../screens/28-files.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/29-terminals.png">
+          <img data-dark="thumbs/dark/29-terminals.png" data-light="thumbs/light/29-terminals.png"
+               src="thumbs/dark/29-terminals.png" alt="#29 PTY terminals" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#29 PTY terminals</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/29-terminals.png">dark</a>
+            <a href="light/29-terminals.png">light</a>
+            <a href="../screens/29-terminals.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/30-git.png">
+          <img data-dark="thumbs/dark/30-git.png" data-light="thumbs/light/30-git.png"
+               src="thumbs/dark/30-git.png" alt="#30 Git panel" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#30 Git panel</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/30-git.png">dark</a>
+            <a href="light/30-git.png">light</a>
+            <a href="../screens/30-git.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/32-tasks.png">
+          <img data-dark="thumbs/dark/32-tasks.png" data-light="thumbs/light/32-tasks.png"
+               src="thumbs/dark/32-tasks.png" alt="#32 Background tasks" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#32 Background tasks</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/32-tasks.png">dark</a>
+            <a href="light/32-tasks.png">light</a>
+            <a href="../screens/32-tasks.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/42-markdown-editor.png">
+          <img data-dark="thumbs/dark/42-markdown-editor.png" data-light="thumbs/light/42-markdown-editor.png"
+               src="thumbs/dark/42-markdown-editor.png" alt="#42 Markdown editor" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#42 Markdown editor</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/42-markdown-editor.png">dark</a>
+            <a href="light/42-markdown-editor.png">light</a>
+            <a href="../screens/42-markdown-editor.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Dialogs</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/21-dialogs.png">
+          <img data-dark="thumbs/dark/21-dialogs.png" data-light="thumbs/light/21-dialogs.png"
+               src="thumbs/dark/21-dialogs.png" alt="#21 Extension dialogs" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#21 Extension dialogs</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/21-dialogs.png">dark</a>
+            <a href="light/21-dialogs.png">light</a>
+            <a href="../screens/21-dialogs.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/22-notifications.png">
+          <img data-dark="thumbs/dark/22-notifications.png" data-light="thumbs/light/22-notifications.png"
+               src="thumbs/dark/22-notifications.png" alt="#22 Notify, status and widget" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#22 Notify, status and widget</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/22-notifications.png">dark</a>
+            <a href="light/22-notifications.png">light</a>
+            <a href="../screens/22-notifications.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Observability</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/24-logs-errors.png">
+          <img data-dark="thumbs/dark/24-logs-errors.png" data-light="thumbs/light/24-logs-errors.png"
+               src="thumbs/dark/24-logs-errors.png" alt="#24 Errors and log tail" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#24 Errors and log tail</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/24-logs-errors.png">dark</a>
+            <a href="light/24-logs-errors.png">light</a>
+            <a href="../screens/24-logs-errors.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/41-log-viewer.png">
+          <img data-dark="thumbs/dark/41-log-viewer.png" data-light="thumbs/light/41-log-viewer.png"
+               src="thumbs/dark/41-log-viewer.png" alt="#41 Log viewer and audit" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#41 Log viewer and audit</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/41-log-viewer.png">dark</a>
+            <a href="light/41-log-viewer.png">light</a>
+            <a href="../screens/41-log-viewer.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Global</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/25-connection.png">
+          <img data-dark="thumbs/dark/25-connection.png" data-light="thumbs/light/25-connection.png"
+               src="thumbs/dark/25-connection.png" alt="#25 Connection states" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#25 Connection states</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/25-connection.png">dark</a>
+            <a href="light/25-connection.png">light</a>
+            <a href="../screens/25-connection.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Desktop  26–27, 41</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/26-desktop-tabs.png">
+          <img data-dark="thumbs/dark/26-desktop-tabs.png" data-light="thumbs/light/26-desktop-tabs.png"
+               src="thumbs/dark/26-desktop-tabs.png" alt="#26 Desktop multi-session" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#26 Desktop multi-session</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/26-desktop-tabs.png">dark</a>
+            <a href="light/26-desktop-tabs.png">light</a>
+            <a href="../screens/26-desktop-tabs.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/27-desktop-dashboard.png">
+          <img data-dark="thumbs/dark/27-desktop-dashboard.png" data-light="thumbs/light/27-desktop-dashboard.png"
+               src="thumbs/dark/27-desktop-dashboard.png" alt="#27 Multi-session dashboard" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#27 Multi-session dashboard</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/27-desktop-dashboard.png">dark</a>
+            <a href="light/27-desktop-dashboard.png">light</a>
+            <a href="../screens/27-desktop-dashboard.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Search</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/31-search.png">
+          <img data-dark="thumbs/dark/31-search.png" data-light="thumbs/light/31-search.png"
+               src="thumbs/dark/31-search.png" alt="#31 Global search" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#31 Global search</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/31-search.png">dark</a>
+            <a href="light/31-search.png">light</a>
+            <a href="../screens/31-search.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Settings</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/23-server-settings.png">
+          <img data-dark="thumbs/dark/23-server-settings.png" data-light="thumbs/light/23-server-settings.png"
+               src="thumbs/dark/23-server-settings.png" alt="#23 Server settings" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#23 Server settings</span>
+          <span class="links">
+            <span class="device">desktop</span>
+            <a href="dark/23-server-settings.png">dark</a>
+            <a href="light/23-server-settings.png">light</a>
+            <a href="../screens/23-server-settings.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/33-mcp.png">
+          <img data-dark="thumbs/dark/33-mcp.png" data-light="thumbs/light/33-mcp.png"
+               src="thumbs/dark/33-mcp.png" alt="#33 MCP configuration" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#33 MCP configuration</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/33-mcp.png">dark</a>
+            <a href="light/33-mcp.png">light</a>
+            <a href="../screens/33-mcp.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/34-updates.png">
+          <img data-dark="thumbs/dark/34-updates.png" data-light="thumbs/light/34-updates.png"
+               src="thumbs/dark/34-updates.png" alt="#34 Updates" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#34 Updates</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/34-updates.png">dark</a>
+            <a href="light/34-updates.png">light</a>
+            <a href="../screens/34-updates.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/35-themes.png">
+          <img data-dark="thumbs/dark/35-themes.png" data-light="thumbs/light/35-themes.png"
+               src="thumbs/dark/35-themes.png" alt="#35 Themes and language" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#35 Themes and language</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/35-themes.png">dark</a>
+            <a href="light/35-themes.png">light</a>
+            <a href="../screens/35-themes.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/37-packages.png">
+          <img data-dark="thumbs/dark/37-packages.png" data-light="thumbs/light/37-packages.png"
+               src="thumbs/dark/37-packages.png" alt="#37 pi packages" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#37 pi packages</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/37-packages.png">dark</a>
+            <a href="light/37-packages.png">light</a>
+            <a href="../screens/37-packages.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>Optional</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/36-goal-mode.png">
+          <img data-dark="thumbs/dark/36-goal-mode.png" data-light="thumbs/light/36-goal-mode.png"
+               src="thumbs/dark/36-goal-mode.png" alt="#36 Goal mode" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#36 Goal mode</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/36-goal-mode.png">dark</a>
+            <a href="light/36-goal-mode.png">light</a>
+            <a href="../screens/36-goal-mode.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+  <h2>States</h2>
+  <div class="grid">
+      <figure class="card">
+        <a href="dark/38-wrapup.png">
+          <img data-dark="thumbs/dark/38-wrapup.png" data-light="thumbs/light/38-wrapup.png"
+               src="thumbs/dark/38-wrapup.png" alt="#38 Wrap-up and handoff" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#38 Wrap-up and handoff</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/38-wrapup.png">dark</a>
+            <a href="light/38-wrapup.png">light</a>
+            <a href="../screens/38-wrapup.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+      <figure class="card">
+        <a href="dark/40-offline.png">
+          <img data-dark="thumbs/dark/40-offline.png" data-light="thumbs/light/40-offline.png"
+               src="thumbs/dark/40-offline.png" alt="#40 Offline queue" loading="lazy">
+        </a>
+        <figcaption>
+          <span class="name">#40 Offline queue</span>
+          <span class="links">
+            <span class="device">mobile</span>
+            <a href="dark/40-offline.png">dark</a>
+            <a href="light/40-offline.png">light</a>
+            <a href="../screens/40-offline.html">html</a>
+          </span>
+        </figcaption>
+      </figure>
+  </div>
+</main>
+<script>
+  const button = document.getElementById('theme');
+  button.addEventListener('click', () => {
+    const root = document.documentElement;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    button.textContent = 'Theme: ' + next;
+    for (const image of document.querySelectorAll('img[data-' + next + ']')) {
+      image.src = image.getAttribute('data-' + next);
+    }
+  });
+</script>
+</body>
+</html>
