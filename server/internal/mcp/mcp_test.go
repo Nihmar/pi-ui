@@ -235,3 +235,65 @@ func TestAnUnconfiguredServiceSaysSo(t *testing.T) {
 	}
 	_ = time.Now()
 }
+
+// TestUnknownFieldsSurviveTheWriteBack pins the promise in the package doc: the document
+// keeps the fields this version does not know, so a server that is older than the bridge
+// never truncates the configuration it was given. The shape a client sees is JSON, so the
+// fields have to travel through it: a reader that never receives them cannot send them
+// back, and the next write drops them from the file.
+func TestUnknownFieldsSurviveTheWriteBack(t *testing.T) {
+	service, path := newService(t)
+	file := `{
+	  "version": 1,
+	  "servers": {
+	    "files": {
+	      "command": "npx",
+	      "args": ["-y", "server-filesystem"],
+	      "startupTimeoutMs": 5000,
+	      "env": {"TOKEN": "s3cret"}
+	    }
+	  },
+	  "telemetry": {"enabled": false}
+	}`
+	if err := os.WriteFile(path, []byte(file), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	read, err := service.Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := json.Marshal(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &wire); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := wire["telemetry"]; !ok {
+		t.Fatalf("a client never sees the unknown top-level field: %s", encoded)
+	}
+	var servers map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(wire["servers"], &servers); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := servers["files"]["startupTimeoutMs"]; !ok {
+		t.Fatalf("a client never sees the unknown field of a server entry: %s", encoded)
+	}
+
+	// What the client read is what it sends back (the secrets as the redaction sentinel):
+	// nothing the file carried may be dropped by the write.
+	if _, err := service.Write(read); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"telemetry", "startupTimeoutMs", "s3cret"} {
+		if !strings.Contains(string(stored), want) {
+			t.Fatalf("the write dropped %q from the stored file: %s", want, stored)
+		}
+	}
+}
