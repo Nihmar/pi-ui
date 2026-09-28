@@ -2,10 +2,13 @@ package search
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/Nihmar/pi-ui/server/internal/fs"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
@@ -164,5 +167,47 @@ func TestNoMatchIsNotAFailure(t *testing.T) {
 	}
 	if len(hits) != 0 {
 		t.Fatalf("unexpected hits %+v", hits)
+	}
+}
+
+// TestMessageExcerptKeepsTheMatchReadable pins what a client actually renders: the excerpt
+// is the only part of the message a search hit shows, so it has to contain the match and
+// stay valid UTF-8. The window is cut in bytes while the match is found on the folded copy
+// of the text, and folding is not length-preserving ("İ" lower-cases to one byte, not two),
+// which is what makes a byte index computed on the folded text land somewhere else in the
+// original.
+func TestMessageExcerptKeepsTheMatchReadable(t *testing.T) {
+	dir := t.TempDir()
+	// The match sits far enough into the line that the window around it is a slice of the
+	// text rather than all of it.
+	content := strings.Repeat("İ", 200) + "needle" + strings.Repeat("x", 120)
+	line, err := json.Marshal(map[string]any{
+		"type":      "message",
+		"sessionId": "01a0dccc",
+		"timestamp": "2026-09-28T10:00:00.000Z",
+		"message":   map[string]any{"role": "user", "content": content},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "session.jsonl"), append(line, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	service, _ := newService(t, dir)
+
+	hits, err := service.Search(context.Background(), Query{
+		Text: "needle", Scope: []string{"messages"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 {
+		t.Fatalf("expected one hit, got %+v", hits)
+	}
+	if !strings.Contains(hits[0].Text, "needle") {
+		t.Fatalf("the excerpt does not contain the match: %q", hits[0].Text)
+	}
+	if !utf8.ValidString(hits[0].Text) {
+		t.Fatalf("the excerpt is not valid UTF-8: %q", hits[0].Text)
 	}
 }

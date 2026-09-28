@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/Nihmar/pi-ui/server/internal/fs"
 	"github.com/Nihmar/pi-ui/server/internal/sessions"
@@ -365,9 +367,11 @@ func scanSessionFile(path, text string, caseSensitive bool, limit int) []Hit {
 		return nil
 	}
 	needle := text
+	foldedNeedle := ""
 	if !caseSensitive {
-		needle = strings.ToLower(text)
+		foldedNeedle = foldRunes(text)
 	}
+	length := utf8.RuneCountInString(text)
 	sessionID := strings.TrimSuffix(filepath.Base(path), ".jsonl")
 	hits := make([]Hit, 0, 2)
 	scanner := bufio.NewScanner(file)
@@ -389,18 +393,14 @@ func scanSessionFile(path, text string, caseSensitive bool, limit int) []Hit {
 			continue
 		}
 		content := messageText(entry.Message.Content)
-		haystack := content
-		if !caseSensitive {
-			haystack = strings.ToLower(content)
-		}
-		index := strings.Index(haystack, needle)
+		index := matchIndex(content, needle, foldedNeedle)
 		if index < 0 {
 			continue
 		}
 		hits = append(hits, Hit{
 			Kind:      "message",
 			Path:      path,
-			Text:      excerpt(content, index, len(text)),
+			Text:      excerpt(content, index, length),
 			SessionID: sessionID,
 			Role:      role,
 			At:        entry.Timestamp,
@@ -410,6 +410,40 @@ func scanSessionFile(path, text string, caseSensitive bool, limit int) []Hit {
 		}
 	}
 	return hits
+}
+
+// matchIndex answers where a query starts in one message, as a rune index — the unit the
+// excerpt window is cut in.
+//
+// Folding and cutting have to share a unit: unicode.ToLower maps one rune to one rune but
+// not one byte to one byte (lower-casing "İ" yields a single byte where the original has
+// two), so a byte offset taken from the folded text points somewhere else in the original
+// and a window cut there shows text that has nothing to do with the match. foldedNeedle is
+// empty for a case-sensitive query.
+func matchIndex(content, needle, foldedNeedle string) int {
+	if foldedNeedle == "" {
+		byteIndex := strings.Index(content, needle)
+		if byteIndex < 0 {
+			return -1
+		}
+		return utf8.RuneCountInString(content[:byteIndex])
+	}
+	folded := foldRunes(content)
+	byteIndex := strings.Index(folded, foldedNeedle)
+	if byteIndex < 0 {
+		return -1
+	}
+	return utf8.RuneCountInString(folded[:byteIndex])
+}
+
+// foldRunes lower-cases one rune at a time, so the result has exactly as many runes as its
+// input — which is what keeps an index into the folded text usable on the original.
+func foldRunes(text string) string {
+	folded := make([]rune, 0, len(text))
+	for _, char := range text {
+		folded = append(folded, unicode.ToLower(char))
+	}
+	return string(folded)
 }
 
 // messageText flattens the content blocks of one message into its text.
@@ -443,21 +477,29 @@ func messageText(raw json.RawMessage) string {
 
 // excerpt returns a window of content around the match, so a client does not have
 // to render a whole message to show why it matched.
+//
+// The index and the length are rune counts and the window is cut on rune boundaries: a
+// byte offset would split a character in two, and the response is JSON — the client would
+// read a replacement character instead of the text it searched for.
 func excerpt(content string, index, length int) string {
 	const padding = 60
+	runes := []rune(content)
 	start := index - padding
 	if start < 0 {
 		start = 0
 	}
 	end := index + length + padding
-	if end > len(content) {
-		end = len(content)
+	if end > len(runes) {
+		end = len(runes)
 	}
-	window := strings.TrimSpace(content[start:end])
+	if start > end {
+		start = end
+	}
+	window := strings.TrimSpace(string(runes[start:end]))
 	if start > 0 {
 		window = "…" + window
 	}
-	if end < len(content) {
+	if end < len(runes) {
 		window += "…"
 	}
 	return window
