@@ -131,7 +131,11 @@ type Manager struct {
 	cfg      Config
 	mu       sync.Mutex
 	sessions map[string]*Session
-	counter  atomic.Uint64
+	// pending counts the shells that are being started right now: a slot has to be taken
+	// before the spawn, because a session only reaches the registry after fork and exec,
+	// and anything that arrives inside that window would otherwise read a stale count.
+	pending int
+	counter atomic.Uint64
 }
 
 // New builds the manager.
@@ -177,13 +181,18 @@ func (m *Manager) Open(ctx context.Context, dir string, cols, rows uint16) (*Ses
 	}
 	cols, rows = sizeOrDefault(cols, rows)
 
+	// The slot is taken here and not after the spawn: fork plus exec is a window wide
+	// enough for a burst of requests to read the same count and all get through. A slot
+	// is released by releaseSlot on every path below, and the session itself counts once
+	// it is registered.
 	m.mu.Lock()
-	if len(m.sessions) >= m.cfg.MaxSessions {
-		open := len(m.sessions)
+	if len(m.sessions)+m.pending >= m.cfg.MaxSessions {
+		open, pending := len(m.sessions), m.pending
 		m.mu.Unlock()
 		return nil, sessions.Codedf(sessions.CodeSessionLimit,
-			"%d terminals are already open", open)
+			"%d terminals are already open", open+pending)
 	}
+	m.pending++
 	sink := m.cfg.Sink
 	m.mu.Unlock()
 
@@ -198,6 +207,7 @@ func (m *Manager) Open(ctx context.Context, dir string, cols, rows uint16) (*Ses
 
 	file, err := pty.StartWithSize(command, &pty.Winsize{Cols: cols, Rows: rows})
 	if err != nil {
+		m.releaseSlot()
 		return nil, sessions.Codedf(sessions.CodeInternal, "the terminal could not start: %v", err)
 	}
 	// The master is put in non-blocking mode on purpose: a blocking read on a PTY is
@@ -222,6 +232,7 @@ func (m *Manager) Open(ctx context.Context, dir string, cols, rows uint16) (*Ses
 	}
 	m.mu.Lock()
 	m.sessions[sessionID] = session
+	m.pending--
 	m.mu.Unlock()
 
 	// The pump owns the reads and the reaping: one goroutine per terminal, gone when the
@@ -236,6 +247,17 @@ func (m *Manager) Open(ctx context.Context, dir string, cols, rows uint16) (*Ses
 		go session.pump()
 	}
 	return session, nil
+}
+
+// releaseSlot gives back a slot reserved by Open without a session to show for it (a
+// spawn that failed). The path that registers a session releases the slot itself.
+func (m *Manager) releaseSlot() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.pending > 0 {
+		m.pending--
+	}
 }
 
 // Get returns one open terminal.

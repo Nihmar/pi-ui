@@ -298,3 +298,44 @@ func TestTaskWithoutAConfinementIsImpossible(t *testing.T) {
 		t.Fatal("a runner without a filesystem service must not build")
 	}
 }
+
+// TestStartCannotExceedTheTaskLimitUnderConcurrency pins the documented bound ("a client
+// that starts a hundred builds must not take the host down"): the count and the
+// registration belong to the same critical section, or a burst of requests all read the
+// same count and all start.
+func TestStartCannotExceedTheTaskLimitUnderConcurrency(t *testing.T) {
+	const limit = 2
+	service, root, _ := newService(t, func(cfg *Config) { cfg.MaxTasks = limit })
+
+	const attempts = 24
+	start := make(chan struct{})
+	var mu sync.Mutex
+	started := make([]Task, 0, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			task, err := service.Start(context.Background(), Spec{
+				Name:    "concurrency",
+				Command: "sleep",
+				Args:    []string{"30"},
+				Dir:     root,
+			}, "test")
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			started = append(started, task)
+			mu.Unlock()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	defer service.StopAll()
+
+	if len(started) > limit {
+		t.Fatalf("%d tasks started at once, the limit is %d", len(started), limit)
+	}
+}

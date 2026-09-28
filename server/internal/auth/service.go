@@ -142,6 +142,9 @@ type Service struct {
 
 	mu     sync.Mutex
 	revoke func(deviceID string)
+	// pairing counts the slot reservations of the pairings being hashed right now; see
+	// reserveDevice.
+	pairing int
 }
 
 // New builds a Service over store. It panics on an invalid configuration (an argon2
@@ -204,11 +207,14 @@ func (s *Service) Pair(req PairRequest, callerKey string) (PairResult, error) {
 	}
 	s.limiter.record(callerKey, now)
 
-	// Capacity is checked before the credential: a pairing refused for the device
-	// limit must not burn the invitation that was presented.
-	if err := s.checkCapacity(now); err != nil {
+	// Capacity is reserved before the credential, and the reservation is what makes the
+	// limit hold: a pairing refused for the device limit must not burn the invitation that
+	// was presented, and the check cannot be a bare count — hashing the credential takes
+	// long enough that a burst of requests all read the same count and all store a device.
+	if err := s.reserveDevice(now); err != nil {
 		return PairResult{}, err
 	}
+	defer s.releaseDevice()
 
 	switch {
 	case req.Password != "":
@@ -280,18 +286,35 @@ func (s *Service) createDevice(req PairRequest, scope Scope, now time.Time) (Pai
 	}, nil
 }
 
-// checkCapacity refuses pairing past MaxDevices active devices.
-func (s *Service) checkCapacity(now time.Time) error {
+// reserveDevice takes one of the MaxDevices slots: the count plus the reservations already
+// held. Pairing hashes a credential between this check and the stored record, which is why
+// the slot is reserved rather than counted — the two halves have to be one decision.
+func (s *Service) reserveDevice(now time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	active := 0
 	for _, rec := range s.store.Devices() {
 		if rec.Device.Active(now) {
 			active++
 		}
 	}
-	if active >= s.opts.MaxDevices {
-		return fmt.Errorf("%w: %d devices are paired", ErrDeviceLimit, active)
+	if active+s.pairing >= s.opts.MaxDevices {
+		return fmt.Errorf("%w: %d devices are paired", ErrDeviceLimit, active+s.pairing)
 	}
+	s.pairing++
 	return nil
+}
+
+// releaseDevice gives a reservation back: a pairing that failed stored nothing, and the
+// slot has to be usable by the next attempt.
+func (s *Service) releaseDevice() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.pairing > 0 {
+		s.pairing--
+	}
 }
 
 // Authenticate verifies a bearer token and returns the device behind it. Every

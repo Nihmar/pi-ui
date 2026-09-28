@@ -123,7 +123,10 @@ type Service struct {
 	mu    sync.Mutex
 	tasks map[string]*task
 	order []string
-	next  atomic.Uint64
+	// pending counts the commands being started right now: the slot is taken before the
+	// spawn, because a task only reaches the registry after fork and exec.
+	pending int
+	next    atomic.Uint64
 }
 
 // task is one running (or finished) command.
@@ -193,11 +196,17 @@ func (s *Service) Start(ctx context.Context, spec Spec, owner string) (Task, err
 		}
 		existing.mu.Unlock()
 	}
-	if running >= s.cfg.MaxTasks {
+	// The slot is reserved here, not after the spawn: fork plus exec is a window wide
+	// enough for a burst of starts to read the same count and all get through, which is
+	// exactly the "hundred builds" the limit exists for. Every path below either releases
+	// the reservation or registers a task that counts by itself.
+	if running+s.pending >= s.cfg.MaxTasks {
+		busy := running + s.pending
 		s.mu.Unlock()
 		return Task{}, sessions.Codedf(sessions.CodeSessionLimit,
-			"%d tasks are already running", running)
+			"%d tasks are already running", busy)
 	}
+	s.pending++
 	id := fmt.Sprintf("k_%016x", s.next.Add(1))
 	s.mu.Unlock()
 
@@ -220,6 +229,7 @@ func (s *Service) Start(ctx context.Context, spec Spec, owner string) (Task, err
 	command.Stderr = writer
 
 	if err := command.Start(); err != nil {
+		s.releaseSlot()
 		return Task{}, sessions.Codedf(sessions.CodeBadRequest, "%s cannot be started: %v", spec.Command, err)
 	}
 	record := &task{
@@ -235,12 +245,24 @@ func (s *Service) Start(ctx context.Context, spec Spec, owner string) (Task, err
 	s.mu.Lock()
 	s.tasks[id] = record
 	s.order = append(s.order, id)
+	s.pending--
 	s.mu.Unlock()
 
 	go s.collect(record, stdout)
 	go s.wait(record, writer)
 	s.publish(record)
 	return record.snapshot(), nil
+}
+
+// releaseSlot gives back a slot reserved by Start without a task to show for it (a spawn
+// that failed). The path that registers a task releases the reservation itself.
+func (s *Service) releaseSlot() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.pending > 0 {
+		s.pending--
+	}
 }
 
 // Get returns one task's report.

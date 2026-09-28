@@ -346,3 +346,44 @@ func TestDiscardSinkIsUsable(t *testing.T) {
 	Discard{}.Output("t_1", []byte("x"))
 	Discard{}.Closed("t_1", 0, ReasonExit)
 }
+
+// TestOpenCannotExceedTheSessionLimitUnderConcurrency pins the resource bound: the limit is
+// what keeps a client from holding hundreds of shells, so it has to be enforced where a
+// terminal is registered and not only where it is counted. Counting first and registering
+// after the spawn leaves a window as wide as fork plus exec, and every request that lands
+// inside it reads the same, stale count.
+func TestOpenCannotExceedTheSessionLimitUnderConcurrency(t *testing.T) {
+	const limit = 2
+	manager, root, _ := newManager(t, limit)
+
+	const attempts = 24
+	start := make(chan struct{})
+	var mu sync.Mutex
+	opened := make([]*Session, 0, attempts)
+	var wg sync.WaitGroup
+	for range attempts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			session, err := manager.Open(context.Background(), root, 80, 24)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			opened = append(opened, session)
+			mu.Unlock()
+		}()
+	}
+	close(start)
+	wg.Wait()
+	defer func() {
+		for _, session := range opened {
+			_ = session.Close()
+		}
+	}()
+
+	if len(opened) > limit {
+		t.Fatalf("%d terminals opened at once, the limit is %d", len(opened), limit)
+	}
+}
