@@ -1,8 +1,9 @@
 name: Release
 
 # A tag is a release: the workflow builds every deliverable the plan names, attaches the
-# checksums and creates the GitHub release. It is deliberately the only workflow that
-# uploads anything, so "where did this artifact come from" has one answer.
+# checksums and creates the GitHub release. It is the only workflow that publishes binaries,
+# so "where did this artifact come from" has one answer; the Pages workflow publishes the
+# mockup site and nothing else.
 on:
   push:
     tags: ['v*']

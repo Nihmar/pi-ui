@@ -1,0 +1,45 @@
+name: Pages
+
+# The mockup is a static site with no build step, and this publishes the folder itself: the
+# wire is exactly what browsing `mockups/index.html` locally shows — gallery, screens,
+# assets — and the rendered screenshots come with it at `/screenshots/`, which is where a
+# review is pointed to. No step here writes to the repository, so a published site can never
+# be newer than a commit.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mockups/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A deployment in flight is never cancelled: Pages keeps serving the last completed one, and
+# a cancelled deploy would leave the site on the older commit until the next push.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish the mockup
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload the mockup folder as the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: mockups
+
+      - name: Deploy it to Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
