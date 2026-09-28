@@ -101,13 +101,15 @@ func (l *ipAllowList) middleware(next http.Handler, recorder audit.Recorder) htt
 	})
 }
 
-// peerHost strips the port from a peer address, for the trail.
+// peerHost strips the port from a peer address, for the trail: an IPv6 address is a host
+// full of colons, so it is read with the same SplitHostPort the allow list uses and left
+// alone when it is an address without a port.
 func peerHost(remoteAddr string) string {
-	host, _, found := strings.Cut(remoteAddr, ":")
-	if !found {
-		return remoteAddr
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
 	}
-	return host
+	return strings.Trim(host, "[]")
 }
 
 // errNoPeers is what the flag parser reports for a list that parsed to nothing usable.

@@ -141,3 +141,20 @@ func TestARefusedPeerIsRecorded(t *testing.T) {
 		t.Fatalf("an allowed request was recorded: %+v", trail.events)
 	}
 }
+
+// TestPeerHostKeepsAnIPv6Address pins what the trail records for a refused peer: an IPv6
+// address is full of colons, so cutting at the first one reports an empty host exactly when
+// somebody is probing from an IPv6 network — the case the entry exists for.
+func TestPeerHostKeepsAnIPv6Address(t *testing.T) {
+	cases := map[string]string{
+		"192.0.2.7:41234":   "192.0.2.7",
+		"[2001:db8::1]:443": "2001:db8::1",
+		"[::1]:80":          "::1",
+		"::1":               "::1",
+	}
+	for addr, want := range cases {
+		if got := peerHost(addr); got != want {
+			t.Errorf("peerHost(%q) = %q, want %q", addr, got, want)
+		}
+	}
+}
