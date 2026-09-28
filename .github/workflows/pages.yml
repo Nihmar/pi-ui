@@ -1,14 +1,18 @@
 name: Pages
 
-# The mockup is a static site with no build step, and this publishes the folder itself: the
-# wire is exactly what browsing `mockups/index.html` locally shows — gallery, screens,
-# assets — and the rendered screenshots come with it at `/screenshots/`, which is where a
-# review is pointed to. No step here writes to the repository, so a published site can never
-# be newer than a commit.
+# What gets published is one directory: the landing page of `site/` at the root, and the
+# browsable mockup with its rendered screenshots beside it at `/mockups/`. `site/tools/stage_site.py`
+# is that copy — the same command a local `--serve` runs, so what is reviewed locally is what
+# ships, and no step here writes to the repository.
+#
+# The landing page's "Every screen" gallery is committed markup generated from
+# `mockups/index.html`; the check below fails the build when a screen was added without
+# regenerating it, so a published site can never disagree with the mockup it shows.
 on:
   push:
     branches: [main]
     paths:
+      - 'site/**'
       - 'mockups/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -26,7 +30,7 @@ concurrency:
 
 jobs:
   publish:
-    name: publish the mockup
+    name: stage and publish the site
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -35,10 +39,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Upload the mockup folder as the site
+      - name: Check the generated gallery is current
+        run: python3 site/tools/build_gallery.py --check
+
+      - name: Stage the site and the mockup into one directory
+        run: python3 site/tools/stage_site.py --out _site
+
+      - name: Upload the staged directory as the site
         uses: actions/upload-pages-artifact@v5
         with:
-          path: mockups
+          path: _site
 
       - name: Deploy it to Pages
         id: deploy
