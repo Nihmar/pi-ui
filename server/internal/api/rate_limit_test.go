@@ -38,7 +38,7 @@ func newRateRouter(t *testing.T, rest, refresh int) (http.Handler, *auth.Service
 // pairOperator pairs a typed invitation and returns the token.
 func pairOperator(t *testing.T, handler http.Handler, service *auth.Service, name string) string {
 	t.Helper()
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}

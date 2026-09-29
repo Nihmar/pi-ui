@@ -133,7 +133,7 @@ func TestAuditEndpointRejectsBadFiltersAndRefusesNonAdmins(t *testing.T) {
 	handler, service, _ := newAuditRouter(t)
 	admin := adminToken(t, handler, service)
 
-	operatorInvite, err := service.NewInvite(auth.InviteTyped)
+	operatorInvite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}

@@ -42,10 +42,6 @@ func resolveStateDir(flagValue string) (string, error) {
 	return filepath.Join(home, ".local", "state", "pi-ui"), nil
 }
 
-// authInviteKindQR is the invitation kind a server bootstraps with: code plus secret,
-// so a photographed screen is not enough to type a code from.
-const authInviteKindQR = auth.InviteQR
-
 // openState creates the state directory when missing and opens the state database with
 // the auth service over it. The caller closes the returned database.
 func openState(ctx context.Context, dir string) (*store.DB, *auth.Service, error) {

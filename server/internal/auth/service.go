@@ -112,11 +112,8 @@ type PairRequest struct {
 	DeviceName string
 	// Platform is the optional client platform hint.
 	Platform string
-	// Code is the pairing code from a QR invite or typed by the user.
+	// Code is the pairing code from the invite, scanned or typed by the user.
 	Code string
-	// Secret is the QR-only secret; empty for a typed invitation and for the
-	// password branch.
-	Secret string
 	// Password is the admin password; takes precedence over a code.
 	Password string
 }
@@ -169,25 +166,15 @@ func New(store Store, opts Options) *Service {
 // now reads the injected clock.
 func (s *Service) now() time.Time { return s.opts.Now() }
 
-// NewInvite creates a pairing invitation for the given kind. The caller (the CLI or
-// the admin page) renders it as a QR or as a typed code; nothing about it is stored
-// on disk.
-func (s *Service) NewInvite(kind InviteKind) (Invite, error) {
-	if kind != InviteQR && kind != InviteTyped {
-		return Invite{}, fmt.Errorf("auth: unknown invite kind %q", kind)
-	}
+// NewInvite mints one pairing invitation: a fresh Crockford base32 code, single-use
+// and valid for the configured TTL. The caller (the CLI's pairing card) renders it
+// as a code, a deep link and a QR; the store keeps only the code and its expiry.
+func (s *Service) NewInvite() (Invite, error) {
 	code, err := newInviteCode(s.opts.Rand)
 	if err != nil {
 		return Invite{}, err
 	}
-	invite := Invite{Kind: kind, Code: code, ExpiresAt: s.now().Add(s.opts.PairingTTL)}
-	if kind == InviteQR {
-		secret := make([]byte, tokenSecretBytes)
-		if _, err := io.ReadFull(s.opts.Rand, secret); err != nil {
-			return Invite{}, fmt.Errorf("auth: pairing secret: %w", err)
-		}
-		invite.Secret = base64.RawURLEncoding.EncodeToString(secret)
-	}
+	invite := Invite{Code: code, ExpiresAt: s.now().Add(s.opts.PairingTTL)}
 	if err := s.invites.Save(invite); err != nil {
 		return Invite{}, fmt.Errorf("auth: saving the invitation: %w", err)
 	}
@@ -197,9 +184,9 @@ func (s *Service) NewInvite(kind InviteKind) (Invite, error) {
 // PendingInvites reports how many invitations are waiting, for diagnostics.
 func (s *Service) PendingInvites() int { return s.invites.Pending(s.now()) }
 
-// Pair exchanges a code (with the QR secret) or the admin password for a device
-// token. callerKey bounds the attempts (the client IP); every attempt counts, so a
-// success does not buy extra guesses.
+// Pair exchanges a pairing code or the admin password for a device token. callerKey
+// bounds the attempts (the client IP); every attempt counts, so a success does not
+// buy extra guesses.
 func (s *Service) Pair(req PairRequest, callerKey string) (PairResult, error) {
 	now := s.now()
 	if !s.limiter.allow(callerKey, now) {
@@ -226,11 +213,12 @@ func (s *Service) Pair(req PairRequest, callerKey string) (PairResult, error) {
 	}
 }
 
-// pairWithCode consumes an invitation and mints an operator device.
+// pairWithCode consumes an invitation and mints an operator device. The incoming
+// code is normalized before it is compared, so the case and the separators a user
+// types do not matter; a wrong code leaves the invitation alive.
 func (s *Service) pairWithCode(req PairRequest, now time.Time) (PairResult, error) {
-	_, ok := s.invites.Take(req.Code, req.Secret, now)
-	if !ok {
-		return PairResult{}, unauthorized("unknown, expired or mismatched pairing invitation")
+	if _, ok := s.invites.Take(NormalizeCode(req.Code), now); !ok {
+		return PairResult{}, unauthorized("unknown, expired or consumed pairing invitation")
 	}
 	return s.createDevice(req, ScopeOperator, now)
 }

@@ -87,23 +87,27 @@ The server keeps its state (paired devices, the admin password, pending pairing
 invitations) in one SQLite file, `$PIUI_STATE_DIR/state.db`
 (default `$XDG_STATE_HOME/pi-ui/state.db`).
 
+A server that starts with nothing configured prints the pairing card itself — the origin
+it detected, a six-character code, a `piui://pair` link and a QR — on stderr, so the
+first device needs no second command.
+
 ```bash
 ./bin/pi-ui auth set-password               # the admin credential and recovery path
-./bin/pi-ui pair --kind typed               # a six-digit code to type
-./bin/pi-ui pair --url http://<host>:8787   # the same invitation plus a QR to scan
+./bin/pi-ui pair                            # one more card, on demand
 ./bin/pi-ui status                          # devices, password, pending invitations
 ./bin/pi-ui tls fingerprint --cert cert.pem # what the app compares when it pins
 ```
 
-`pair` mints a single-use invitation that expires after ten minutes; a running
-`serve` over the same state directory consumes it and returns a device token once.
-The two kinds are not interchangeable: a `qr` invitation carries a high-entropy secret
-that only the QR holds — that is the point, someone reading the six digits over a
-shoulder still cannot pair — while `--kind typed` mints a bare code. **The app has no
-camera, so the code it asks for is a `typed` one.** A server that starts with nothing
-configured mints a `qr` invitation itself and logs its code, which is why a first start
-still needs `pair --kind typed` for a phone. `serve --token <token>` keeps the old
-static-token mode.
+`pair` mints a single-use invitation that expires after ten minutes; a running `serve`
+over the same state directory consumes it and returns a device token once. The code is
+six characters of Crockford base32 (`4K9M27`; case does not matter and `I`/`L`/`O` are
+read as `1`/`1`/`0`): 2^30 combinations against a five-attempts-per-minute-per-IP budget
+is what makes a typed code enough on its own — there is no second secret to copy. The
+app takes the code, the pasted link or the scanned QR: all three are the same pairing.
+`pair --url <origin>` overrides the detected origin, `pair --addr <host:port>` tells it
+where the server binds, and `pair --tls-cert <cert.pem>` puts the certificate
+fingerprint into the link and the QR so the app trusts it without asking. `serve
+--token <token>` keeps the old static-token mode.
 
 ### Pair an Android phone over HTTP
 
@@ -116,23 +120,21 @@ Install the client from the [release page](https://github.com/Nihmar/pi-ui/relea
 signature, not a release key). Then, on the host:
 
 ```bash
-# 1. Bind where the phone can reach it: the default 127.0.0.1:8787 is loopback only.
+# 1. Bind where the phone can reach it: the default 127.0.0.1:8787 is loopback only,
+#    and the startup card says so instead of handing out a code nobody can use.
 ./pi-ui serve --addr 0.0.0.0:8787 --root ~/Projects \
   --bridge /path/to/bridge/pi-ui-bridge.ts
 
-# 2. The host's LAN address is what the phone will dial, and the port has to be open.
-hostname -I                     # e.g. 192.168.1.20
+# 2. The card already prints the host's LAN address; open the port if a firewall
+#    blocks it.
 sudo ufw allow 8787/tcp         # whatever firewall the host runs
-
-# 3. Mint an invitation the app can use: it has no camera, so ask for a typed code.
-./pi-ui pair --kind typed --url http://192.168.1.20:8787
 ```
 
-The last command prints the six-digit code. In the app, enter the server URL
-`http://192.168.1.20:8787` (a bare `192.168.1.20:8787` is accepted too), a device name
-and the code: the code branch pairs an **operator** device — sessions, files, git,
-terminals. The admin-password branch mints an **admin** device and is the way back in
-when every device is gone.
+The card the server printed is everything the app needs: scan its QR with **Scan QR**,
+paste the `piui://pair…` link, or type the address and the six characters. If the ten
+minutes ran out, `pi-ui pair` prints a fresh card (and a QR) any time. The code branch
+pairs an **operator** device — sessions, files, git, terminals — and the admin-password
+branch mints an **admin** device, which is the way back in when every device is gone.
 
 An address needs nothing else: the WebSocket handshake pins `Host` to the authority the
 connection actually arrived on, and `192.168.1.20:8787` is it. A **name** —

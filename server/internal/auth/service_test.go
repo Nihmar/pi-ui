@@ -35,14 +35,14 @@ func newTestService(t *testing.T, mutate func(*Options)) (*Service, *testClock) 
 	return New(NewMemoryStore(), opts), clock
 }
 
-func TestPairWithQRInviteMintsAnOperatorDevice(t *testing.T) {
+func TestPairWithAValidCodeMintsAnOperatorDevice(t *testing.T) {
 	service, clock := newTestService(t, nil)
-	invite, err := service.NewInvite(InviteQR)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
-	if len(invite.Code) != inviteCodeDigits || invite.Secret == "" {
-		t.Fatalf("invite = %+v, want a %d digit code and a secret", invite, inviteCodeDigits)
+	if len(invite.Code) != inviteCodeLength {
+		t.Fatalf("invite = %+v, want a %d character code", invite, inviteCodeLength)
 	}
 	if want := clock.at.Add(defaultPairingTTL); !invite.ExpiresAt.Equal(want) {
 		t.Fatalf("invite expiry = %s, want %s", invite.ExpiresAt, want)
@@ -52,7 +52,6 @@ func TestPairWithQRInviteMintsAnOperatorDevice(t *testing.T) {
 		DeviceName: "Pixel 9",
 		Platform:   "android",
 		Code:       invite.Code,
-		Secret:     invite.Secret,
 	}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("Pair: %v", err)
@@ -71,46 +70,51 @@ func TestPairWithQRInviteMintsAnOperatorDevice(t *testing.T) {
 	}
 
 	// Single use: the same code cannot pair a second device.
-	if _, err := service.Pair(PairRequest{DeviceName: "again", Code: invite.Code, Secret: invite.Secret}, "10.0.0.1"); !errors.Is(err, ErrUnauthorized) {
+	if _, err := service.Pair(PairRequest{DeviceName: "again", Code: invite.Code}, "10.0.0.1"); !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("reusing the invitation = %v, want ErrUnauthorized", err)
 	}
 }
 
-func TestPairWithTypedInviteNeedsNoSecret(t *testing.T) {
+func TestPairNormalizesTheTypedCode(t *testing.T) {
 	service, _ := newTestService(t, nil)
-	invite, err := service.NewInvite(InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
-	if invite.Secret != "" {
-		t.Fatalf("typed invite carries a secret %q", invite.Secret)
-	}
-	if _, err := service.Pair(PairRequest{DeviceName: "typed", Code: invite.Code}, "10.0.0.2"); err != nil {
-		t.Fatalf("typed Pair: %v", err)
+	// A lowercase, separator-laden spelling of the same code pairs: normalization is
+	// applied before the comparison.
+	lower := strings.ToLower(invite.Code)
+	spelled := lower[:2] + "-" + lower[2:4] + " " + lower[4:]
+	if _, err := service.Pair(PairRequest{DeviceName: "typed", Code: spelled}, "10.0.0.2"); err != nil {
+		t.Fatalf("normalized Pair (%q): %v", spelled, err)
 	}
 }
 
-func TestPairRejectsTheWrongSecretWithoutBurningTheInvite(t *testing.T) {
+func TestPairRejectsAWrongCodeWithoutBurningTheInvite(t *testing.T) {
 	service, _ := newTestService(t, nil)
-	invite, err := service.NewInvite(InviteQR)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
-	if _, err := service.Pair(PairRequest{DeviceName: "x", Code: invite.Code, Secret: "not-the-secret"}, "10.0.0.3"); !errors.Is(err, ErrUnauthorized) {
-		t.Fatalf("wrong secret = %v, want ErrUnauthorized", err)
+	wrong := "000000"
+	if wrong == invite.Code {
+		wrong = "111111"
+	}
+	if _, err := service.Pair(PairRequest{DeviceName: "x", Code: wrong}, "10.0.0.3"); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("wrong code = %v, want ErrUnauthorized", err)
 	}
 	if service.PendingInvites() != 1 {
-		t.Fatalf("a wrong secret consumed the invitation")
+		t.Fatalf("a wrong code consumed the invitation")
 	}
-	// The legitimate scan still works.
-	if _, err := service.Pair(PairRequest{DeviceName: "x", Code: invite.Code, Secret: invite.Secret}, "10.0.0.3"); err != nil {
+	// The legitimate attempt still works.
+	if _, err := service.Pair(PairRequest{DeviceName: "x", Code: invite.Code}, "10.0.0.3"); err != nil {
 		t.Fatalf("Pair after a failed attempt: %v", err)
 	}
 }
 
 func TestPairRejectsAnExpiredInvite(t *testing.T) {
 	service, clock := newTestService(t, nil)
-	invite, err := service.NewInvite(InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -155,20 +159,16 @@ func TestPairRateLimitBoundsAttemptsPerCaller(t *testing.T) {
 		o.PairLimit = 3
 		o.PairWindow = time.Minute
 	})
-	invite, err := service.NewInvite(InviteTyped)
-	if err != nil {
-		t.Fatalf("NewInvite: %v", err)
-	}
-	fail := func() error {
-		_, err := service.Pair(PairRequest{DeviceName: "x", Code: invite.Code, Secret: "wrong"}, "10.0.0.7")
+	fail := func(caller string) error {
+		_, err := service.Pair(PairRequest{DeviceName: "x", Code: "000000"}, caller)
 		return err
 	}
 	for i := 0; i < 3; i++ {
-		if err := fail(); !errors.Is(err, ErrUnauthorized) {
+		if err := fail("10.0.0.7"); !errors.Is(err, ErrUnauthorized) {
 			t.Fatalf("attempt %d = %v, want ErrUnauthorized", i, err)
 		}
 	}
-	err = fail()
+	err := fail("10.0.0.7")
 	var limited *RateLimitError
 	if !errors.As(err, &limited) {
 		t.Fatalf("fourth attempt = %v, want a RateLimitError", err)
@@ -177,11 +177,11 @@ func TestPairRateLimitBoundsAttemptsPerCaller(t *testing.T) {
 		t.Fatalf("RetryAfter = %s, want > 0", limited.RetryAfter)
 	}
 	// Another caller is unaffected, and the window frees the first one.
-	if _, err := service.Pair(PairRequest{DeviceName: "x", Code: "000000", Secret: "wrong"}, "10.0.0.8"); errors.Is(err, ErrRateLimited) {
+	if _, err := service.Pair(PairRequest{DeviceName: "x", Code: "000000"}, "10.0.0.8"); errors.Is(err, ErrRateLimited) {
 		t.Fatalf("a different caller was rate limited: %v", err)
 	}
 	clock.advance(time.Minute + time.Second)
-	if err := fail(); !errors.Is(err, ErrUnauthorized) {
+	if err := fail("10.0.0.7"); !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("after the window = %v, want a normal unauthorized attempt", err)
 	}
 }
@@ -191,7 +191,7 @@ func TestAuthenticateTokenAndSlidingExpiry(t *testing.T) {
 		o.SlidingRefresh = time.Hour
 		o.TokenTTL = 30 * 24 * time.Hour
 	})
-	invite, err := service.NewInvite(InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestAuthenticateTokenAndSlidingExpiry(t *testing.T) {
 
 func TestRefreshRotatesTheTokenAndKeepsTheDevice(t *testing.T) {
 	service, _ := newTestService(t, nil)
-	invite, err := service.NewInvite(InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -267,7 +267,7 @@ func TestRefreshRotatesTheTokenAndKeepsTheDevice(t *testing.T) {
 
 func TestRevokeIsImmediateAndNotifies(t *testing.T) {
 	service, _ := newTestService(t, nil)
-	invite, err := service.NewInvite(InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -297,7 +297,7 @@ func TestRevokeIsImmediateAndNotifies(t *testing.T) {
 
 func TestDeviceLimitRefusesFurtherPairing(t *testing.T) {
 	service, _ := newTestService(t, func(o *Options) { o.MaxDevices = 1 })
-	first, err := service.NewInvite(InviteTyped)
+	first, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestDeviceLimitRefusesFurtherPairing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Pair: %v", err)
 	}
-	second, err := service.NewInvite(InviteTyped)
+	second, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}

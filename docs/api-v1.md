@@ -55,14 +55,16 @@ downgrade of an operator device by accident: the scope is stored per device.
 
 ### Pairing flow
 
-1. The server creates an **invite**: a one-time code (typed fallback, 6 digits)
-   plus a high-entropy secret (QR only), with a 10-minute TTL. `pi-ui pair` mints it
-   and prints either the code (`--kind typed`) or a QR that carries the secret;
+1. The server creates an **invite**: one code, six characters of Crockford base32
+   (`0123456789ABCDEFGHJKMNPQRSTVWXYZ`, no `I`/`L`/`O`/`U`; `4K9M27`), with a
+   ten-minute TTL. `pi-ui pair` mints it and prints the code, the deep link and a QR;
    `pi-ui status` reports how many invitations are pending.
-2. The client scans the QR or the user types the code, confirms the server origin
-   and the TLS fingerprint, then calls the endpoint below. A code on its own matches
-   only a `typed` invitation: a `qr` one is consumed by code **and** secret, which is
-   what keeps a six-digit code read over a shoulder useless.
+2. The client scans the QR (a link that carries the same code) or the user types the
+   code, confirms the server origin and the TLS fingerprint, then calls the endpoint
+   below. The code **is** the credential — the QR carries the same value — so it is
+   single-use, expires with the invite, is rate-limited per caller (5 attempts/min/IP)
+   and is audited. The server normalizes what it receives (case-insensitive; `-`, `_`
+   and spaces dropped; `O→0`, `I→1`, `L→1`) and compares it in constant time.
 3. The server burns the invite and returns the device token exactly once.
 
 ```
@@ -73,10 +75,12 @@ POST /api/v1/auth/pair
 {
   "deviceName": "Alessandro's Pixel 9",
   "platform": "android",
-  "code": "7K4M2Q",
-  "secret": "…"            // present only when the QR was scanned
+  "code": "4K9M27"
 }
 ```
+
+An old client that still sends the QR `secret` keeps working: objects are lenient and
+the field is accepted and ignored.
 
 The admin-password branch uses the same endpoint:
 
@@ -106,14 +110,15 @@ Response `201`:
 }
 ```
 
-The QR invite is a deep link the client parses itself; it is not a server DTO:
+The invite is a deep link the client parses itself; it is not a server DTO:
 
 ```
-piui://pair?v=1&url=http%3A%2F%2Fpi-ui.local%3A8787&code=7K4M2Q&fp=4f2a…
+piui://pair?v=1&url=http%3A%2F%2Fpi-ui.local%3A8787&code=4K9M27[&fp=4f2a…]
 ```
 
-`code` and `secret` above are the short-lived invite; the QR never contains a
-device token.
+The QR and the printable card carry the same link. `code` is the short-lived
+credential; `fp` is added when the server terminates TLS, so a link the operator
+handed over is already a pinning decision. The link never contains a device token.
 
 ### Operate it from the CLI
 
@@ -164,8 +169,8 @@ see.
 | `bad_request` | 400 | body not readable or missing a required field |
 | `too_large` | 413 | body above the 1 MiB cap |
 
-A failed pairing never says which part was wrong (code vs secret vs expiry):
-the failure is one `unauthorized`, and the attempt is audited.
+A failed pairing never says which part was wrong: an unknown code, a consumed one and
+an expired one are all the same `unauthorized`, and the attempt is audited.
 
 ### Rate limits
 
@@ -181,9 +186,10 @@ refused request is `429 rate_limited` with `Retry-After` (seconds) and one
 | Prompts | 30/min | session | `--rate-prompt` |
 
 Pairing keeps its own budget in the auth service (5 attempts/min/IP with a
-lockout) and answers `401 unauthorized`, never leaking which part failed. A
-budget of `0` disables it. The burst is a quarter of the rate (at least one), so
-`120/min` allows 30 requests back to back on a cold bucket.
+lockout) and answers `401 unauthorized`, never leaking whether the code was
+unknown, already consumed or expired. A budget of `0` disables it. The burst is a
+quarter of the rate (at least one), so `120/min` allows 30 requests back to back
+on a cold bucket.
 
 ## Audit
 

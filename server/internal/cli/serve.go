@@ -376,16 +376,29 @@ func Serve(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	}()
 
 	// Bootstrap: a server with neither a device nor a password has no way in yet, so it
-	// mints one invitation and logs it. The QR comes from `pi-ui pair`, which writes to
-	// the same state database.
+	// mints one invitation and prints the pairing card on stderr. The stdout line stays the
+	// single address a supervisor parses, and the card carries the code, the detected
+	// origin, the deep link and the QR a phone can scan — no second command needed.
 	if cfg.token == "" && !authService.HasAdminPassword() && len(authService.Devices()) == 0 && authService.PendingInvites() == 0 {
-		if invite, inviteErr := authService.NewInvite(authInviteKindQR); inviteErr != nil {
+		if invite, inviteErr := authService.NewInvite(); inviteErr != nil {
 			logger.Error("pi-ui: could not mint the bootstrap pairing invitation", "error", inviteErr)
 		} else {
-			logger.Info("pi-ui: no device is paired yet; minted a pairing invitation",
-				"code", invite.Code,
-				"expiresInSec", int(time.Until(invite.ExpiresAt).Seconds()),
-				"hint", "run `pi-ui pair --url http://<host>:<port>` on this host for a scannable QR")
+			scheme, fingerprint := "http", ""
+			if tlsInfo != nil {
+				scheme, fingerprint = "https", tlsInfo.FingerprintSHA256
+			}
+			port := defaultListenPort
+			if tcpAddr, ok := listener.Addr().(*net.TCPAddr); ok {
+				port = tcpAddr.Port
+			}
+			origins, loopbackOnly := advertiseOrigins(cfg.addr, port, scheme, systemAddrs())
+			if loopbackOnly {
+				logger.Warn("pi-ui: the server is bound to a loopback address, so no other device can reach it",
+					"hint", "bind --addr 0.0.0.0:8787, or reach it from this host or through a tunnel")
+			}
+			if err := renderPairCard(stderr, invite, origins, fingerprint); err != nil {
+				logger.Error("pi-ui: could not print the pairing card", "error", err)
+			}
 		}
 	}
 

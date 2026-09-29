@@ -30,11 +30,13 @@ func stateService(t *testing.T, dir string) (*auth.Service, func()) {
 	return service, func() { db.Close() }
 }
 
-var inviteCodePattern = regexp.MustCompile(`(?m)^  code    ([0-9]{6})$`)
+// inviteCodePattern reads the six-character Crockford base32 code off the pairing
+// card (`  code    4K9M27`).
+var inviteCodePattern = regexp.MustCompile(`(?m)^  code    ([0-9A-HJKMNP-TV-Z]{6})$`)
 
 func TestPairMintsAnInvitationInTheSharedStateDatabase(t *testing.T) {
 	dir := t.TempDir()
-	code, stdout, stderr := runCLI(t, "pair", "--state-dir", dir, "--kind", "typed", "--url", "http://pi-ui.local:8787")
+	code, stdout, stderr := runCLI(t, "pair", "--state-dir", dir, "--url", "http://pi-ui.local:8787")
 	if code != ExitOK {
 		t.Fatalf("pair = %d, want %d (stderr %s)", code, ExitOK, stderr)
 	}
@@ -43,7 +45,7 @@ func TestPairMintsAnInvitationInTheSharedStateDatabase(t *testing.T) {
 	}
 	match := inviteCodePattern.FindStringSubmatch(stdout)
 	if match == nil {
-		t.Fatalf("stdout does not carry a six-digit code:\n%s", stdout)
+		t.Fatalf("stdout does not carry a six-character Crockford base32 code:\n%s", stdout)
 	}
 
 	// The invitation lives in the state database, so a server over the same directory
@@ -62,46 +64,73 @@ func TestPairMintsAnInvitationInTheSharedStateDatabase(t *testing.T) {
 	}
 }
 
-func TestQRInvitationKeepsItsSecretInsideTheQR(t *testing.T) {
+func TestRenderPairCardPrintsTheCodeOriginsLinkAndQR(t *testing.T) {
 	dir := t.TempDir()
 	service, closeState := stateService(t, dir)
 	defer closeState()
-	invite, err := service.NewInvite(auth.InviteQR)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
 
 	var out bytes.Buffer
-	if err := renderInvite(&out, invite, "http://pi-ui.local:8787"); err != nil {
-		t.Fatalf("renderInvite: %v", err)
+	err = renderPairCard(&out, invite,
+		[]string{"http://pi-ui.local:8787", "http://10.0.0.5:8787"}, "4f2a9c11")
+	if err != nil {
+		t.Fatalf("renderPairCard: %v", err)
 	}
 	rendered := out.String()
-	if strings.Contains(rendered, invite.Secret) {
-		t.Fatalf("the secret is printed to the terminal, which defeats it:\n%s", rendered)
+	for _, want := range []string{
+		invite.Code,
+		"  origin  http://pi-ui.local:8787",
+		"  also    http://10.0.0.5:8787",
+		"piui://pair?",
+		"code=" + invite.Code,
+		"fp=4f2a9c11",
+		"█",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("the card misses %q:\n%s", want, rendered)
+		}
 	}
-	if !strings.Contains(rendered, invite.Code) {
-		t.Fatalf("the code is missing from the invitation:\n%s", rendered)
-	}
-	if !strings.Contains(rendered, "█") {
-		t.Fatalf("the QR did not render:\n%s", rendered)
+	if strings.Contains(rendered, "secret") {
+		t.Fatalf("the card still mentions a secret:\n%s", rendered)
 	}
 }
 
-func TestTypedInvitationPrintsItsLink(t *testing.T) {
+func TestRenderPairCardWithoutAnOriginSaysSo(t *testing.T) {
 	dir := t.TempDir()
 	service, closeState := stateService(t, dir)
 	defer closeState()
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
 
 	var out bytes.Buffer
-	if err := renderInvite(&out, invite, "http://pi-ui.local:8787"); err != nil {
-		t.Fatalf("renderInvite: %v", err)
+	if err := renderPairCard(&out, invite, nil, ""); err != nil {
+		t.Fatalf("renderPairCard: %v", err)
 	}
-	if rendered := out.String(); !strings.Contains(rendered, "piui://pair?") || !strings.Contains(rendered, invite.Code) {
-		t.Fatalf("the typed invitation misses its link:\n%s", rendered)
+	rendered := out.String()
+	if !strings.Contains(rendered, "no network address was detected") {
+		t.Fatalf("the card does not explain the missing origin:\n%s", rendered)
+	}
+	if strings.Contains(rendered, "fp=") || strings.Contains(rendered, "url=") {
+		t.Fatalf("an origin-less card carries a fingerprint or a url:\n%s", rendered)
+	}
+}
+
+func TestPairingLinkCarriesOnlyWhatItHas(t *testing.T) {
+	invite := auth.Invite{Code: "4K9M27"}
+
+	plain := pairingLink("http://pi-ui.local:8787", "", invite)
+	if plain != "piui://pair?code=4K9M27&url=http%3A%2F%2Fpi-ui.local%3A8787&v=1" {
+		t.Fatalf("pairingLink = %q, want the v/url/code shape", plain)
+	}
+
+	withFingerprint := pairingLink("", "4f2a9c11", invite)
+	if !strings.Contains(withFingerprint, "fp=4f2a9c11") || strings.Contains(withFingerprint, "url=") {
+		t.Fatalf("pairingLink without an origin = %q, want only the code and the fingerprint", withFingerprint)
 	}
 }
 
@@ -182,7 +211,7 @@ func TestStatusReportsPasswordDevicesAndInvitations(t *testing.T) {
 
 	// Seed one device through the same store, then the report shows it.
 	service, closeState := stateService(t, dir)
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}

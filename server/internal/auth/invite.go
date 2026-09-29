@@ -6,38 +6,30 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 )
 
-// InviteKind selects what a pairing invitation is made of.
-type InviteKind string
+// inviteAlphabet is Crockford base32: the ten digits and the letters with I, L, O
+// and U removed, so a code read off a screen or typed by hand cannot be confused
+// with another. Codes are generated and displayed in this alphabet, uppercase.
+const inviteAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
-const (
-	// InviteQR carries a code plus a high-entropy secret; the client must send both,
-	// so a shoulder-surfer who reads the six digits off the screen cannot pair.
-	InviteQR InviteKind = "qr"
+// inviteCodeLength is the number of symbols in a pairing code. 32^6 ≈ 2^30, which
+// with the pairing rate limit and the ten-minute TTL makes guessing infeasible.
+const inviteCodeLength = 6
 
-	// InviteTyped carries only the code: the fallback for a device without a
-	// camera, kept safe by the pairing rate limit and lockout.
-	InviteTyped InviteKind = "typed"
-)
-
-// Invite is a pending pairing invitation. The QR payload of docs/api-v1.md carries
-// the code and the secret (when present) plus the server origin and fingerprint.
+// Invite is a pending pairing invitation. It is one short code and nothing else:
+// after unifying pairing on a single invite kind the code is the credential the
+// client presents (the QR carries the same value the user can type), so it is
+// single-use, expires with the invitation and is rate-limited and audited.
 type Invite struct {
-	// Kind is how the invitation was produced.
-	Kind InviteKind
-	// Code is the short human-typable code, shown by `pi-ui status`.
+	// Code is the short human-typable Crockford base32 code, shown by `pi-ui status`.
 	Code string
-	// Secret is the QR-only high-entropy secret; empty for InviteTyped.
-	Secret string
 	// ExpiresAt is when the invitation stops being usable.
 	ExpiresAt time.Time
 }
-
-// inviteCodeDigits is the length of the typable pairing code.
-const inviteCodeDigits = 6
 
 // InviteStore keeps the pending pairing invitations. The seam exists because the
 // invitations must be shared between processes: `pi-ui pair` mints one, the running
@@ -47,10 +39,12 @@ const inviteCodeDigits = 6
 type InviteStore interface {
 	// Save records one invitation, replacing an invitation with the same code.
 	Save(invite Invite) error
-	// Take removes and returns the invitation matching both the code and the secret,
-	// dropping expired ones. A wrong secret leaves the invitation alive: burning it
-	// would let anyone who read the digits cancel the pairing.
-	Take(code, secret string, now time.Time) (Invite, bool)
+	// Take removes and returns the invitation matching the code, dropping expired
+	// ones. The code is normalized and compared in constant time over fixed-length
+	// values, so neither the length of a guess nor which invitation exists leaks.
+	// A wrong code leaves the invitation alive: burning it would let anyone who read
+	// the code cancel the pairing.
+	Take(code string, now time.Time) (Invite, bool)
 	// Pending counts the unexpired invitations.
 	Pending(now time.Time) int
 }
@@ -75,10 +69,11 @@ func (s *MemoryInviteStore) Save(invite Invite) error {
 // Take implements InviteStore with constant-time comparisons across every pending
 // invitation, so the timing of a failed attempt does not reveal whether a code
 // exists.
-func (s *MemoryInviteStore) Take(code, secret string, now time.Time) (Invite, bool) {
+func (s *MemoryInviteStore) Take(code string, now time.Time) (Invite, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	want := NormalizeCode(code)
 	kept := s.invites[:0]
 	var found Invite
 	matched := false
@@ -86,9 +81,7 @@ func (s *MemoryInviteStore) Take(code, secret string, now time.Time) (Invite, bo
 		if !now.Before(invite.ExpiresAt) {
 			continue
 		}
-		codeMatches := subtle.ConstantTimeCompare([]byte(invite.Code), []byte(code)) == 1
-		secretMatches := subtle.ConstantTimeCompare([]byte(invite.Secret), []byte(secret)) == 1
-		if !matched && codeMatches && secretMatches {
+		if !matched && constantTimeCodeEqual(invite.Code, want) {
 			found = invite
 			matched = true
 			continue // consumed: not kept
@@ -112,15 +105,52 @@ func (s *MemoryInviteStore) Pending(now time.Time) int {
 	return count
 }
 
-// newInviteCode returns a zero-padded code of inviteCodeDigits digits.
+// NormalizeCode canonicalizes a pairing code from the wire or from what a user
+// typed, so equal codes compare equal: it trims surrounding whitespace, uppercases
+// the input, drops the separators people type between symbols ('-', '_' and spaces)
+// and folds the letters Crockford omits onto the digits they are mistaken for
+// (O→0, I→1, L→1). The generated code is already normalized; a client sends the raw
+// value and the server applies this before any comparison.
+func NormalizeCode(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range strings.ToUpper(strings.TrimSpace(s)) {
+		switch r {
+		case '-', '_', ' ':
+			continue
+		case 'O':
+			b.WriteByte('0')
+		case 'I', 'L':
+			b.WriteByte('1')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// constantTimeCodeEqual compares a stored invitation code with an already-normalized
+// candidate in constant time. Both sides are copied into buffers of the same fixed
+// length first, so a short guess is padded and compared for the full length instead of
+// making the underlying compare return early on a length mismatch.
+func constantTimeCodeEqual(stored, candidate string) bool {
+	var a, b [inviteCodeLength]byte
+	copy(a[:], stored)
+	copy(b[:], candidate)
+	return subtle.ConstantTimeCompare(a[:], b[:]) == 1
+}
+
+// newInviteCode returns a uniformly random code of inviteCodeLength Crockford base32
+// symbols, drawn from crypto/rand so its entropy is the full 2^30.
 func newInviteCode(random io.Reader) (string, error) {
-	limit := big.NewInt(1)
-	for range inviteCodeDigits {
-		limit.Mul(limit, big.NewInt(10))
+	limit := big.NewInt(int64(len(inviteAlphabet)))
+	code := make([]byte, inviteCodeLength)
+	for i := range code {
+		value, err := rand.Int(random, limit)
+		if err != nil {
+			return "", fmt.Errorf("auth: pairing code: %w", err)
+		}
+		code[i] = inviteAlphabet[value.Int64()]
 	}
-	value, err := rand.Int(random, limit)
-	if err != nil {
-		return "", fmt.Errorf("auth: pairing code: %w", err)
-	}
-	return fmt.Sprintf("%0*d", inviteCodeDigits, value), nil
+	return string(code), nil
 }

@@ -22,9 +22,10 @@ import (
 // UTC with milliseconds (schemas/core.json SrvTimestamp).
 const timestampLayout = "2006-01-02T15:04:05.000Z"
 
-// pair exchanges a pairing code (with the QR secret) or the admin password for a
-// device token. It is the only endpoint besides /health that takes no credential:
-// the credential is the request body.
+// pair exchanges a pairing code or the admin password for a device token. It is the
+// only endpoint besides /health that takes no credential: the credential is the
+// request body. A legacy client that still sends a `secret` field is accepted and the
+// field is ignored (objects are lenient).
 func (a *api) pair(w http.ResponseWriter, r *http.Request) {
 	service := a.authService
 	if service == nil {
@@ -53,7 +54,6 @@ func (a *api) pair(w http.ResponseWriter, r *http.Request) {
 		DeviceName: body.DeviceName,
 		Platform:   deref(body.Platform),
 		Code:       deref(body.Code),
-		Secret:     deref(body.Secret),
 		Password:   deref(body.Password),
 	}, clientIP(r))
 	if err != nil {

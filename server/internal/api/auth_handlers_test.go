@@ -78,9 +78,9 @@ func decodePair(t *testing.T, recorder *httptest.ResponseRecorder) pairBody {
 	return body
 }
 
-func TestPairWithATypedInviteReturnsAnOperatorToken(t *testing.T) {
+func TestPairWithACodeReturnsAnOperatorToken(t *testing.T) {
 	handler, service := newAuthRouter(t)
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -121,6 +121,26 @@ func TestPairWithATypedInviteReturnsAnOperatorToken(t *testing.T) {
 	}
 	if code, _ := decodeError(t, admin); code != "forbidden_scope" {
 		t.Fatalf("code = %q, want forbidden_scope", code)
+	}
+}
+
+// TestPairIgnoresALegacySecret proves the compatibility path of the schema change:
+// an old client that still sends `secret` alongside the code pairs exactly as if the
+// field were absent, because objects are lenient and the field is no longer read.
+func TestPairIgnoresALegacySecret(t *testing.T) {
+	handler, service := newAuthRouter(t)
+	invite, err := service.NewInvite()
+	if err != nil {
+		t.Fatalf("NewInvite: %v", err)
+	}
+
+	recorder := pair(t, handler, `{"deviceName":"old client","platform":"android","code":"`+invite.Code+`","secret":"stale-qr-secret"}`)
+	requireJSON(t, recorder)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201 (body %s)", recorder.Code, recorder.Body.String())
+	}
+	if body := decodePair(t, recorder); body.Scope != "operator" || body.Token == "" {
+		t.Fatalf("paired = %+v, want an operator token", body)
 	}
 }
 
@@ -221,7 +241,7 @@ func TestPairIsRateLimitedWithRetryAfter(t *testing.T) {
 
 func TestRefreshRotatesTheToken(t *testing.T) {
 	handler, service := newAuthRouter(t)
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -256,7 +276,7 @@ func TestRevokeDeviceEndsItsAccess(t *testing.T) {
 		t.Fatalf("SetAdminPassword: %v", err)
 	}
 	admin := decodePair(t, pair(t, handler, `{"deviceName":"admin shell","password":"correct horse battery staple"}`))
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}

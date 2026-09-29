@@ -59,7 +59,7 @@ func runStatus(ctx context.Context, args []string, stdout, stderr io.Writer) err
 	}
 	fmt.Fprintf(stdout, "  invitations     %d pending\n", service.PendingInvites())
 	if len(devices) == 0 && !service.HasAdminPassword() {
-		fmt.Fprintln(stdout, "  next            run `pi-ui pair --url http://<host>:8787` and scan the QR,")
+		fmt.Fprintln(stdout, "  next            run `pi-ui pair` and scan the QR — or type the code — on the device,")
 		fmt.Fprintln(stdout, "                  or set an admin password with `pi-ui auth set-password`")
 	}
 	return nil

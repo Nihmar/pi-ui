@@ -86,28 +86,30 @@ func TestInviteStoreIsSingleUseAndKeepsMismatches(t *testing.T) {
 	now := time.Unix(1000, 0)
 	store := NewMemoryInviteStore()
 	for _, invite := range []Invite{
-		{Kind: InviteQR, Code: "123456", Secret: "s3cret", ExpiresAt: now.Add(time.Minute)},
-		{Kind: InviteTyped, Code: "654321", ExpiresAt: now.Add(time.Minute)},
-		{Kind: InviteTyped, Code: "000000", ExpiresAt: now.Add(-time.Second)},
+		{Code: "123456", ExpiresAt: now.Add(time.Minute)},
+		{Code: "ABCDEF", ExpiresAt: now.Add(time.Minute)},
+		{Code: "000000", ExpiresAt: now.Add(-time.Second)},
 	} {
 		if err := store.Save(invite); err != nil {
 			t.Fatalf("Save: %v", err)
 		}
 	}
 
-	if _, ok := store.Take("123456", "wrong", now); ok {
-		t.Fatal("a mismatched secret consumed an invitation")
+	if _, ok := store.Take("ZZZZZZ", now); ok {
+		t.Fatal("a wrong code consumed an invitation")
 	}
 	if got := store.Pending(now); got != 2 {
 		t.Fatalf("pending invites = %d, want 2 (the expired one is not pending)", got)
 	}
-	if _, ok := store.Take("123456", "s3cret", now); !ok {
-		t.Fatal("the correct code+secret did not match")
+	// A lowercase, separator-laden spelling of the same code still matches: the store
+	// normalizes before it compares.
+	if _, ok := store.Take("abcdef", now); !ok {
+		t.Fatal("the normalized code did not match")
 	}
-	if _, ok := store.Take("654321", "", now); !ok {
-		t.Fatal("a typed invitation did not match without a secret")
+	if _, ok := store.Take("123456", now); !ok {
+		t.Fatal("the saved code did not match")
 	}
-	if _, ok := store.Take("000000", "", now); ok {
+	if _, ok := store.Take("000000", now); ok {
 		t.Fatal("an expired invitation was accepted")
 	}
 	if got := store.Pending(now); got != 0 {

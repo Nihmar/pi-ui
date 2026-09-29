@@ -16,8 +16,9 @@ import (
 	"github.com/Nihmar/pi-ui/server/test/fakeharness"
 )
 
-// inviteCodePattern reads the code out of `pi-ui pair` output.
-var inviteCodePattern = regexp.MustCompile(`(?m)^  code    ([0-9]{6})$`)
+// inviteCodePattern reads the six-character Crockford base32 code out of `pi-ui pair`
+// output.
+var inviteCodePattern = regexp.MustCompile(`(?m)^  code    ([0-9A-HJKMNP-TV-Z]{6})$`)
 
 // doAuthJSON performs one authenticated (or anonymous) JSON request.
 func doAuthJSON(t *testing.T, method, url, token string, payload any, wantStatus int, into any) []byte {
@@ -86,8 +87,8 @@ func TestDeviceIdentityOverRestAndWebSocket(t *testing.T) {
 	binary := buildServer(t)
 	stateDir := t.TempDir()
 
-	// 1. Mint a typed invitation in the state database the server will open.
-	pair := exec.Command(binary, "pair", "--state-dir", stateDir, "--kind", "typed")
+	// 1. Mint a pairing invitation in the state database the server will open.
+	pair := exec.Command(binary, "pair", "--state-dir", stateDir)
 	output, err := pair.CombinedOutput()
 	if err != nil {
 		t.Fatalf("pi-ui pair: %v (%s)", err, output)

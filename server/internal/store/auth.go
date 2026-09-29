@@ -190,22 +190,27 @@ func (s *AuthStore) SetAdminPassword(password auth.AdminPassword) error {
 	return nil
 }
 
-// Save implements auth.InviteStore.
+// Save implements auth.InviteStore. The pairing_invites table keeps its `kind` and
+// `secret` columns — migrations are append-only, so they are never dropped — but
+// after pairing was unified on a single invite kind every invitation is a code invite
+// with no secret, so both are written as fixed literals.
 func (s *AuthStore) Save(invite auth.Invite) error {
 	_, err := s.db.db.Exec(`
-		INSERT INTO pairing_invites (code, kind, secret, expires_at_ms) VALUES (?, ?, ?, ?)
-		ON CONFLICT(code) DO UPDATE SET kind = excluded.kind, secret = excluded.secret, expires_at_ms = excluded.expires_at_ms`,
-		invite.Code, string(invite.Kind), invite.Secret, millis(invite.ExpiresAt))
+		INSERT INTO pairing_invites (code, kind, secret, expires_at_ms) VALUES (?, 'code', '', ?)
+		ON CONFLICT(code) DO UPDATE SET kind = 'code', secret = '', expires_at_ms = excluded.expires_at_ms`,
+		invite.Code, millis(invite.ExpiresAt))
 	if err != nil {
 		return fmt.Errorf("store: save invitation: %w", err)
 	}
 	return nil
 }
 
-// Take implements auth.InviteStore. The comparison runs in Go rather than in SQL so
-// it stays constant-time and a wrong secret leaves the invitation alive, exactly like
-// the memory implementation; the delete happens in the same transaction.
-func (s *AuthStore) Take(code, secret string, now time.Time) (auth.Invite, bool) {
+// Take implements auth.InviteStore. It selects only the code and the expiry,
+// normalizes the incoming code and compares in Go rather than in SQL, so the
+// comparison stays constant-time over fixed-length values and a wrong code leaves the
+// invitation alive, exactly like the memory implementation; the delete of the matched
+// row happens in the same transaction.
+func (s *AuthStore) Take(code string, now time.Time) (auth.Invite, bool) {
 	ctx := context.Background()
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -216,18 +221,18 @@ func (s *AuthStore) Take(code, secret string, now time.Time) (auth.Invite, bool)
 	if _, err := tx.ExecContext(ctx, `DELETE FROM pairing_invites WHERE expires_at_ms <= ?`, millis(now)); err != nil {
 		return auth.Invite{}, false
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT code, kind, secret, expires_at_ms FROM pairing_invites`)
+	rows, err := tx.QueryContext(ctx, `SELECT code, expires_at_ms FROM pairing_invites`)
 	if err != nil {
 		return auth.Invite{}, false
 	}
 	type candidate struct {
-		code, kind, secret string
-		expires            int64
+		code    string
+		expires int64
 	}
 	candidates := make([]candidate, 0)
 	for rows.Next() {
 		var c candidate
-		if err := rows.Scan(&c.code, &c.kind, &c.secret, &c.expires); err != nil {
+		if err := rows.Scan(&c.code, &c.expires); err != nil {
 			rows.Close()
 			return auth.Invite{}, false
 		}
@@ -235,11 +240,10 @@ func (s *AuthStore) Take(code, secret string, now time.Time) (auth.Invite, bool)
 	}
 	rows.Close()
 
+	want := auth.NormalizeCode(code)
 	matched := -1
 	for index, c := range candidates {
-		codeOK := subtleCompare(c.code, code)
-		secretOK := subtleCompare(c.secret, secret)
-		if codeOK && secretOK {
+		if constantTimeCodeEqual(c.code, want) {
 			matched = index
 			break
 		}
@@ -255,9 +259,7 @@ func (s *AuthStore) Take(code, secret string, now time.Time) (auth.Invite, bool)
 		return auth.Invite{}, false
 	}
 	return auth.Invite{
-		Kind:      auth.InviteKind(found.kind),
 		Code:      found.code,
-		Secret:    found.secret,
 		ExpiresAt: timeFromMillis(found.expires),
 	}, true
 }
@@ -315,8 +317,18 @@ func boolToInt(value bool) int {
 	return 0
 }
 
-// subtleCompare compares two strings in constant time, exactly like the memory
-// implementation of the same interface.
-func subtleCompare(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+// inviteCodeBytes is the length of a normalized pairing code
+// (auth.inviteCodeLength). It sizes the comparison buffer below; the two must agree.
+const inviteCodeBytes = 6
+
+// constantTimeCodeEqual compares a stored invitation code against an already
+// normalized candidate in constant time, exactly like the memory InviteStore. Both are
+// copied into buffers of the same fixed length first, so a short guess is padded and
+// compared for the full length instead of making the underlying compare return early on
+// a length mismatch.
+func constantTimeCodeEqual(stored, candidate string) bool {
+	var a, b [inviteCodeBytes]byte
+	copy(a[:], stored)
+	copy(b[:], candidate)
+	return subtle.ConstantTimeCompare(a[:], b[:]) == 1
 }

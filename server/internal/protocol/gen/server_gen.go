@@ -267,15 +267,20 @@ func (j *SrvDevicesResponse) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// POST /api/v1/auth/pair body. Exactly one credential: the pairing code (with the
-// QR secret when it came from a scan) or the admin password. The response carries
-// the device token exactly once; the server stores only its argon2id hash and the
-// device record.
+// POST /api/v1/auth/pair body. Exactly one credential: the pairing code or the
+// admin password. The response carries the device token exactly once; the server
+// stores only its argon2id hash and the device record. Objects are lenient
+// (additionalProperties defaults to true), so a legacy `secret` field an old
+// client still sends is accepted and ignored.
 type SrvPairRequest struct {
-	// One-time pairing code from the QR invite or typed by the user (screens 2-3 of
-	// the mockup). Single use, expires with the invite, rate-limited and audited; a
-	// consumed, unknown or expired code is a plain unauthorized failure with no hint
-	// of which.
+	// One-time pairing code: six Crockford base32 characters from
+	// 0123456789ABCDEFGHJKMNPQRSTVWXYZ (no I/L/O/U), uppercase on the wire. A user
+	// may type it in any case and with separators; the server normalizes it before
+	// comparing (trims, uppercases, drops '-', '_' and spaces, and folds O→0, I→1,
+	// L→1), so "o1l-m27x" and "01M27X" are the same code. The code is the credential:
+	// single use, expires with the invitation (ten-minute TTL), rate-limited per
+	// caller and audited. A consumed, unknown or expired code is a plain unauthorized
+	// failure with no hint of which.
 	Code *string `json:"code,omitempty,omitzero" yaml:"code,omitempty" mapstructure:"code,omitempty"`
 
 	// Human-readable device name shown in the device list ("Alessandro's Pixel 9").
@@ -290,12 +295,6 @@ type SrvPairRequest struct {
 	// Free-form platform hint for diagnostics ("android", "linux", "windows"). The
 	// server never branches on it, so a new client platform needs no schema change.
 	Platform *string `json:"platform,omitempty,omitzero" yaml:"platform,omitempty" mapstructure:"platform,omitempty"`
-
-	// High-entropy secret carried only by the QR payload, never typed. It proves the
-	// client saw the actual invite screen rather than guessing a short code, which is
-	// what lets a typed 6-digit fallback stay rate-limited without being impossible
-	// to use.
-	Secret *string `json:"secret,omitempty,omitzero" yaml:"secret,omitempty" mapstructure:"secret,omitempty"`
 }
 
 type SrvPairRequest_0 map[string]interface{}

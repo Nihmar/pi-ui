@@ -38,13 +38,17 @@ Two boundaries follow from that:
 
 ## The pairing flow
 
-1. `pi-ui pair` mints a one-time invitation: a six-digit code (typed) plus a high-entropy
-   secret (QR only), ten minutes of TTL.
+1. `pi-ui pair` mints a one-time invitation: one six-character Crockford base32 code
+   (`4K9M27`), ten minutes of TTL. The code **is** the credential — the QR and every link
+   carry the same value — so it is single use, normalized and compared in constant time,
+   rate-limited to 5 attempts/min/IP and audited. 32^6 ≈ 2^30 makes guessing infeasible
+   inside that window, which is what makes a plain code acceptable; a code read over a
+   shoulder is usable only until it is consumed or expires.
 2. The app confirms the server origin and, when TLS is self-signed, the fingerprint
    (`pi-ui tls fingerprint` prints the same value).
-3. `POST /auth/pair` burns the invitation and returns the device token exactly once. A
-   wrong code, a consumed one and an expired one are one `unauthorized`: the failure never
-   says which part was wrong.
+3. `POST /auth/pair` burns the invitation and returns the device token exactly once. An
+   unknown code, a consumed one and an expired one are one `unauthorized`: the failure
+   never says which part was wrong.
 4. The token goes into the OS keystore; the profile (URL, device id, scope, pinned
    fingerprint) goes into plain preferences. A token refresh rotates the secret and keeps
    the device id.

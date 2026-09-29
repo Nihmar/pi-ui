@@ -399,7 +399,8 @@ func writeServeUsage(w io.Writer) {
 		"The process logs to stderr, prints the listening address on stdout and shuts down\n"+
 		"gracefully on SIGINT/SIGTERM, reaping every child within two seconds.\n\n"+
 		"Device access: without --token the server mints device tokens through pairing.\n"+
-		"On first start it logs a pairing code; `pi-ui pair --url <origin>` prints a QR.\n"+
-		"A revoked or lost device can always be recovered with the admin password\n"+
-		"(`pi-ui auth set-password`), and --token selects the static-token mode instead.\n")
+		"On first start it prints the pairing card — code, origin, link and QR — on stderr;\n"+
+		"`pi-ui pair` prints one on demand. A revoked or lost device can always be recovered\n"+
+		"with the admin password (`pi-ui auth set-password`), and --token selects the\n"+
+		"static-token mode instead.\n")
 }

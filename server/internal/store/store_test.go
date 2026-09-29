@@ -70,7 +70,7 @@ func TestDevicesSurviveARestart(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	service := testService(t, firstDB)
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestRevocationAndThePasswordSurviveARestart(t *testing.T) {
 	if err := service.SetAdminPassword("correct horse battery staple"); err != nil {
 		t.Fatalf("SetAdminPassword: %v", err)
 	}
-	invite, err := service.NewInvite(auth.InviteTyped)
+	invite, err := service.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestInvitationsAreSharedAcrossHandles(t *testing.T) {
 
 	// One handle (the `pi-ui pair` process) mints the invitation…
 	pairingService := testService(t, minting)
-	invite, err := pairingService.NewInvite(auth.InviteQR)
+	invite, err := pairingService.NewInvite()
 	if err != nil {
 		t.Fatalf("NewInvite: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestInvitationsAreSharedAcrossHandles(t *testing.T) {
 	if got := servingService.PendingInvites(); got != 1 {
 		t.Fatalf("PendingInvites() on the server handle = %d, want 1", got)
 	}
-	paired, err := servingService.Pair(auth.PairRequest{DeviceName: "phone", Code: invite.Code, Secret: invite.Secret}, "10.0.0.4")
+	paired, err := servingService.Pair(auth.PairRequest{DeviceName: "phone", Code: invite.Code}, "10.0.0.4")
 	if err != nil {
 		t.Fatalf("Pair across handles: %v", err)
 	}
@@ -187,20 +187,21 @@ func TestInvitationsAreSharedAcrossHandles(t *testing.T) {
 	}
 }
 
-func TestInvitationTakeKeepsAMismatchedSecret(t *testing.T) {
+func TestInvitationTakeKeepsAWrongCode(t *testing.T) {
 	store := openTest(t).Auth()
 	now := time.Now()
-	if err := store.Save(auth.Invite{Kind: auth.InviteQR, Code: "135790", Secret: "s", ExpiresAt: now.Add(time.Minute)}); err != nil {
+	if err := store.Save(auth.Invite{Code: "135790", ExpiresAt: now.Add(time.Minute)}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	if _, ok := store.Take("135790", "wrong", now); ok {
-		t.Fatal("a mismatched secret consumed the invitation")
+	if _, ok := store.Take("246801", now); ok {
+		t.Fatal("a wrong code consumed the invitation")
 	}
 	if got := store.Pending(now); got != 1 {
 		t.Fatalf("pending = %d, want the invitation kept", got)
 	}
-	if _, ok := store.Take("135790", "s", now); !ok {
-		t.Fatal("the right code+secret did not match")
+	// A lowercase, separator-laden spelling of the same code still matches.
+	if _, ok := store.Take("135-790", now); !ok {
+		t.Fatal("the right code did not match")
 	}
 	if got := store.Pending(now); got != 0 {
 		t.Fatalf("pending = %d, want 0", got)
@@ -210,13 +211,13 @@ func TestInvitationTakeKeepsAMismatchedSecret(t *testing.T) {
 func TestExpiredInvitationsAreNotPending(t *testing.T) {
 	store := openTest(t).Auth()
 	now := time.Now()
-	if err := store.Save(auth.Invite{Kind: auth.InviteTyped, Code: "246801", ExpiresAt: now.Add(-time.Second)}); err != nil {
+	if err := store.Save(auth.Invite{Code: "246801", ExpiresAt: now.Add(-time.Second)}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	if got := store.Pending(now); got != 0 {
 		t.Fatalf("pending = %d, want the expired invitation excluded", got)
 	}
-	if _, ok := store.Take("246801", "", now); ok {
+	if _, ok := store.Take("246801", now); ok {
 		t.Fatal("an expired invitation was accepted")
 	}
 }

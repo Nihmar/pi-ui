@@ -208,9 +208,24 @@ func TestServeBootstrapsAPairingInvitation(t *testing.T) {
 	}()
 	waitForAddress(t, &stdout)
 
-	waitFor(t, "the bootstrap invitation to be logged", func() bool {
-		return strings.Contains(stderr.String(), "pairing invitation")
+	// The QR is the last block of the card, so waiting for it means the whole card landed
+	// on stderr — the link line alone can be read before the QR has been written.
+	waitFor(t, "the bootstrap pairing card (QR included) to be printed", func() bool {
+		return strings.Contains(stderr.String(), "█")
 	})
+	card := stderr.String()
+	if match := inviteCodePattern.FindStringSubmatch(card); match == nil {
+		t.Fatalf("the card carries no six-character code:\n%s", card)
+	}
+	if !strings.Contains(card, "pairing invitation") || !strings.Contains(card, "piui://pair?") {
+		t.Fatalf("the card is missing its title or its deep link:\n%s", card)
+	}
+	if !strings.Contains(card, "bound to a loopback address") {
+		t.Fatalf("a loopback bind does not warn that no phone can reach it:\n%s", card)
+	}
+	if strings.Contains(stdout.String(), "pairing invitation") {
+		t.Fatalf("the card leaked onto stdout, which stays the parseable address line:\n%s", stdout.String())
+	}
 	cancel()
 	select {
 	case err := <-done:
