@@ -27,14 +27,15 @@ string as `context.l10n.someKey`; a literal in a widget is a string nobody can t
 After adding a key, run `flutter gen-l10n` — the analyzer fails until the generated class
 knows it.
 
-The first launch asks for the server URL and a pairing code: on the server,
-`pi-ui pair --kind typed --url http://<host>:8787` prints the code to type, and
-`pi-ui status` lists the paired devices and the pending invitations. The typed kind is
-the only branch this client can take — a `qr` invitation hides its secret inside the
-QR, and this app has no scanner — so pair from the phone with a typed invitation. The
-device token is stored in the OS keystore; the server keeps only its hash. A self-signed
-certificate is confirmed by its SHA-256 fingerprint once and pinned afterwards — a
-fingerprint that changes is a hard failure, not a prompt.
+The first launch is one pairing screen: type the server address (`pi-ui.local:8787`) or
+paste the `piui://pair…` link the server printed, then the 6-character code. The server's
+`pi-ui pair` prints that card on demand (and `serve` prints it on first run), with the
+code, the link and a QR you can **scan** from Android; on Linux and Windows you type the
+code or paste the link. A link the operator handed over already carries the TLS
+fingerprint, so it is trusted without a prompt; a certificate you did not get over a link
+is confirmed by its SHA-256 fingerprint once and pinned afterwards — a fingerprint that
+changes is a hard failure, not a prompt. The device token is stored in the OS keystore;
+the server keeps only its hash. `pi-ui status` lists the paired devices.
 
 A session that finishes while the app is in the background tells the user through
 the OS notification centre; everything else is already on the timeline.

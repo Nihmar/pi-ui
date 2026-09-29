@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/files/file_browser_screen.dart';
-import '../features/onboarding/connect_screen.dart';
 import '../features/onboarding/pair_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/sessions/session_detail_screen.dart';
@@ -19,11 +18,8 @@ abstract final class Routes {
   /// The splash that decides where a launch starts.
   static const splash = '/';
 
-  /// The first screen of a fresh install.
+  /// The first screen of a fresh install: the single pairing screen.
   static const onboarding = '/onboarding';
-
-  /// The pairing form, with the server it targets in the query string.
-  static const pair = '/onboarding/pair';
 
   /// The session list (shell branch 0).
   static const sessions = '/sessions';
@@ -51,10 +47,6 @@ abstract final class Routes {
   /// A terminal in one host directory.
   static String terminal(String directory) =>
       '/terminal?dir=${Uri.encodeComponent(directory)}';
-
-  /// The pairing form for one server.
-  static String pairWith(String baseUrl) =>
-      '$pair?url=${Uri.encodeComponent(baseUrl)}';
 }
 
 /// The router of the app.
@@ -101,14 +93,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.onboarding,
-        builder: (context, state) => const ConnectScreen(),
-        routes: [
-          GoRoute(
-            path: 'pair',
-            builder: (context, state) =>
-                PairScreen(baseUrl: state.uri.queryParameters['url'] ?? ''),
-          ),
-        ],
+        builder: (context, state) => const PairScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

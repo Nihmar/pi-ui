@@ -980,30 +980,6 @@ abstract class AppLocalizations {
   /// **'\"{action}\" lands in a later slice'**
   String actionLater(String action);
 
-  /// No description provided for @connectTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect to a server'**
-  String get connectTitle;
-
-  /// No description provided for @connectIntro.
-  ///
-  /// In en, this message translates to:
-  /// **'Point the app at the server that runs your pi sessions.'**
-  String get connectIntro;
-
-  /// No description provided for @serverUrlLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Server URL'**
-  String get serverUrlLabel;
-
-  /// No description provided for @serverUrlHint.
-  ///
-  /// In en, this message translates to:
-  /// **'http://pi-ui.local:8787'**
-  String get serverUrlHint;
-
   /// No description provided for @serverReachable.
   ///
   /// In en, this message translates to:
@@ -1022,29 +998,29 @@ abstract class AppLocalizations {
   /// **'Test connection'**
   String get testConnection;
 
-  /// No description provided for @continueToPairing.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue to pairing'**
-  String get continueToPairing;
-
-  /// No description provided for @connectHelp.
-  ///
-  /// In en, this message translates to:
-  /// **'The server needs a pairing code or your admin password: run `pi-ui pair` on it to mint one. Provider keys never leave the server.'**
-  String get connectHelp;
-
   /// No description provided for @pairTitle.
   ///
   /// In en, this message translates to:
   /// **'Pair with the server'**
   String get pairTitle;
 
-  /// No description provided for @pairInvitationNote.
+  /// No description provided for @pairIntro.
   ///
   /// In en, this message translates to:
-  /// **'The invitation is single use and expires after ten minutes.'**
-  String get pairInvitationNote;
+  /// **'Scan the QR the server printed, paste its link, or type the address and the code.'**
+  String get pairIntro;
+
+  /// No description provided for @pairAddressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Server address or pairing link'**
+  String get pairAddressLabel;
+
+  /// No description provided for @pairAddressHint.
+  ///
+  /// In en, this message translates to:
+  /// **'http://pi-ui.local:8787 or a piui://pair link'**
+  String get pairAddressHint;
 
   /// No description provided for @pairDeviceNameLabel.
   ///
@@ -1064,41 +1040,11 @@ abstract class AppLocalizations {
   /// **'4K9M27'**
   String get pairCodeHint;
 
-  /// No description provided for @pairPasswordLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Admin password'**
-  String get pairPasswordLabel;
-
   /// No description provided for @pairSubmit.
   ///
   /// In en, this message translates to:
   /// **'Pair'**
   String get pairSubmit;
-
-  /// No description provided for @pairUseCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Use a pairing code instead'**
-  String get pairUseCode;
-
-  /// No description provided for @pairUsePassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Pair with the admin password'**
-  String get pairUsePassword;
-
-  /// No description provided for @pairAdminNote.
-  ///
-  /// In en, this message translates to:
-  /// **'The password branch mints an admin device: it manages devices, settings, MCP and updates.'**
-  String get pairAdminNote;
-
-  /// No description provided for @pairOperatorNote.
-  ///
-  /// In en, this message translates to:
-  /// **'Pairing with a code grants operator: it drives sessions but cannot manage the server.'**
-  String get pairOperatorNote;
 
   /// No description provided for @pairWrongCodeHint.
   ///
@@ -1112,17 +1058,107 @@ abstract class AppLocalizations {
   /// **'Give this device a name.'**
   String get pairDeviceNameRequired;
 
+  /// No description provided for @pairCodeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the pairing code the server printed.'**
+  String get pairCodeRequired;
+
+  /// No description provided for @pairInvitationNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The invitation is single use and expires after ten minutes.'**
+  String get pairInvitationNote;
+
+  /// No description provided for @pairScanQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR'**
+  String get pairScanQr;
+
+  /// No description provided for @pairScanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the QR'**
+  String get pairScanTitle;
+
+  /// No description provided for @pairScanDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'The camera is not allowed: enable camera access in the system settings, or type the code instead.'**
+  String get pairScanDenied;
+
+  /// No description provided for @pairScanFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The camera could not be started. Type the code instead.'**
+  String get pairScanFailed;
+
+  /// No description provided for @pairScanFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the code instead'**
+  String get pairScanFallback;
+
+  /// No description provided for @pairScanInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a pi-ui pairing link. Keep scanning, or type the code.'**
+  String get pairScanInvalid;
+
+  /// No description provided for @pairLinkInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not a pi-ui pairing link.'**
+  String get pairLinkInvalid;
+
+  /// No description provided for @pairLinkVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'That link comes from a newer pi-ui: update the app and try again.'**
+  String get pairLinkVersion;
+
+  /// No description provided for @pairFingerprintMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The server\'s certificate does not match the link: pairing refused. Ask the operator for a fresh link.'**
+  String get pairFingerprintMismatch;
+
+  /// No description provided for @pairUsePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair with the admin password'**
+  String get pairUsePassword;
+
+  /// No description provided for @pairUseCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a pairing code instead'**
+  String get pairUseCode;
+
+  /// No description provided for @pairPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin password'**
+  String get pairPasswordLabel;
+
   /// No description provided for @pairPasswordRequired.
   ///
   /// In en, this message translates to:
   /// **'Type the admin password.'**
   String get pairPasswordRequired;
 
-  /// No description provided for @pairCodeRequired.
+  /// No description provided for @pairOperatorNote.
   ///
   /// In en, this message translates to:
-  /// **'Type the pairing code the server printed.'**
-  String get pairCodeRequired;
+  /// **'Pairing with a code grants operator: it drives sessions but cannot manage the server.'**
+  String get pairOperatorNote;
+
+  /// No description provided for @pairAdminNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The password branch mints an admin device: it manages devices, settings, MCP and updates.'**
+  String get pairAdminNote;
 
   /// No description provided for @fingerprintTitle.
   ///

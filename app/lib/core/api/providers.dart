@@ -35,6 +35,9 @@ final profileStoreProvider = Provider<ProfileStore>(
 typedef HealthProbe = Future<bool> Function(String baseUrl);
 
 /// Pairs this device with a server.
+///
+/// [secret] is only ever the compatibility forward for an old link that carries
+/// one (see [PiUiClient.pair]); a current pairing sends just [code].
 typedef Pairer = Future<PairResult> Function({
   required String baseUrl,
   required String deviceName,
@@ -91,7 +94,8 @@ class ProfileController extends AsyncNotifier<ServerProfile?> {
 
   /// Pairs this device with a server and stores the token it handed back.
   ///
-  /// Exactly one of [code], [secret] or [password] is the invitation; the
+  /// [code] is the invitation; [secret] is forwarded only when an old link
+  /// carried one (compatibility) and [password] is the admin branch. The
   /// profile keeps the server identity so the fingerprint stays pinned.
   Future<PairResult> pair({
     required String baseUrl,

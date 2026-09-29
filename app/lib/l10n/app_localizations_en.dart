@@ -493,19 +493,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get connectTitle => 'Connect to a server';
-
-  @override
-  String get connectIntro =>
-      'Point the app at the server that runs your pi sessions.';
-
-  @override
-  String get serverUrlLabel => 'Server URL';
-
-  @override
-  String get serverUrlHint => 'http://pi-ui.local:8787';
-
-  @override
   String get serverReachable => 'reachable';
 
   @override
@@ -515,18 +502,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testConnection => 'Test connection';
 
   @override
-  String get continueToPairing => 'Continue to pairing';
-
-  @override
-  String get connectHelp =>
-      'The server needs a pairing code or your admin password: run `pi-ui pair` on it to mint one. Provider keys never leave the server.';
-
-  @override
   String get pairTitle => 'Pair with the server';
 
   @override
-  String get pairInvitationNote =>
-      'The invitation is single use and expires after ten minutes.';
+  String get pairIntro =>
+      'Scan the QR the server printed, paste its link, or type the address and the code.';
+
+  @override
+  String get pairAddressLabel => 'Server address or pairing link';
+
+  @override
+  String get pairAddressHint => 'http://pi-ui.local:8787 or a piui://pair link';
 
   @override
   String get pairDeviceNameLabel => 'Device name';
@@ -538,24 +524,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairCodeHint => '4K9M27';
 
   @override
-  String get pairPasswordLabel => 'Admin password';
-
-  @override
   String get pairSubmit => 'Pair';
-
-  @override
-  String get pairUseCode => 'Use a pairing code instead';
-
-  @override
-  String get pairUsePassword => 'Pair with the admin password';
-
-  @override
-  String get pairAdminNote =>
-      'The password branch mints an admin device: it manages devices, settings, MCP and updates.';
-
-  @override
-  String get pairOperatorNote =>
-      'Pairing with a code grants operator: it drives sessions but cannot manage the server.';
 
   @override
   String get pairWrongCodeHint => 'The code may be consumed, expired or wrong.';
@@ -564,10 +533,63 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairDeviceNameRequired => 'Give this device a name.';
 
   @override
+  String get pairCodeRequired => 'Type the pairing code the server printed.';
+
+  @override
+  String get pairInvitationNote =>
+      'The invitation is single use and expires after ten minutes.';
+
+  @override
+  String get pairScanQr => 'Scan QR';
+
+  @override
+  String get pairScanTitle => 'Scan the QR';
+
+  @override
+  String get pairScanDenied =>
+      'The camera is not allowed: enable camera access in the system settings, or type the code instead.';
+
+  @override
+  String get pairScanFailed =>
+      'The camera could not be started. Type the code instead.';
+
+  @override
+  String get pairScanFallback => 'Type the code instead';
+
+  @override
+  String get pairScanInvalid =>
+      'That is not a pi-ui pairing link. Keep scanning, or type the code.';
+
+  @override
+  String get pairLinkInvalid => 'That is not a pi-ui pairing link.';
+
+  @override
+  String get pairLinkVersion =>
+      'That link comes from a newer pi-ui: update the app and try again.';
+
+  @override
+  String get pairFingerprintMismatch =>
+      'The server\'s certificate does not match the link: pairing refused. Ask the operator for a fresh link.';
+
+  @override
+  String get pairUsePassword => 'Pair with the admin password';
+
+  @override
+  String get pairUseCode => 'Use a pairing code instead';
+
+  @override
+  String get pairPasswordLabel => 'Admin password';
+
+  @override
   String get pairPasswordRequired => 'Type the admin password.';
 
   @override
-  String get pairCodeRequired => 'Type the pairing code the server printed.';
+  String get pairOperatorNote =>
+      'Pairing with a code grants operator: it drives sessions but cannot manage the server.';
+
+  @override
+  String get pairAdminNote =>
+      'The password branch mints an admin device: it manages devices, settings, MCP and updates.';
 
   @override
   String get fingerprintTitle => 'Trust this certificate?';

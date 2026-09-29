@@ -290,8 +290,12 @@ class PiUiClient {
   /// POST /auth/pair — pair this client with a server.
   ///
   /// Standalone on purpose: pairing has no token yet, so it builds its own Dio.
-  /// A [code] is the typed invitation, a [secret] the QR one, and [password]
-  /// the admin branch. Exactly one of them must be present.
+  /// [code] is the invitation the server printed and the only credential a
+  /// current `piui://pair` link carries. [secret] survives **only** as the
+  /// compatibility forward: it is sent when (and only when) an old link carried
+  /// one, because an old server's `qr` invitation needs it — a current server
+  /// ignores the field. [password] is the admin recovery branch. Exactly one of
+  /// code/secret/password is the invitation.
   static Future<PairResult> pair({
     required String baseUrl,
     required String deviceName,

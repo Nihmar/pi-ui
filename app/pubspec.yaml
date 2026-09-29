@@ -45,6 +45,10 @@ dependencies:
   piui_markdown:
     path: ../packages/piui-markdown
   crypto: ^3.0.7
+  # Android-only usage: the QR scanner of the pairing screen (CameraX/ML Kit).
+  # It has no Linux/Windows implementation, so those targets keep typing or
+  # pasting a link (AGENTS.md, "mobile_scanner is Android-only").
+  mobile_scanner: ^7.4.2
   flutter_local_notifications: ^22.3.1
   flutter_localizations:
     sdk: flutter

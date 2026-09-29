@@ -496,19 +496,6 @@ class AppLocalizationsIt extends AppLocalizations {
   }
 
   @override
-  String get connectTitle => 'Connettiti a un server';
-
-  @override
-  String get connectIntro =>
-      'Punta l\'app al server che esegue le tue sessioni pi.';
-
-  @override
-  String get serverUrlLabel => 'URL del server';
-
-  @override
-  String get serverUrlHint => 'http://pi-ui.local:8787';
-
-  @override
   String get serverReachable => 'raggiungibile';
 
   @override
@@ -518,18 +505,18 @@ class AppLocalizationsIt extends AppLocalizations {
   String get testConnection => 'Prova la connessione';
 
   @override
-  String get continueToPairing => 'Continua con l\'accoppiamento';
-
-  @override
-  String get connectHelp =>
-      'Il server ha bisogno di un codice di accoppiamento o della password admin: esegui `pi-ui pair` per generarne uno. Le chiavi dei provider non lasciano mai il server.';
-
-  @override
   String get pairTitle => 'Accoppia con il server';
 
   @override
-  String get pairInvitationNote =>
-      'L\'invito è monouso e scade dopo dieci minuti.';
+  String get pairIntro =>
+      'Scansiona il QR stampato dal server, incolla il suo link, oppure scrivi indirizzo e codice.';
+
+  @override
+  String get pairAddressLabel => 'Indirizzo del server o link di accoppiamento';
+
+  @override
+  String get pairAddressHint =>
+      'http://pi-ui.local:8787 oppure un link piui://pair';
 
   @override
   String get pairDeviceNameLabel => 'Nome del dispositivo';
@@ -541,24 +528,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get pairCodeHint => '4K9M27';
 
   @override
-  String get pairPasswordLabel => 'Password admin';
-
-  @override
   String get pairSubmit => 'Accoppia';
-
-  @override
-  String get pairUseCode => 'Usa un codice di accoppiamento';
-
-  @override
-  String get pairUsePassword => 'Accoppia con la password admin';
-
-  @override
-  String get pairAdminNote =>
-      'Il ramo password crea un dispositivo admin: gestisce dispositivi, impostazioni, MCP e aggiornamenti.';
-
-  @override
-  String get pairOperatorNote =>
-      'L\'accoppiamento con codice concede operator: guida le sessioni ma non gestisce il server.';
 
   @override
   String get pairWrongCodeHint =>
@@ -568,10 +538,63 @@ class AppLocalizationsIt extends AppLocalizations {
   String get pairDeviceNameRequired => 'Dai un nome a questo dispositivo.';
 
   @override
+  String get pairCodeRequired => 'Scrivi il codice che il server ha stampato.';
+
+  @override
+  String get pairInvitationNote =>
+      'L\'invito è monouso e scade dopo dieci minuti.';
+
+  @override
+  String get pairScanQr => 'Scansiona QR';
+
+  @override
+  String get pairScanTitle => 'Scansiona il QR';
+
+  @override
+  String get pairScanDenied =>
+      'La fotocamera non è consentita: abilita l\'accesso alla fotocamera nelle impostazioni di sistema, oppure scrivi il codice.';
+
+  @override
+  String get pairScanFailed =>
+      'Non riesco ad avviare la fotocamera. Scrivi il codice.';
+
+  @override
+  String get pairScanFallback => 'Scrivi il codice';
+
+  @override
+  String get pairScanInvalid =>
+      'Questo non è un link di accoppiamento pi-ui. Continua a scansionare, oppure scrivi il codice.';
+
+  @override
+  String get pairLinkInvalid => 'Questo non è un link di accoppiamento pi-ui.';
+
+  @override
+  String get pairLinkVersion =>
+      'Questo link viene da una pi-ui più recente: aggiorna l\'app e riprova.';
+
+  @override
+  String get pairFingerprintMismatch =>
+      'Il certificato del server non corrisponde al link: accoppiamento rifiutato. Chiedi all\'operatore un link nuovo.';
+
+  @override
+  String get pairUsePassword => 'Accoppia con la password admin';
+
+  @override
+  String get pairUseCode => 'Usa un codice di accoppiamento';
+
+  @override
+  String get pairPasswordLabel => 'Password admin';
+
+  @override
   String get pairPasswordRequired => 'Scrivi la password admin.';
 
   @override
-  String get pairCodeRequired => 'Scrivi il codice che il server ha stampato.';
+  String get pairOperatorNote =>
+      'L\'accoppiamento con un codice concede operator: guida le sessioni ma non amministra il server.';
+
+  @override
+  String get pairAdminNote =>
+      'Il ramo password crea un dispositivo admin: gestisce dispositivi, impostazioni, MCP e aggiornamenti.';
 
   @override
   String get fingerprintTitle => 'Fidarsi di questo certificato?';

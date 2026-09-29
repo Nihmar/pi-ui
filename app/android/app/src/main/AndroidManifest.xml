@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- A finished run tells the user while the app is in the background. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- The pairing screen can scan the QR card the server prints (mobile_scanner). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="piui"
         android:name="${applicationName}"
