@@ -28,10 +28,13 @@ After adding a key, run `flutter gen-l10n` — the analyzer fails until the gene
 knows it.
 
 The first launch asks for the server URL and a pairing code: on the server,
-`pi-ui status` prints the code and `pi-ui pair --url http://<host>:8787` renders a
-scannable QR. The device token is stored in the OS keystore; the server keeps only
-its hash. A self-signed certificate is confirmed by its SHA-256 fingerprint once
-and pinned afterwards — a fingerprint that changes is a hard failure, not a prompt.
+`pi-ui pair --kind typed --url http://<host>:8787` prints the code to type, and
+`pi-ui status` lists the paired devices and the pending invitations. The typed kind is
+the only branch this client can take — a `qr` invitation hides its secret inside the
+QR, and this app has no scanner — so pair from the phone with a typed invitation. The
+device token is stored in the OS keystore; the server keeps only its hash. A self-signed
+certificate is confirmed by its SHA-256 fingerprint once and pinned afterwards — a
+fingerprint that changes is a hard failure, not a prompt.
 
 A session that finishes while the app is in the background tells the user through
 the OS notification centre; everything else is already on the timeline.

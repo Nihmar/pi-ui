@@ -88,16 +88,63 @@ invitations) in one SQLite file, `$PIUI_STATE_DIR/state.db`
 (default `$XDG_STATE_HOME/pi-ui/state.db`).
 
 ```bash
-./bin/pi-ui auth set-password          # the admin credential and recovery path
-./bin/pi-ui pair --url http://<host>:8787   # code, deep link and a scannable QR
-./bin/pi-ui status                     # devices, password, pending invitations
-./bin/pi-ui tls fingerprint --cert cert.pem   # what the app compares when it pins
+./bin/pi-ui auth set-password               # the admin credential and recovery path
+./bin/pi-ui pair --kind typed               # a six-digit code to type
+./bin/pi-ui pair --url http://<host>:8787   # the same invitation plus a QR to scan
+./bin/pi-ui status                          # devices, password, pending invitations
+./bin/pi-ui tls fingerprint --cert cert.pem # what the app compares when it pins
 ```
 
 `pair` mints a single-use invitation that expires after ten minutes; a running
 `serve` over the same state directory consumes it and returns a device token once.
-A server that starts with nothing configured mints one invitation itself and logs
-its code. `serve --token <token>` keeps the old static-token mode.
+The two kinds are not interchangeable: a `qr` invitation carries a high-entropy secret
+that only the QR holds — that is the point, someone reading the six digits over a
+shoulder still cannot pair — while `--kind typed` mints a bare code. **The app has no
+camera, so the code it asks for is a `typed` one.** A server that starts with nothing
+configured mints a `qr` invitation itself and logs its code, which is why a first start
+still needs `pair --kind typed` for a phone. `serve --token <token>` keeps the old
+static-token mode.
+
+### Pair an Android phone over HTTP
+
+Phone and host on the same network, no TLS: the shortest path from a fresh install to a
+session.
+
+Install the client from the [release page](https://github.com/Nihmar/pi-ui/releases):
+`piui_<version>_android.tar.gz` holds `piui-debug-signed.apk`, which you sideload
+(Android asks to allow installs from this source; the APK carries the template's debug
+signature, not a release key). Then, on the host:
+
+```bash
+# 1. Bind where the phone can reach it: the default 127.0.0.1:8787 is loopback only.
+./pi-ui serve --addr 0.0.0.0:8787 --root ~/Projects \
+  --bridge /path/to/bridge/pi-ui-bridge.ts
+
+# 2. The host's LAN address is what the phone will dial, and the port has to be open.
+hostname -I                     # e.g. 192.168.1.20
+sudo ufw allow 8787/tcp         # whatever firewall the host runs
+
+# 3. Mint an invitation the app can use: it has no camera, so ask for a typed code.
+./pi-ui pair --kind typed --url http://192.168.1.20:8787
+```
+
+The last command prints the six-digit code. In the app, enter the server URL
+`http://192.168.1.20:8787` (a bare `192.168.1.20:8787` is accepted too), a device name
+and the code: the code branch pairs an **operator** device — sessions, files, git,
+terminals. The admin-password branch mints an **admin** device and is the way back in
+when every device is gone.
+
+An address needs nothing else: the WebSocket handshake pins `Host` to the authority the
+connection actually arrived on, and `192.168.1.20:8787` is it. A **name** —
+`http://pi-ui.local:8787` — is the case that needs `--allow-hosts pi-ui.local`, because a
+name is what a DNS-rebinding attack controls.
+
+Plain HTTP is readable on the network: the pairing code, the device token and every
+prompt cross it in the clear ([security model](docs/security.md), "What is deliberately
+not defended"). That is a fair trade on a LAN you own. Anywhere else, put the phone on a
+VPN or Tailscale — plain HTTP inside the tunnel is fine — or terminate TLS with
+`--tls-cert`/`--tls-key` and compare the fingerprint the app shows with the one
+`pi-ui tls fingerprint` prints.
 
 ## Test
 

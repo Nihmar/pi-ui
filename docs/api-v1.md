@@ -56,10 +56,13 @@ downgrade of an operator device by accident: the scope is stored per device.
 ### Pairing flow
 
 1. The server creates an **invite**: a one-time code (typed fallback, 6 digits)
-   plus a high-entropy secret (QR only), with a 10-minute TTL. `pi-ui status`
-   prints it and the admin page renders it as a QR.
-2. The app scans the QR or the user types the code, confirms the server origin
-   and the TLS fingerprint, then calls the endpoint below.
+   plus a high-entropy secret (QR only), with a 10-minute TTL. `pi-ui pair` mints it
+   and prints either the code (`--kind typed`) or a QR that carries the secret;
+   `pi-ui status` reports how many invitations are pending.
+2. The client scans the QR or the user types the code, confirms the server origin
+   and the TLS fingerprint, then calls the endpoint below. A code on its own matches
+   only a `typed` invitation: a `qr` one is consumed by code **and** secret, which is
+   what keeps a six-digit code read over a shoulder useless.
 3. The server burns the invite and returns the device token exactly once.
 
 ```
