@@ -191,25 +191,25 @@
         <figcaption>States board — every mandatory state</figcaption>
         <p class="meta"><span class="num">★</span><span>Review start</span></p>
       </figure>
-      <figure class="tile" data-slug="01-server-url" data-title="Server URL" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/01-server-url.png" data-light="mockups/screenshots/light/01-server-url.png" data-thumb-dark="mockups/screenshots/thumbs/dark/01-server-url.png" data-thumb-light="mockups/screenshots/thumbs/light/01-server-url.png" data-live="mockups/screens/01-server-url.html">
-        <button class="open" type="button" aria-label="Enlarge Server URL">
-          <img src="mockups/screenshots/thumbs/dark/01-server-url.png" alt="Server URL — mockup" loading="lazy" width="300" height="607">
+      <figure class="tile" data-slug="01-server-url" data-title="Pair this device" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/01-server-url.png" data-light="mockups/screenshots/light/01-server-url.png" data-thumb-dark="mockups/screenshots/thumbs/dark/01-server-url.png" data-thumb-light="mockups/screenshots/thumbs/light/01-server-url.png" data-live="mockups/screens/01-server-url.html">
+        <button class="open" type="button" aria-label="Enlarge Pair this device">
+          <img src="mockups/screenshots/thumbs/dark/01-server-url.png" alt="Pair this device — mockup" loading="lazy" width="300" height="607">
         </button>
-        <figcaption>Server URL</figcaption>
+        <figcaption>Pair this device</figcaption>
         <p class="meta"><span class="num">#1</span><span>Onboarding</span></p>
       </figure>
-      <figure class="tile" data-slug="02-pairing-qr" data-title="Pairing — QR" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/02-pairing-qr.png" data-light="mockups/screenshots/light/02-pairing-qr.png" data-thumb-dark="mockups/screenshots/thumbs/dark/02-pairing-qr.png" data-thumb-light="mockups/screenshots/thumbs/light/02-pairing-qr.png" data-live="mockups/screens/02-pairing-qr.html">
-        <button class="open" type="button" aria-label="Enlarge Pairing — QR">
-          <img src="mockups/screenshots/thumbs/dark/02-pairing-qr.png" alt="Pairing — QR — mockup" loading="lazy" width="300" height="607">
+      <figure class="tile" data-slug="02-pairing-qr" data-title="Scan the QR" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/02-pairing-qr.png" data-light="mockups/screenshots/light/02-pairing-qr.png" data-thumb-dark="mockups/screenshots/thumbs/dark/02-pairing-qr.png" data-thumb-light="mockups/screenshots/thumbs/light/02-pairing-qr.png" data-live="mockups/screens/02-pairing-qr.html">
+        <button class="open" type="button" aria-label="Enlarge Scan the QR">
+          <img src="mockups/screenshots/thumbs/dark/02-pairing-qr.png" alt="Scan the QR — mockup" loading="lazy" width="300" height="607">
         </button>
-        <figcaption>Pairing — QR</figcaption>
+        <figcaption>Scan the QR</figcaption>
         <p class="meta"><span class="num">#2</span><span>Onboarding</span></p>
       </figure>
-      <figure class="tile" data-slug="03-pairing-code" data-title="Pairing — code" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/03-pairing-code.png" data-light="mockups/screenshots/light/03-pairing-code.png" data-thumb-dark="mockups/screenshots/thumbs/dark/03-pairing-code.png" data-thumb-light="mockups/screenshots/thumbs/light/03-pairing-code.png" data-live="mockups/screens/03-pairing-code.html">
-        <button class="open" type="button" aria-label="Enlarge Pairing — code">
-          <img src="mockups/screenshots/thumbs/dark/03-pairing-code.png" alt="Pairing — code — mockup" loading="lazy" width="300" height="607">
+      <figure class="tile" data-slug="03-pairing-code" data-title="Pairing code — manual fallback" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/03-pairing-code.png" data-light="mockups/screenshots/light/03-pairing-code.png" data-thumb-dark="mockups/screenshots/thumbs/dark/03-pairing-code.png" data-thumb-light="mockups/screenshots/thumbs/light/03-pairing-code.png" data-live="mockups/screens/03-pairing-code.html">
+        <button class="open" type="button" aria-label="Enlarge Pairing code — manual fallback">
+          <img src="mockups/screenshots/thumbs/dark/03-pairing-code.png" alt="Pairing code — manual fallback — mockup" loading="lazy" width="300" height="607">
         </button>
-        <figcaption>Pairing — code</figcaption>
+        <figcaption>Pairing code — manual fallback</figcaption>
         <p class="meta"><span class="num">#3</span><span>Onboarding</span></p>
       </figure>
       <figure class="tile" data-slug="04-certificate" data-title="Certificate trust" data-group="onboarding" data-device="mobile" data-source="mockup" data-dark="mockups/screenshots/dark/04-certificate.png" data-light="mockups/screenshots/light/04-certificate.png" data-thumb-dark="mockups/screenshots/thumbs/dark/04-certificate.png" data-thumb-light="mockups/screenshots/thumbs/light/04-certificate.png" data-live="mockups/screens/04-certificate.html">
@@ -752,9 +752,9 @@ server/scripts/measure.sh   # spawn latency, RSS, WS throughput, the three-minut
         <article class="card">
           <h3>Pairing</h3>
           <ol class="muted" style="font-size: 13.5px; padding-left: 18px; margin: 0">
-            <li><code>pi-ui pair</code> mints a six-digit code plus a high-entropy secret (QR only), ten minutes of TTL.</li>
-            <li>The app confirms the origin and, on a self-signed certificate, the fingerprint.</li>
-            <li><code>POST /auth/pair</code> burns the invitation and returns the token exactly once.</li>
+            <li><code>pi-ui pair</code> mints a six-character Crockford base32 code: ten minutes of TTL, single use, five attempts per minute per IP.</li>
+            <li>The server prints the card itself on first start — origin, code, <code>piui://pair</code> link and QR — and the app types, pastes or scans the same invitation.</li>
+            <li><code>POST /auth/pair</code> burns it and returns the token exactly once; on a self-signed certificate the app confirms the fingerprint, which the link already carries.</li>
             <li>The token goes to the keystore, the profile to plain preferences; a refresh rotates the secret and keeps the device id.</li>
           </ol>
         </article>

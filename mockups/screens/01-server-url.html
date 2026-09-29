@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pi-ui mockup · 1 — Server URL</title>
+<title>pi-ui mockup · 1 — Pair this device</title>
 <link rel="stylesheet" href="../assets/styles.css">
 </head>
 <body>
 <header class="toolbar">
   <a class="brand" href="../index.html">pi-ui mockup</a>
-  <span class="crumb">#1 · Server URL</span>
+  <span class="crumb">#1 · Pair this device</span>
   <div class="tools">
     <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
     <button class="tool" data-device-toggle="mobile">Mobile</button>
@@ -21,38 +21,87 @@
   <div class="device">
     <div class="screen">
 
-<header class="appbar"><h1>Connect to a server</h1><div class="row"></div></header>
+<header class="appbar"><h1>Pair this device</h1><span class="sub">one code, one screen</span><div class="row"></div></header>
 <div class="content stack">
-  <div class="center" style="padding: var(--sp-5) 0">
-    <div style="width:56px;height:56px;border-radius:var(--r-lg);background:var(--accent);color:#fff;display:grid;place-items:center;font-size:26px;font-weight:700;margin:0 auto var(--sp-3)">π</div>
-    <h2>pi-ui</h2>
-    <p class="small muted">Point the app at the server that runs your pi sessions.</p>
+  <p class="small muted" style="margin: 0">The server prints a pairing card: its origin, a one-time 6-character code, a <span class="mono">piui://pair</span> link and a QR. Paste the link or type the code — both pair the same device.</p>
+  <div class="tabs" style="padding: 0; background: transparent">
+    <button class="tab active" data-tab="pasted" data-group="pair">link pasted</button>
+    <button class="tab" data-tab="unreachable" data-group="pair">unreachable</button>
+    <button class="tab" data-tab="scheme" data-group="pair">wrong scheme</button>
   </div>
-  <label class="field-label">Server URL</label>
-  <input class="input" value="http://pi-ui.local:8787" spellcheck="false">
-  <div class="wrap"><span class="chip accent">✓ reachable · pi 0.87.1</span><span class="chip">3 sessions</span></div>
-  <div>
-    <label class="field-label">Network profile</label>
-    <div class="wrap"><span class="chip accent">LAN</span><span class="chip">VPN · Tailscale</span><span class="chip">Public HTTPS</span></div>
+
+  <div data-panel="pasted" data-group="pair" class="stack">
+    <div>
+      <label class="field-label">Server address or pairing link</label>
+      <input class="input" value="piui://pair?v=1&amp;url=https://pi-ui.local:8787&amp;code=4K9M27&amp;fp=4f2a9c11" spellcheck="false">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip accent">✓ pairing link · v1</span><span class="chip mono">https://pi-ui.local:8787</span><span class="chip">fingerprint pinned</span></div>
+    </div>
+    <div>
+      <label class="field-label">Pairing code</label>
+      <input class="input mono" value="4K9M27" spellcheck="false" autocomplete="off">
+      <p class="tiny dim" style="margin: var(--sp-1) 0 0">6 characters · 4K9M27 · case-insensitive: O reads as 0, I and L as 1.</p>
+    </div>
+    <div>
+      <label class="field-label">Device name</label>
+      <input class="input" value="Alessandro's Pixel 9">
+    </div>
+    <button class="btn">📷 Scan QR <span class="tiny dim">Android only</span></button>
+    <button class="btn primary">Pair</button>
+    <p class="tiny dim" style="margin: 0">The link filled the address, the code and the pinned fingerprint; typing the code by hand is the same pairing. The code is the credential: 10-minute TTL, single use, 5 attempts a minute.</p>
   </div>
-  <button class="btn">Test connection</button>
-  <button class="btn primary">Continue to pairing</button>
-  <p class="tiny dim">Provider keys never leave the server.</p>
+
+  <div data-panel="unreachable" data-group="pair" class="stack" hidden>
+    <div>
+      <label class="field-label">Server address or pairing link</label>
+      <input class="input" value="http://192.168.1.20:8787" spellcheck="false">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip warn">✕ unreachable</span></div>
+    </div>
+    <div>
+      <label class="field-label">Pairing code</label>
+      <input class="input mono" placeholder="4K9M27" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="error-card">
+      <div class="row between"><h3>⚠ Cannot reach the server</h3><span class="chip">connection refused</span></div>
+      <p class="small" style="margin: var(--sp-2) 0 0">Nothing answers on 192.168.1.20:8787. Check the server is running and bound to 0.0.0.0 — a loopback bind (127.0.0.1) is not reachable from the phone.</p>
+    </div>
+    <div>
+      <label class="field-label">Device name</label>
+      <input class="input" value="Alessandro's Pixel 9">
+    </div>
+    <button class="btn primary">Pair</button>
+  </div>
+
+  <div data-panel="scheme" data-group="pair" class="stack" hidden>
+    <div>
+      <label class="field-label">Server address or pairing link</label>
+      <input class="input" value="https://pi-ui.local:8787/pair?code=4K9M27" spellcheck="false">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip warn">✕ not a pairing link</span></div>
+    </div>
+    <div>
+      <label class="field-label">Pairing code</label>
+      <input class="input mono" placeholder="4K9M27" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="error-card">
+      <div class="row between"><h3>⚠ Wrong scheme</h3><span class="chip">piui://pair expected</span></div>
+      <p class="small" style="margin: var(--sp-2) 0 0">A browser URL is not a pairing link, and the code field stays empty. Paste the <span class="mono">piui://pair</span> link the card prints, or type the server origin (<span class="mono">http://</span> or <span class="mono">https://</span>) and the code by hand.</p>
+    </div>
+    <div>
+      <label class="field-label">Device name</label>
+      <input class="input" value="Alessandro's Pixel 9">
+    </div>
+    <button class="btn primary">Pair</button>
+  </div>
 </div>
-<nav class="nav-bottom">
-  <a class=""><span class="glyph">▤</span>Sessions</a>
-  <a class=""><span class="glyph">⌕</span>Search</a>
-  <a class="active"><span class="glyph">⚙</span>Settings</a>
-</nav>
 
     </div>
   </div>
   <aside class="notes">
-    <h2>1 — Server URL</h2>
+    <h2>1 — Pair this device</h2>
     <dl>
       <dt>Area</dt><dd>Onboarding</dd>
-      <dt>Behaviour</dt><dd>The first screen of a fresh install. The URL field accepts a bare host, a host:port or an https:// origin; Test connection probes /api/v1/health and reports the pi version. The network-profile chips only change the hints that follow (certificate vs token vs plain HTTP).</dd>
-      <dt>States to check</dt><dd>unreachable server (inline error), wrong scheme, server behind a self-signed certificate (links to 04)</dd>
+      <dt>Behaviour</dt><dd>The only pairing screen of a fresh install. The server's card (<span class="mono">pi-ui serve</span> on first run, <span class="mono">pi-ui pair</span> on demand) carries the origin, a one-time 6-character Crockford base32 code, the <span class="mono">piui://pair?v=1&amp;url=…&amp;code=…[&amp;fp=…]</span> link and a QR. The address field takes either the origin or the pasted link; a pasted link fills the address and the code and pins its <span class="mono">fp</span>; the code is typed case-insensitively; the device name is prefilled. Pair exchanges the code for a device token kept in the OS keystore.</dd>
+      <dt>States to check</dt><dd>link pasted (address and code filled), unreachable server, wrong scheme (a browser URL is not a link), wrong/expired code and rate limiting (see 03), certificate trust (see 04)</dd>
+      <dt>Also see</dt><dd>#2 Scan the QR (Android), #3 the same screen without a camera.</dd>
     </dl>
   </aside>
 </main>

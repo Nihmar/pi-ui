@@ -65,9 +65,9 @@ All 42 screens are **done** as HTML. "States" lists the variants the file shows.
 
 | # | Screen | File | States |
 |---|---|---|---|
-| 1 | Server URL (first launch) | `screens/01-server-url.html` | unreachable, wrong scheme |
-| 2 | Pairing — QR | `screens/02-pairing-qr.html` | expired, camera denied |
-| 3 | Pairing — code | `screens/03-pairing-code.html` | wrong/expired, rate limited |
+| 1 | Pair this device | `screens/01-server-url.html` | link pasted, unreachable server, wrong scheme |
+| 2 | Scan the QR (Android) | `screens/02-pairing-qr.html` | camera denied, expired QR |
+| 3 | Pairing code — manual fallback | `screens/03-pairing-code.html` | wrong code, expired code, rate limited |
 | 4 | Certificate trust | `screens/04-certificate.html` | pinning, changed certificate |
 | 5 | Network profile | `screens/05-network-profile.html` | public profile without hardening |
 | 6 | Session list | `screens/06-sessions.html` | empty, offline, duplicate cwd, crashed |

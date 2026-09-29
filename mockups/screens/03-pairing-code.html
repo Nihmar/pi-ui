@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pi-ui mockup · 3 — Pairing — code</title>
+<title>pi-ui mockup · 3 — Pairing code — manual fallback</title>
 <link rel="stylesheet" href="../assets/styles.css">
 </head>
 <body>
 <header class="toolbar">
   <a class="brand" href="../index.html">pi-ui mockup</a>
-  <span class="crumb">#3 · Pairing — code</span>
+  <span class="crumb">#3 · Pairing code — manual fallback</span>
   <div class="tools">
     <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
     <button class="tool" data-device-toggle="mobile">Mobile</button>
@@ -21,25 +21,91 @@
   <div class="device">
     <div class="screen">
 
-<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Pair with a code</h1><div class="row"></div></header>
-<div class="content stack center">
-  <p class="small muted">Type this code in pi-ui on the other device.</p>
-  <div class="token-code"><span>4</span><span>K</span><span>9</span><span>M</span><span>2</span><span>7</span></div>
-  <div class="chip">expires in 4:12</div>
-  <div class="card small muted">The code is bound to this server and this pairing only. Retry generates a new one.</div>
-  <button class="btn">Generate a new code</button>
-  <button class="btn primary">Done</button>
-  <p class="tiny dim">Pairing grants the <span class="mono">operator</span> scope by default; <span class="mono">admin</span> is a separate approval.</p>
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Pair this device</h1><span class="sub">no camera</span><div class="row"></div></header>
+<div class="content stack">
+  <p class="small muted" style="margin: 0">The same pairing screen without a scanner: type the 6 characters from the server's card, or paste its link. Tapping Pair is what exchanges the code.</p>
+  <div class="tabs" style="padding: 0; background: transparent">
+    <button class="tab active" data-tab="wrong" data-group="fallback">wrong code</button>
+    <button class="tab" data-tab="expired" data-group="fallback">expired code</button>
+    <button class="tab" data-tab="limited" data-group="fallback">rate limited</button>
+  </div>
+
+  <div data-panel="wrong" data-group="fallback" class="stack">
+    <div>
+      <label class="field-label">Server address or pairing link</label>
+      <input class="input" value="http://192.168.1.20:8787" spellcheck="false">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip accent">✓ reachable · pi 0.87.1</span></div>
+    </div>
+    <div>
+      <label class="field-label">Pairing code</label>
+      <input class="input mono" value="7K4M2Q" spellcheck="false" autocomplete="off">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip warn">✕ wrong code</span><span class="chip">4 of 5 attempts this minute</span></div>
+    </div>
+    <div class="error-card">
+      <div class="row between"><h3>⚠ That code is not this server's</h3><span class="chip">unauthorized</span></div>
+      <p class="small" style="margin: var(--sp-2) 0 0">Read the card again: 6 characters from <span class="mono">0123456789ABCDEFGHJKMNPQRSTVWXYZ</span> — there is no I, L, O or U, an O you type is read as 0 and an I or L as 1. A wrong attempt never consumes the invitation, so the code on the card still works.</p>
+    </div>
+    <div>
+      <label class="field-label">Device name</label>
+      <input class="input" value="pi-ui linux">
+    </div>
+    <button class="btn primary">Pair</button>
+  </div>
+
+  <div data-panel="expired" data-group="fallback" class="stack" hidden>
+    <div>
+      <label class="field-label">Server address or pairing link</label>
+      <input class="input" value="http://192.168.1.20:8787" spellcheck="false">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip accent">✓ reachable · pi 0.87.1</span></div>
+    </div>
+    <div>
+      <label class="field-label">Pairing code</label>
+      <input class="input mono" value="4K9M27" spellcheck="false" autocomplete="off">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip warn">✕ expired</span><span class="chip">minted 10:12 ago</span></div>
+    </div>
+    <div class="error-card">
+      <div class="row between"><h3>⚠ This code expired</h3><span class="chip">unauthorized</span></div>
+      <p class="small" style="margin: var(--sp-2) 0 0">A code is valid for 10 minutes from the moment the server prints the card, and single use. Print a fresh card on the server with <span class="mono">pi-ui pair</span> — the old code and its link can never pair again.</p>
+    </div>
+    <div>
+      <label class="field-label">Device name</label>
+      <input class="input" value="pi-ui linux">
+    </div>
+    <button class="btn primary">Pair</button>
+  </div>
+
+  <div data-panel="limited" data-group="fallback" class="stack" hidden>
+    <div>
+      <label class="field-label">Server address or pairing link</label>
+      <input class="input" value="http://192.168.1.20:8787" spellcheck="false">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip accent">✓ reachable · pi 0.87.1</span></div>
+    </div>
+    <div>
+      <label class="field-label">Pairing code</label>
+      <input class="input mono" placeholder="4K9M27" spellcheck="false" autocomplete="off">
+      <div class="wrap" style="margin-top: var(--sp-2)"><span class="chip warn">✕ rate limited</span><span class="chip">try again in 0:42</span></div>
+    </div>
+    <div class="error-card">
+      <div class="row between"><h3>⚠ Too many attempts</h3><span class="chip">429 · rate_limited</span></div>
+      <p class="small" style="margin: var(--sp-2) 0 0">5 attempts a minute per IP address, with <span class="mono">Retry-After</span>. Waiting is enough: the invitation was not consumed, and every refused attempt is in the audit trail as <span class="mono">auth.denied</span>.</p>
+    </div>
+    <div>
+      <label class="field-label">Device name</label>
+      <input class="input" value="pi-ui linux">
+    </div>
+    <button class="btn primary">Pair</button>
+  </div>
 </div>
 
     </div>
   </div>
   <aside class="notes">
-    <h2>3 — Pairing — code</h2>
+    <h2>3 — Pairing code — manual fallback</h2>
     <dl>
       <dt>Area</dt><dd>Onboarding</dd>
-      <dt>Behaviour</dt><dd>The fallback for a device without a camera. Same one-time secret as the QR, just typed. The server rate-limits attempts and burns the code on first use.</dd>
-      <dt>States to check</dt><dd>wrong code, expired code, too many attempts (rate limited)</dd>
+      <dt>Behaviour</dt><dd>The pairing screen of #1 for a device without a camera (Linux, Windows, or Android with scanning refused): the code is typed or the link is pasted, and Pair sends it. The code <em>is</em> the credential — the QR carries the same one — so it is single use, expires after 10 minutes and is compared in constant time after normalization.</dd>
+      <dt>States to check</dt><dd>wrong code (attempts left, invite not consumed), expired code (10-minute TTL), rate limited (5 attempts/min/IP with <span class="mono">Retry-After</span>)</dd>
+      <dt>Also see</dt><dd>#1 Pair this device, #2 Scan the QR.</dd>
     </dl>
   </aside>
 </main>

@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pi-ui mockup · 2 — Pairing — QR</title>
+<title>pi-ui mockup · 2 — Scan the QR</title>
 <link rel="stylesheet" href="../assets/styles.css">
 </head>
 <body>
 <header class="toolbar">
   <a class="brand" href="../index.html">pi-ui mockup</a>
-  <span class="crumb">#2 · Pairing — QR</span>
+  <span class="crumb">#2 · Scan the QR</span>
   <div class="tools">
     <button class="tool" data-theme-toggle aria-pressed="false">Light</button>
     <button class="tool" data-device-toggle="mobile">Mobile</button>
@@ -21,28 +21,51 @@
   <div class="device">
     <div class="screen">
 
-<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Pair a device</h1><div class="row"></div></header>
+<header class="appbar"><button class="iconbtn" title="Back">←</button><h1>Scan the QR</h1><span class="sub">Android only</span><div class="row"></div></header>
 <div class="content stack center">
-  <p class="small muted">Scan this from the other device, or show the code on the next screen instead.</p>
-  <div class="qr"></div>
-  <div class="chip accent">expires in 4:38</div>
-  <div class="card">
-    <div class="row"><strong class="small">1.</strong><span class="small">Open pi-ui on the phone.</span></div>
-    <div class="row" style="margin-top: var(--sp-2)"><strong class="small">2.</strong><span class="small">Pair a device → Scan QR.</span></div>
-    <div class="row" style="margin-top: var(--sp-2)"><strong class="small">3.</strong><span class="small">Approve this device on the server.</span></div>
+  <p class="small muted" style="margin: 0">Point the camera at the pairing card on the server's terminal. The QR carries the same link as the printed line.</p>
+  <div class="tabs" style="padding: 0; background: transparent">
+    <button class="tab active" data-tab="scanning" data-group="scan">scanning</button>
+    <button class="tab" data-tab="denied" data-group="scan">camera denied</button>
+    <button class="tab" data-tab="expired" data-group="scan">expired</button>
   </div>
-  <button class="btn">Show a code instead</button>
-  <p class="tiny dim">A pairing code is single-use and expires after five minutes. Admin operations need the admin password, not just the token.</p>
+
+  <div data-panel="scanning" data-group="scan" class="stack">
+    <div style="width: 232px; height: 232px; margin: 0 auto; display: grid; place-items: center; border-radius: var(--r-md); border: 1px solid var(--code-border); background: var(--code-bg)">
+      <div class="qr" style="width: 164px; height: 164px; margin: 0"></div>
+    </div>
+    <div class="wrap" style="justify-content: center"><span class="chip accent">code 4K9M27</span><span class="chip">expires in 9:41</span></div>
+    <div class="card small muted">One camera frame, one <span class="mono">piui://pair?v=1&amp;url=…&amp;code=…</span> payload: the origin, the 6-character code and — over TLS — the fingerprint to pin. The scanner hands it back to the pairing screen and pairing continues there.</div>
+    <button class="btn">⌨ Type the code instead</button>
+  </div>
+
+  <div data-panel="denied" data-group="scan" class="stack" hidden>
+    <div class="error-card">
+      <div class="row between"><h3>⚠ Camera permission denied</h3><span class="chip">android.permission.CAMERA</span></div>
+      <p class="small" style="margin: var(--sp-2) 0 0">pi-ui only scans with a camera you granted it. Nothing is lost: type the 6 characters from the card on the pairing screen — the same code pairs the same device.</p>
+    </div>
+    <button class="btn primary">Open system settings</button>
+    <button class="btn">⌨ Type the code instead</button>
+  </div>
+
+  <div data-panel="expired" data-group="scan" class="stack" hidden>
+    <div class="wrap" style="justify-content: center"><span class="chip warn">this link expired</span></div>
+    <div class="card small muted">A pairing link lives 10 minutes and is single use, so a QR kept on screen or in a photo stops working. Print a fresh card on the server with <span class="mono">pi-ui pair</span> and scan it.</div>
+    <button class="btn primary">Scan again</button>
+    <button class="btn">⌨ Type the code instead</button>
+  </div>
+
+  <p class="tiny dim" style="margin: 0">Scanning is Android-only (CameraX/ML Kit); on Linux and Windows the pairing screen takes the typed code or the pasted link instead.</p>
 </div>
 
     </div>
   </div>
   <aside class="notes">
-    <h2>2 — Pairing — QR</h2>
+    <h2>2 — Scan the QR</h2>
     <dl>
       <dt>Area</dt><dd>Onboarding</dd>
-      <dt>Behaviour</dt><dd>QR pairing is the fast path: the QR carries the server origin plus a one-time code, and the app exchanges it for a device token stored in the OS keystore. The screen is reachable again from Settings → Devices.</dd>
-      <dt>States to check</dt><dd>expired QR (countdown), camera permission denied (manual code fallback)</dd>
+      <dt>Behaviour</dt><dd>A real screen again: the Android camera reads the <span class="mono">piui://pair</span> payload of the card and pops the origin, the 6-character code and the optional <span class="mono">fp</span> back to the pairing screen, which pairs. Desktop clients have no scanner and never see this screen.</dd>
+      <dt>States to check</dt><dd>camera permission denied (degrades to typing the code), expired link/QR (10-minute TTL, single use), a QR that is not a pi-ui pairing link, an unknown <span class="mono">v</span> ("update the app")</dd>
     </dl>
   </aside>
 </main>
