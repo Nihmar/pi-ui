@@ -107,10 +107,18 @@ POSIX calls on a platform that has none. The fix landed on main rather than on a
 so the first published release is `v0.1.1`, and the portability that came out of it (build
 tags per platform, PTYs `unsupported` on Windows with a clear message) is part of it.
 
-`v0.2.0` (2026-09-29) is the current release: it adds the AppImage beside the Linux
-tarball, the terminal emulator the client paints a PTY with, the MCP client's Streamable
-HTTP transport and the landing page in `site/`. The version pins the workflow does not
-stamp — `app/pubspec.yaml`, `packaging/PKGBUILD` — move with the tag.
+`v0.2.0` (2026-09-29) added the AppImage beside the Linux tarball, the terminal emulator
+the client paints a PTY with, the MCP client's Streamable HTTP transport and the landing
+page in `site/`.
+
+`v0.3.0` (2026-09-29) is the current release: pairing is one printed card now — the
+served origin, a six-character Crockford base32 code, a `piui://pair` link and a QR — and
+the card is what `serve` prints on its first start, so the first device needs no second
+command. The `qr`/`typed` split, the QR secret and `--kind` are gone, the client pairs
+from a single screen with a pasted link or its Android QR scanner, and a link carries the
+certificate fingerprint so a pinned TLS server needs no extra dialog. The version pins
+the workflow does not stamp — `app/pubspec.yaml`, `packaging/PKGBUILD` — move with the
+tag.
 
 **Missing:** proper code signing (the APK carries the template's debug signature and the
 Windows installer is unsigned; both say so in their names).

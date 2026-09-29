@@ -3,7 +3,7 @@
 # The server is a static Go binary; `pi` itself is an npm package and belongs to the user
 # who runs the sessions, so it is a runtime dependency of the *host*, not of this package.
 pkgname=pi-ui
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="Server companion for the pi coding agent: sessions, files, git, terminals"
 arch=('x86_64' 'aarch64')
